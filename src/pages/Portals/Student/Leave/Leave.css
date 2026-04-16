@@ -1,0 +1,11 @@
+/* Leave.css */
+@import '../theme.css';
+
+.leave-form-card {
+  background: var(--sp-surface-2);
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.leave-form-card.collapsed { display: none; }

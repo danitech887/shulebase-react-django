@@ -1,0 +1,479 @@
+/* ═══════════════════════════════════════════
+   TEACHER PERSONAL DETAILS — Dark Refined Theme
+   Font: DM Sans + DM Mono (Google Fonts)
+═══════════════════════════════════════════ */
+
+:root {
+  --pd-bg:          #0d0f14;
+  --pd-surface:     #131720;
+  --pd-surface-2:   #1a1f2e;
+  --pd-surface-3:   #1f2535;
+  --pd-border:      rgba(255,255,255,0.07);
+  --pd-border-bright: rgba(255,255,255,0.13);
+  --pd-text:        #e8eaf0;
+  --pd-text-muted:  #6b7280;
+  --pd-text-dim:    #374151;
+  --pd-accent:      #6366f1;
+  --pd-accent-soft: rgba(99,102,241,0.15);
+  --pd-red:         #ef4444;
+  --pd-red-soft:    rgba(239,68,68,0.15);
+  --pd-green:       #22c55e;
+  --pd-green-soft:  rgba(34,197,94,0.15);
+  --pd-yellow:      #f59e0b;
+  --pd-yellow-soft: rgba(245,158,11,0.15);
+  --pd-blue:        #3b82f6;
+  --pd-blue-soft:   rgba(59,130,246,0.15);
+  --pd-radius:      12px;
+  --pd-radius-sm:   8px;
+  --pd-radius-xs:   6px;
+}
+
+/* ── Page wrapper ─────────────────────────────────────────────────────────── */
+.pd-page {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--pd-bg);
+  min-height: 100vh;
+  padding: 1.75rem;
+  color: var(--pd-text);
+  animation: pdFadeIn 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+@keyframes pdFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ════════════════════════════════
+   HEADER CARD
+════════════════════════════════ */
+.pd-header-card.card {
+  background: var(--pd-surface) !important;
+  border: 1px solid var(--pd-border) !important;
+  border-radius: var(--pd-radius) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+  margin-bottom: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+.pd-header-card.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--pd-accent), #818cf8, transparent);
+  pointer-events: none;
+}
+.pd-header-card .card-body {
+  padding: 1.25rem 1.5rem !important;
+  background: transparent !important;
+}
+
+.pd-header-icon {
+  font-size: 1.5rem;
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: var(--pd-accent-soft);
+  border: 1px solid rgba(99,102,241,0.25);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.pd-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0 0 0.15rem;
+  color: var(--pd-text);
+}
+.pd-subtitle {
+  font-size: 0.8rem;
+  color: var(--pd-text-muted);
+  margin: 0;
+}
+
+.pd-btn-config {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.48rem 1rem;
+  background: var(--pd-surface-2);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-sm);
+  color: var(--pd-text-muted);
+  font-family: inherit; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.15s;
+}
+.pd-btn-config:hover {
+  background: var(--pd-surface-3);
+  border-color: var(--pd-border-bright);
+  color: var(--pd-text);
+  transform: translateY(-1px);
+}
+
+.pd-btn-add {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.48rem 1.1rem;
+  background: var(--pd-accent);
+  border: none;
+  border-radius: var(--pd-radius-sm);
+  color: #fff;
+  font-family: inherit; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.18s, transform 0.15s;
+}
+.pd-btn-add:hover { opacity: 0.87; transform: translateY(-1px); }
+
+/* ════════════════════════════════
+   TABLE CARD
+════════════════════════════════ */
+.pd-table-card.card {
+  background: var(--pd-surface) !important;
+  border: 1px solid var(--pd-border) !important;
+  border-radius: var(--pd-radius) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+  overflow: hidden;
+}
+.pd-table-card .card-header {
+  background: rgba(255,255,255,0.02) !important;
+  border-bottom: 1px solid var(--pd-border) !important;
+  padding: 0.85rem 1.25rem !important;
+}
+.pd-table-card .card-body { background: transparent !important; }
+
+.pd-search-wrap {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: var(--pd-surface-2);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-xs);
+  padding: 0.38rem 0.75rem;
+  width: 280px;
+  transition: border-color 0.2s;
+}
+.pd-search-wrap:focus-within { border-color: rgba(99,102,241,0.45); }
+.pd-search-wrap span { color: var(--pd-text-muted); font-size: 0.85rem; }
+.pd-search-wrap .form-control {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--pd-text) !important;
+  font-family: inherit; font-size: 0.83rem;
+  padding: 0 !important;
+}
+.pd-search-wrap .form-control::placeholder { color: var(--pd-text-muted); }
+
+.pd-count-label {
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--pd-text-muted);
+}
+
+.pd-loading {
+  padding: 3.5rem; text-align: center;
+  color: var(--pd-text-muted); font-size: 0.85rem;
+}
+.pd-loading .spinner-border { color: var(--pd-accent) !important; width: 1.1rem; height: 1.1rem; }
+
+/* ── Table ── */
+.pd-table-card .table {
+  color: var(--pd-text) !important;
+  margin: 0 !important;
+  font-size: 0.85rem;
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: rgba(255,255,255,0.025);
+  --bs-table-border-color: var(--pd-border);
+}
+.pd-table-card .table thead th {
+  background: var(--pd-surface-2) !important;
+  color: var(--pd-text-muted) !important;
+  font-size: 0.68rem !important; font-weight: 700 !important;
+  text-transform: uppercase !important; letter-spacing: 0.09em !important;
+  border-color: var(--pd-border) !important;
+  padding: 0.85rem 1.25rem !important;
+  white-space: nowrap;
+}
+.pd-table-card .table tbody tr { border-color: var(--pd-border) !important; }
+.pd-table-card .table tbody tr:hover { background: rgba(255,255,255,0.025) !important; }
+.pd-table-card .table td {
+  border-color: var(--pd-border) !important;
+  padding: 0.8rem 1.25rem !important;
+  vertical-align: middle !important;
+  color: var(--pd-text) !important;
+  background: transparent !important;
+}
+.pd-empty-row td {
+  color: var(--pd-text-muted) !important;
+  font-size: 0.83rem !important;
+  padding: 3rem 1.25rem !important;
+}
+
+.pd-badge-reg {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem !important; font-weight: 600 !important;
+  background: var(--pd-accent-soft) !important;
+  color: #a5b4fc !important;
+  border: 1px solid rgba(99,102,241,0.25) !important;
+  border-radius: var(--pd-radius-xs) !important;
+  padding: 0.25rem 0.55rem !important;
+}
+
+.pd-cell-mono  { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--pd-text-muted) !important; }
+.pd-cell-muted { color: var(--pd-text-muted) !important; }
+.pd-cell-name  { font-weight: 600; color: var(--pd-text) !important; }
+
+.pd-actions { display: flex; gap: 0.35rem; justify-content: flex-end; }
+
+.pd-btn-view, .pd-btn-edit, .pd-btn-delete {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: var(--pd-radius-xs);
+  font-family: inherit; font-size: 0.73rem; font-weight: 600;
+  cursor: pointer; border: 1px solid;
+  transition: background 0.15s, transform 0.13s;
+  background: none; white-space: nowrap;
+}
+.pd-btn-view   { color: #60a5fa; border-color: rgba(59,130,246,0.3); }
+.pd-btn-edit   { color: #fbbf24; border-color: rgba(251,191,36,0.3); }
+.pd-btn-delete { color: #f87171; border-color: rgba(239,68,68,0.3); }
+.pd-btn-view:hover   { background: var(--pd-blue-soft);   transform: translateY(-1px); }
+.pd-btn-edit:hover   { background: var(--pd-yellow-soft); transform: translateY(-1px); }
+.pd-btn-delete:hover { background: var(--pd-red-soft);    transform: translateY(-1px); }
+
+/* ══════════════════════════════════════════════════════
+   MODALS — HIGH-SPECIFICITY DARK OVERRIDES
+   Bootstrap appends modals to <body>, outside .pd-page.
+   We need to win the specificity war without !important
+   on every rule, so we use .teacher-modal on the Modal
+   and chain it with Bootstrap's own classes.
+══════════════════════════════════════════════════════ */
+
+/* Backdrop */
+.modal-backdrop { background-color: #000 !important; }
+.modal-backdrop.show { opacity: 0.72 !important; }
+
+/* Modal dialog positioning fix — prevents white flash */
+.teacher-modal .modal-dialog { margin-top: 3.5rem; }
+
+/* ── Modal shell ── */
+.teacher-modal .modal-content {
+  background-color: var(--pd-surface) !important;
+  border: 1px solid var(--pd-border-bright) !important;
+  border-radius: var(--pd-radius) !important;
+  box-shadow: 0 28px 72px rgba(0,0,0,0.7) !important;
+  color: var(--pd-text) !important;
+  font-family: 'DM Sans', -apple-system, sans-serif !important;
+  /* Clip children so no white bleeds through rounded corners */
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.teacher-modal .modal-header {
+  background-color: rgba(255,255,255,0.03) !important;
+  border-bottom: 1px solid var(--pd-border) !important;
+  padding: 1rem 1.25rem !important;
+  align-items: center;
+}
+.teacher-modal .modal-title {
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  color: var(--pd-text) !important;
+  font-family: inherit !important;
+}
+/* Close (×) button — Bootstrap 5 renders as .btn-close */
+.teacher-modal .btn-close {
+  filter: invert(1) brightness(0.5) !important;
+  opacity: 1 !important;
+  transition: filter 0.18s, opacity 0.18s !important;
+}
+.teacher-modal .btn-close:hover {
+  filter: invert(1) brightness(0.9) !important;
+  opacity: 1 !important;
+}
+
+/* ── Body ── */
+.teacher-modal .modal-body {
+  background-color: transparent !important;
+  padding: 1.4rem 1.25rem !important;
+  color: var(--pd-text) !important;
+}
+
+/* ── Footer ── */
+.teacher-modal .modal-footer {
+  background-color: rgba(255,255,255,0.02) !important;
+  border-top: 1px solid var(--pd-border) !important;
+  padding: 0.85rem 1.25rem !important;
+  gap: 0.5rem;
+}
+
+/* ── Form labels ── */
+.teacher-modal .form-label {
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.07em !important;
+  color: var(--pd-text-muted) !important;
+  margin-bottom: 0.35rem !important;
+  font-family: inherit !important;
+}
+
+/* ── Inputs, selects, textareas ── */
+.teacher-modal .form-control,
+.teacher-modal .form-select {
+  background-color: var(--pd-surface-2) !important;
+  border: 1px solid var(--pd-border-bright) !important;
+  border-radius: var(--pd-radius-xs) !important;
+  color: var(--pd-text) !important;
+  font-family: inherit !important;
+  font-size: 0.85rem !important;
+  padding: 0.52rem 0.85rem !important;
+  transition: border-color 0.18s, box-shadow 0.18s !important;
+  /* Remove Bootstrap's default white bg on autofill */
+  -webkit-text-fill-color: var(--pd-text) !important;
+}
+.teacher-modal .form-control:focus,
+.teacher-modal .form-select:focus {
+  background-color: var(--pd-surface-2) !important;
+  border-color: rgba(99,102,241,0.6) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+  color: var(--pd-text) !important;
+  outline: none !important;
+}
+.teacher-modal .form-control::placeholder { color: var(--pd-text-dim) !important; opacity: 1 !important; }
+
+/* Disabled / readonly */
+.teacher-modal .form-control:disabled,
+.teacher-modal .form-control[readonly] {
+  background-color: var(--pd-surface-3) !important;
+  color: var(--pd-text-muted) !important;
+  -webkit-text-fill-color: var(--pd-text-muted) !important;
+  opacity: 1 !important;
+  cursor: not-allowed;
+}
+
+/* Select option dropdown */
+.teacher-modal .form-select option {
+  background-color: var(--pd-surface-2) !important;
+  color: var(--pd-text) !important;
+}
+
+/* Form helper text */
+.teacher-modal .form-text {
+  font-size: 0.72rem !important;
+  color: var(--pd-text-dim) !important;
+  margin-top: 0.3rem !important;
+}
+
+/* Row spacing inside modal body */
+.teacher-modal .modal-body .row { margin-bottom: 0.85rem; }
+.teacher-modal .modal-body .row:last-child { margin-bottom: 0; }
+
+/* ── Footer buttons ── */
+.teacher-modal .modal-footer .btn-secondary {
+  background-color: var(--pd-surface-2) !important;
+  border: 1px solid var(--pd-border-bright) !important;
+  color: var(--pd-text-muted) !important;
+  font-family: inherit !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  border-radius: var(--pd-radius-sm) !important;
+  padding: 0.45rem 1.1rem !important;
+  transition: background-color 0.18s, color 0.18s, border-color 0.18s !important;
+}
+.teacher-modal .modal-footer .btn-secondary:hover {
+  background-color: var(--pd-surface-3) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+  color: var(--pd-text) !important;
+}
+.teacher-modal .modal-footer .btn-primary {
+  background-color: var(--pd-accent) !important;
+  border: none !important;
+  color: #fff !important;
+  font-family: inherit !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  border-radius: var(--pd-radius-sm) !important;
+  padding: 0.45rem 1.25rem !important;
+  transition: opacity 0.18s !important;
+}
+.teacher-modal .modal-footer .btn-primary:hover { opacity: 0.86 !important; }
+
+/* ════════════════════════════════
+   PROFILE MODAL INTERNALS
+════════════════════════════════ */
+.pd-profile-name {
+  font-size: 1.15rem; font-weight: 800;
+  color: var(--pd-text); margin: 0 0 0.2rem;
+}
+.pd-profile-reg {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem; color: var(--pd-text-muted);
+  margin: 0 0 1.25rem;
+}
+.pd-profile-field strong {
+  font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--pd-text-muted);
+  display: block; margin-bottom: 0.15rem;
+}
+.pd-profile-field span {
+  font-size: 0.85rem; color: var(--pd-text);
+}
+
+.pd-section-title {
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--pd-text-muted);
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--pd-border);
+  margin: 1.2rem 0 0.8rem;
+}
+.pd-no-data { font-size: 0.82rem; color: var(--pd-text-dim); font-style: italic; }
+
+.pd-role-badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.26rem 0.65rem;
+  background: var(--pd-blue-soft);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: var(--pd-radius-xs);
+  font-size: 0.72rem; font-weight: 600; color: #93c5fd;
+}
+
+/* ── Attendance mini table ── */
+.pd-att-table {
+  width: 100%; border-collapse: collapse; font-size: 0.82rem;
+}
+.pd-att-table thead th {
+  background: var(--pd-surface-2);
+  color: var(--pd-text-muted);
+  font-size: 0.67rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--pd-border);
+}
+.pd-att-table tbody td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--pd-border);
+  color: var(--pd-text); vertical-align: middle;
+}
+.pd-att-table tbody tr:last-child td { border-bottom: none; }
+.pd-att-table .font-monospace {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.77rem; color: var(--pd-text-muted);
+}
+
+.pd-status-present,
+.pd-status-absent,
+.pd-status-late {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.67rem; font-weight: 700; letter-spacing: 0.04em;
+}
+.pd-status-present { background: var(--pd-green-soft);  color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
+.pd-status-absent  { background: var(--pd-red-soft);    color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+.pd-status-late    { background: var(--pd-yellow-soft); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .pd-page { padding: 1rem; }
+  .pd-search-wrap { width: 100%; }
+  .pd-actions { flex-wrap: wrap; }
+  .teacher-modal .modal-dialog { margin: 1rem; }
+}

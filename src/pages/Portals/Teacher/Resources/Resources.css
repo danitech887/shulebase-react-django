@@ -1,0 +1,24 @@
+/* Resources.css */
+@import '../theme.css';
+
+.res-card {
+  background: var(--t-surface) !important;
+  border: 1px solid var(--t-border) !important;
+  border-radius: var(--t-radius) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25) !important;
+  height: 100%;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.res-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,0.4) !important; }
+.res-card .card-body { background: transparent !important; color: var(--t-text) !important; }
+
+.res-type-badge {
+  display: inline-block; padding: 0.2rem 0.55rem;
+  border-radius: var(--t-radius-xs); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+}
+.res-type-video { background: var(--t-red-soft);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+.res-type-book  { background: var(--t-blue-soft); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25); }
+
+.res-progress-bar .progress-bar { background: var(--t-accent) !important; }
+.res-progress-bar .progress-bar.bg-success { background: var(--t-green) !important; }
+.res-progress-bar { background: var(--t-surface-2) !important; height: 20px !important; }

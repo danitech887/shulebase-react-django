@@ -1,0 +1,379 @@
+/* ═══════════════════════════════════════════
+   SIDEBAR — Dark Refined Theme  (Fixed / Overlay)
+   Font: DM Sans + DM Mono (Google Fonts)
+═══════════════════════════════════════════ */
+
+:root {
+  --sb-bg:              #0d0f14;
+  --sb-surface:         #131720;
+  --sb-surface-2:       #1a1f2e;
+  --sb-surface-3:       #1f2535;
+  --sb-border:          rgba(255,255,255,0.07);
+  --sb-border-bright:   rgba(255,255,255,0.13);
+  --sb-text:            #e8eaf0;
+  --sb-text-muted:      #6b7280;
+  --sb-text-dim:        #374151;
+  --sb-accent:          #6366f1;
+  --sb-accent-soft:     rgba(99,102,241,0.15);
+  --sb-width:           240px;
+  --sb-width-collapsed: 64px;
+  --sb-radius:          10px;
+  --sb-radius-sm:       8px;
+  --sb-radius-xs:       6px;
+  --sb-transition:      260ms cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ══════════════════════════════════════════
+   BACKDROP
+══════════════════════════════════════════ */
+.sb-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(3px);
+  z-index: 99998;
+  animation: sbFadeIn 0.25s ease both;
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR SHELL
+══════════════════════════════════════════ */
+.sb-aside {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  position: fixed;
+  top: 0; left: 0;
+  height: 100vh;
+  z-index: 99999;
+
+  width: var(--sb-width);
+  background: var(--sb-surface);
+  border-right: 1px solid var(--sb-border);
+  box-shadow: 4px 0 32px rgba(0,0,0,0.45);
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  transition: width var(--sb-transition), transform var(--sb-transition);
+  animation: sbSlideIn 0.38s cubic-bezier(0.16,1,0.3,1) both;
+  will-change: width, transform;
+}
+
+.sb-aside.collapsed {
+  width: var(--sb-width-collapsed);
+}
+
+.sb-aside::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    var(--sb-accent) 0%,
+    rgba(129,140,248,0.35) 40%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════
+   MOBILE OVERRIDES
+══════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .sb-aside {
+    transform: translateX(-100%);
+    width: var(--sb-width);
+    box-shadow: none;
+    transition: transform var(--sb-transition);
+  }
+
+  .sb-aside.mobile-open {
+    transform: translateX(0);
+    box-shadow: 8px 0 40px rgba(0,0,0,0.55);
+  }
+
+  .sb-aside.collapsed {
+    width: var(--sb-width);
+    transform: translateX(-100%);
+  }
+  .sb-aside.collapsed.mobile-open {
+    transform: translateX(0);
+  }
+}
+
+/* ══════════════════════════════════════════
+   LOGO AREA
+══════════════════════════════════════════ */
+.sb-logo-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 0.85rem 0.75rem;
+  border-bottom: 1px solid var(--sb-border);
+  flex-shrink: 0;
+  min-height: 62px;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, rgba(99,102,241,0.06), transparent);
+}
+
+.sb-logo-wrap {
+  display: flex; align-items: center; justify-content: center;
+  flex: 1; overflow: hidden;
+  animation: sbSlideRight 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+.sb-logo-wrap img {
+  display: block;
+  border-radius: var(--sb-radius-xs);
+  opacity: 0.92;
+  transition: opacity 0.2s;
+}
+.sb-logo-wrap img:hover { opacity: 1; }
+
+/* ══════════════════════════════════════════
+   TOGGLE / CLOSE BUTTONS
+══════════════════════════════════════════ */
+.sb-toggle-btn {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;        /* larger tap target */
+  border-radius: var(--sb-radius-xs);
+  background: var(--sb-surface-2);
+  border: 1px solid var(--sb-border);
+  color: var(--sb-text-muted);
+  font-size: 0.8rem; font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  font-family: 'DM Mono', monospace;
+  line-height: 1;
+  /* Ensure pointer events always fire */
+  pointer-events: all;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;       /* prevents 300ms delay on mobile */
+}
+.sb-toggle-btn:hover {
+  background: var(--sb-surface-3);
+  border-color: var(--sb-border-bright);
+  color: var(--sb-text);
+  transform: scale(1.08);
+}
+.sb-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* Desktop-only collapse toggle */
+.sb-toggle-desktop {
+  display: flex;
+}
+@media (max-width: 768px) {
+  .sb-toggle-desktop {
+    display: none;
+  }
+}
+
+/* Mobile-only close button */
+.sb-close-mobile {
+  /* Hidden on desktop */
+  display: none;
+  font-size: 1rem;
+  font-weight: 700;
+
+  /* Must sit above sidebar z-index so it's always clickable */
+  position: relative;
+  z-index: 100001;
+
+  /* Generous tap target */
+  min-width: 44px;
+  min-height: 44px;
+}
+.sb-close-mobile:hover {
+  background: rgba(239,68,68,0.15);
+  border-color: rgba(239,68,68,0.3);
+  color: #fca5a5;
+}
+.sb-close-mobile:active {
+  background: rgba(239,68,68,0.25);
+}
+
+@media (max-width: 768px) {
+  .sb-close-mobile {
+    display: flex;   /* show on mobile */
+  }
+}
+
+/* ══════════════════════════════════════════
+   NAV SCROLL AREA
+══════════════════════════════════════════ */
+.sb-nav {
+  flex: 1;
+  overflow-y: auto; overflow-x: hidden;
+  padding: 0.6rem 0.6rem 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-surface-3) transparent;
+}
+.sb-nav::-webkit-scrollbar { width: 4px; }
+.sb-nav::-webkit-scrollbar-thumb { background: var(--sb-surface-3); border-radius: 2px; }
+
+/* ══════════════════════════════════════════
+   GROUP
+══════════════════════════════════════════ */
+.sb-group { margin-bottom: 0.25rem; }
+
+.sb-group-btn {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 0.45rem 0.6rem;
+  border-radius: var(--sb-radius-xs);
+  background: none; border: none; cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s; gap: 0.5rem; margin-bottom: 0.15rem;
+  touch-action: manipulation;
+}
+.sb-group-btn:hover { background: rgba(255,255,255,0.03); }
+
+.sb-group-left { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+.sb-group-icon {
+  font-size: 0.95rem; color: var(--sb-text-muted); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; transition: color 0.2s;
+}
+.sb-group-btn:hover .sb-group-icon { color: var(--sb-text); }
+.sb-group-label {
+  font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--sb-text-muted); white-space: nowrap; transition: color 0.2s;
+}
+.sb-group-btn:hover .sb-group-label { color: var(--sb-text-dim); }
+
+.sb-group-chevron {
+  font-size: 0.5rem; color: var(--sb-text-dim); flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), color 0.2s;
+}
+.sb-group-chevron.open { transform: rotate(180deg); color: var(--sb-text-muted); }
+
+/* ══════════════════════════════════════════
+   NAV ITEMS
+══════════════════════════════════════════ */
+.sb-items {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 0 0 0.25rem 0;
+  animation: sbItemsIn 0.25s ease both;
+}
+
+.sb-nav-item {
+  display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.52rem 0.65rem;
+  border-radius: var(--sb-radius-xs);
+  color: var(--sb-text-muted);
+  text-decoration: none;
+  font-size: 0.84rem; font-weight: 500;
+  transition: background 0.15s, color 0.15s, padding-left 0.15s, border-color 0.15s;
+  white-space: nowrap; cursor: pointer;
+  border: 1px solid transparent;
+  touch-action: manipulation;
+}
+.sb-nav-item:hover {
+  background: rgba(255,255,255,0.035);
+  color: var(--sb-text);
+  border-color: var(--sb-border);
+  padding-left: 0.9rem;
+}
+.sb-nav-item.active {
+  background: var(--sb-accent-soft);
+  color: #a5b4fc;
+  border-color: rgba(99,102,241,0.22);
+  font-weight: 600;
+}
+.sb-nav-item.active .sb-item-icon { color: #a5b4fc; }
+
+.sb-item-icon {
+  font-size: 0.95rem; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 20px; transition: color 0.15s;
+}
+.sb-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.sb-root-items {
+  margin-bottom: 0.5rem; padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--sb-border);
+}
+
+/* ══════════════════════════════════════════
+   COLLAPSED (desktop icon-only rail)
+══════════════════════════════════════════ */
+.sb-aside.collapsed .sb-nav-item {
+  justify-content: center; padding: 0.52rem; gap: 0;
+}
+.sb-aside.collapsed .sb-nav-item:hover { padding-left: 0.52rem; }
+.sb-aside.collapsed .sb-group-btn { justify-content: center; padding: 0.45rem; }
+
+.sb-aside.collapsed .sb-nav-item {
+  position: relative;
+}
+.sb-aside.collapsed .sb-nav-item::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  background: var(--sb-surface-2);
+  border: 1px solid var(--sb-border-bright);
+  color: var(--sb-text);
+  font-size: 0.78rem; font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--sb-radius-xs);
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  z-index: 1000;
+}
+.sb-aside.collapsed .sb-nav-item:hover::after { opacity: 1; }
+
+/* ══════════════════════════════════════════
+   PAGE CONTENT OFFSET
+══════════════════════════════════════════ */
+.sb-page-content {
+  margin-left: var(--sb-width);
+  transition: margin-left var(--sb-transition);
+  min-height: 100vh;
+}
+.sb-page-content.collapsed {
+  margin-left: var(--sb-width-collapsed);
+}
+@media (max-width: 768px) {
+  .sb-page-content,
+  .sb-page-content.collapsed {
+    margin-left: 0;
+  }
+}
+
+/* ══════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════ */
+.sb-footer {
+  padding: 0.75rem 0.85rem;
+  border-top: 1px solid var(--sb-border);
+  flex-shrink: 0;
+}
+.sb-version {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem; color: var(--sb-text-dim);
+  letter-spacing: 0.05em; white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════
+   KEYFRAMES
+══════════════════════════════════════════ */
+@keyframes sbSlideIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes sbSlideRight {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes sbFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sbItemsIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

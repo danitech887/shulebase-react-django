@@ -1,0 +1,20 @@
+/* Attendance.css */
+@import '../theme.css';
+
+/* Switch override */
+.form-check-input { background-color: var(--t-surface-3) !important; border-color: var(--t-border-bright) !important; }
+.form-check-input:checked { background-color: var(--t-accent) !important; border-color: var(--t-accent) !important; }
+
+/* "Recorded Today" row dim */
+.att-recorded-row { opacity: 0.45; }
+
+/* Status text */
+.att-present { color: #4ade80; font-weight: 700; }
+.att-absent  { color: #f87171; font-weight: 700; }
+
+/* Clickable badge */
+.att-status-badge { cursor: pointer; min-width: 80px; display: inline-block; text-align: center; padding: 0.3rem 0.65rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; border: 1px solid; transition: opacity 0.2s; }
+.att-status-badge:hover { opacity: 0.8; }
+.att-badge-present { background: var(--t-green-soft); color: #4ade80; border-color: rgba(34,197,94,0.25); }
+.att-badge-absent  { background: var(--t-red-soft);   color: #f87171; border-color: rgba(239,68,68,0.25); }
+.att-badge-recorded { background: var(--t-surface-3); color: var(--t-text-muted); border-color: var(--t-border); }

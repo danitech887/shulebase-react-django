@@ -1,0 +1,27 @@
+/* Competencies.css */
+@import '../theme.css';
+
+.comp-subject-card {
+  background: var(--t-surface) !important;
+  border: 1px solid var(--t-border) !important;
+  border-top: 3px solid var(--t-accent) !important;
+  border-radius: var(--t-radius) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25) !important;
+  height: 100%;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.comp-subject-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,0.4) !important; }
+.comp-subject-card .card-body { background: transparent !important; color: var(--t-text) !important; }
+.comp-subject-name { font-size: 1rem; font-weight: 700; color: var(--t-text); margin-bottom: 0.5rem; }
+.comp-subject-desc { font-size: 0.8rem; color: var(--t-text-muted); flex: 1; }
+
+/* Modal inner filter card */
+.modal .comp-filter-card {
+  background: var(--t-surface-2) !important;
+  border: 1px solid var(--t-border) !important;
+  border-radius: var(--t-radius-sm) !important;
+}
+.modal .comp-filter-card .card-body { background: transparent !important; }
+
+/* Table inside modal */
+.modal .comp-table-wrap { background: var(--t-surface-2); border-radius: var(--t-radius-sm); overflow: hidden; }

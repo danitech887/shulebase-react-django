@@ -1,0 +1,20 @@
+.px-3 {
+    margin-bottom: '20px';
+    position: 'sticky';
+     top: 0;
+     z-index: 1000;
+    box-shadow: '0 2px 4px rgba(0,0,0,0.1)';
+     height: '60px'
+}
+
+.px-3 img {
+    height: 100px;
+    margin-right: 15px;
+}
+
+.px-3 h1 {
+    font-size: 24px;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    margin: 0;
+    font-weight: bolder;
+}

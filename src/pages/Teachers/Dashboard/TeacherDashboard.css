@@ -1,0 +1,256 @@
+/* ═══════════════════════════════════════════
+   TEACHER DASHBOARD — Dark Refined Theme
+   Consistent with Header / Sidebar
+   Font: DM Sans + DM Mono (Google Fonts)
+═══════════════════════════════════════════ */
+
+:root {
+  --td-bg: #0d0f14;
+  --td-surface: #131720;
+  --td-surface-2: #1a1f2e;
+  --td-surface-3: #1f2535;
+  --td-border: rgba(255, 255, 255, 0.07);
+  --td-border-bright: rgba(255, 255, 255, 0.13);
+  --td-text: #e8eaf0;
+  --td-text-muted: #6b7280;
+  --td-text-dim: #374151;
+  --td-accent: #6366f1;
+  --td-accent-soft: rgba(99, 102, 241, 0.15);
+  --td-green: #22c55e;
+  --td-green-soft: rgba(34, 197, 94, 0.15);
+  --td-red: #ef4444;
+  --td-red-soft: rgba(239, 68, 68, 0.15);
+  --td-blue: #3b82f6;
+  --td-blue-soft: rgba(59, 130, 246, 0.15);
+  --td-radius: 12px;
+  --td-radius-sm: 8px;
+  --td-radius-xs: 6px;
+}
+
+/* ── Page container ── */
+.teacher-dashboard-container {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 1.75rem;
+  background: var(--td-bg);
+  min-height: 100vh;
+  color: var(--td-text);
+  animation: tdFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tdFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Page header ── */
+.dashboard-header {
+  margin-bottom: 1.75rem;
+}
+
+.dashboard-header h2 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--td-text);
+  margin: 0 0 0.25rem;
+  /* same shimmer as hd-school-name */
+  background: linear-gradient(90deg, #e8eaf0 40%, #a5b4fc 60%, #e8eaf0 80%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: tdShimmer 6s linear infinite;
+}
+
+@keyframes tdShimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.dashboard-header p {
+  font-size: 0.83rem;
+  color: var(--td-text-muted);
+  margin: 0;
+}
+
+/* ── Stat cards grid ── */
+.stat-card {
+  background: var(--td-surface) !important;
+  border: 1px solid var(--td-border) !important;
+  border-radius: var(--td-radius) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.22s,
+              box-shadow 0.22s;
+  overflow: hidden;
+  position: relative;
+}
+
+/* top accent bar per card — color injected via modifier classes */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--td-accent);
+  opacity: 0.7;
+}
+.stat-card.card-primary::before  { background: linear-gradient(90deg, var(--td-accent), #818cf8); }
+.stat-card.card-success::before  { background: linear-gradient(90deg, var(--td-green), #4ade80); }
+.stat-card.card-danger::before   { background: linear-gradient(90deg, var(--td-red), #f87171); }
+.stat-card.card-info::before     { background: linear-gradient(90deg, var(--td-blue), #60a5fa); }
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--td-border-bright) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+}
+
+.stat-card .card-body {
+  padding: 1.1rem 1.25rem !important;
+  background: transparent !important;
+}
+
+.stat-card .text-muted {
+  font-size: 0.7rem !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--td-text-muted) !important;
+  margin-bottom: 0.35rem !important;
+}
+
+.stat-card .stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--td-text);
+  line-height: 1.1;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card .stat-icon {
+  font-size: 1.6rem;
+  opacity: 0.75;
+  line-height: 1;
+  /* subtle icon background bubble */
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--td-radius-sm);
+  background: var(--td-surface-2);
+  border: 1px solid var(--td-border);
+  flex-shrink: 0;
+}
+
+/* skeleton shimmer for loading state */
+.stat-card .card-body .spinner-border {
+  color: var(--td-accent) !important;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* ── Chart card ── */
+.chart-card {
+  background: var(--td-surface) !important;
+  border: 1px solid var(--td-border) !important;
+  border-radius: var(--td-radius) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+  overflow: hidden;
+}
+
+.chart-card .card-header {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-bottom: 1px solid var(--td-border) !important;
+  padding: 0.9rem 1.25rem !important;
+}
+
+.chart-card .card-title {
+  font-size: 0.82rem !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--td-text-muted) !important;
+  margin: 0 !important;
+}
+
+.chart-card .card-body {
+  padding: 1.25rem !important;
+  background: transparent !important;
+}
+
+/* ── Bar chart ── */
+.chart-placeholder {
+  height: 260px;
+  padding: 0.5rem 0 0;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 100%;
+  width: 100%;
+}
+
+.bar-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+
+.bar-container {
+  width: 100%;
+  flex: 1;
+  background: var(--td-surface-2);
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius-xs) var(--td-radius-xs) 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.bar.attendance {
+  width: 65%;
+  background: linear-gradient(to top, var(--td-accent), #818cf8);
+  border-radius: 3px 3px 0 0;
+  transition: filter 0.2s;
+  transform-origin: bottom;
+  animation: tdBarGrow 0.8s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+.bar.attendance:hover {
+  filter: brightness(1.2);
+}
+
+@keyframes tdBarGrow {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+.bar-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--td-text-muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .teacher-dashboard-container { padding: 1.25rem; }
+  .stat-card .stat-value { font-size: 1.65rem; }
+}
+
+@media (max-width: 576px) {
+  .teacher-dashboard-container { padding: 1rem; }
+  .chart-bars { gap: 6px; }
+  .bar-label { font-size: 0.58rem; }
+}

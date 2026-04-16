@@ -1,0 +1,43 @@
+/* Account.css — imports shared vars from theme.css */
+@import '../theme.css';
+
+.acct-avatar {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: var(--t-accent-soft);
+  border: 2px solid rgba(99,102,241,0.35);
+  display: flex; align-items: center; justify-content: center;
+  color: #a5b4fc;
+  font-size: 1.9rem; font-weight: 800;
+  margin: 0 auto 1rem;
+}
+
+.acct-header-band {
+  padding: 2rem 1.5rem 1.5rem;
+  background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(129,140,248,0.05));
+  border-bottom: 1px solid var(--t-border);
+  text-align: center;
+}
+.acct-header-band h3 { font-size:1.15rem; font-weight:800; color:var(--t-text); margin:0 0 0.2rem; }
+.acct-header-band p  { font-size:0.75rem; font-family:'DM Mono',monospace; color:var(--t-text-muted); margin:0; }
+
+.acct-section-title {
+  font-size:0.72rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.09em; color:var(--t-text-muted);
+  padding-bottom:0.6rem; border-bottom:1px solid var(--t-border);
+  margin:0 0 1rem;
+}
+
+.acct-info-box {
+  background: var(--t-surface-2);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius-xs);
+  padding: 0.75rem 1rem;
+}
+.acct-info-box small { font-size:0.67rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--t-text-muted); display:block; margin-bottom:0.2rem; }
+.acct-info-box span  { font-size:0.88rem; font-weight:600; color:var(--t-text); }
+
+hr.t-hr { border-color: var(--t-border); margin: 1.5rem 0; }
+
+/* plaintext field in view mode */
+.t-card .form-control-plaintext { color: var(--t-text) !important; font-weight:600; padding:0; }

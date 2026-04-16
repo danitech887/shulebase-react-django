@@ -1,0 +1,409 @@
+/* ═══════════════════════════════════════════
+   HEADER NAVBAR — Dark Refined Theme
+   Consistent with Sidebar, FeeDashboard, LeaveDashboard
+   Font: DM Sans + DM Mono (Google Fonts)
+═══════════════════════════════════════════ */
+
+:root {
+  --hd-bg:            #0d0f14;
+  --hd-surface:       #131720;
+  --hd-surface-2:     #1a1f2e;
+  --hd-surface-3:     #1f2535;
+  --hd-border:        rgba(255,255,255,0.07);
+  --hd-border-bright: rgba(255,255,255,0.13);
+  --hd-text:          #e8eaf0;
+  --hd-text-muted:    #6b7280;
+  --hd-text-dim:      #374151;
+  --hd-accent:        #6366f1;
+  --hd-accent-soft:   rgba(99,102,241,0.15);
+  --hd-red:           #ef4444;
+  --hd-red-soft:      rgba(239,68,68,0.15);
+  --hd-radius:        12px;
+  --hd-radius-sm:     8px;
+  --hd-radius-xs:     6px;
+}
+
+/* ── Navbar Shell ── */
+.hd-navbar {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 240px;                      /* Sidebar width */
+  z-index: 800;                     /* below sidebar backdrop (99998) */
+  background: var(--hd-surface);
+  border-bottom: 1px solid var(--hd-border);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+  padding: 0 1.5rem;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  transition: left 260ms cubic-bezier(0.16,1,0.3,1);
+  animation: hdSlideDown 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.hd-navbar.sidebar-collapsed {
+  left: 64px;
+}
+
+@media (max-width: 768px) {
+  .hd-navbar,
+  .hd-navbar.sidebar-collapsed {
+    left: 0;
+  }
+}
+
+/* subtle top accent line */
+.hd-navbar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--hd-accent), #818cf8, transparent);
+  pointer-events: none;
+}
+
+/* ── Inner layout ── */
+.hd-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.75rem;
+}
+
+/* ══════════════════════════════════════════
+   HAMBURGER — mobile only
+   Hidden on desktop, shown on mobile
+══════════════════════════════════════════ */
+.hd-hamburger {
+  display: none;                    /* hidden by default (desktop) */
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: var(--hd-radius-sm);
+  background: var(--hd-surface-2);
+  border: 1px solid var(--hd-border);
+  color: var(--hd-text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+.hd-hamburger:hover {
+  background: var(--hd-surface-3);
+  border-color: var(--hd-border-bright);
+  color: var(--hd-text);
+  transform: scale(1.05);
+}
+
+/* show on mobile */
+@media (max-width: 768px) {
+  .hd-hamburger {
+    display: flex;
+  }
+  /* hide desktop-only logo in header on mobile (sidebar has it) */
+  .hd-logo-desktop {
+    display: none;
+  }
+}
+
+/* ── Logo (desktop only, when sidebar collapsed) ── */
+.hd-logo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  animation: hdSlideLeft 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+.hd-logo img {
+  display: block;
+  border-radius: var(--hd-radius-xs);
+  opacity: 0.92;
+  transition: opacity 0.2s;
+}
+.hd-logo img:hover { opacity: 1; }
+
+/* ── School Name (center) ── */
+.hd-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: visible;
+}
+.hd-school-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--hd-text);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  background: linear-gradient(90deg, #e8eaf0 40%, #a5b4fc 60%, #e8eaf0 80%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: hdNameShimmer 6s linear infinite;
+}
+@keyframes hdNameShimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+/* ── Right cluster ── */
+.hd-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* ── Shared icon button base ── */
+.hd-icon-btn {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: var(--hd-radius-sm);
+  background: var(--hd-surface-2);
+  border: 1px solid var(--hd-border);
+  color: var(--hd-text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+.hd-icon-btn:hover {
+  background: var(--hd-surface-3);
+  border-color: var(--hd-border-bright);
+  color: var(--hd-text);
+  transform: translateY(-1px);
+}
+
+/* ── Notification button ── */
+.hd-notif-btn { font-size: 1.15rem; }
+.hd-notif-badge {
+  position: absolute;
+  top: -4px; right: -4px;
+  min-width: 18px; height: 18px;
+  border-radius: 999px;
+  background: var(--hd-red);
+  color: white;
+  font-size: 0.6rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--hd-surface);
+  animation: hdPulse 2s ease-in-out infinite;
+}
+@keyframes hdPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.15); }
+}
+
+/* ── Dropdown panel (shared) ── */
+.hd-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: var(--hd-surface);
+  border: 1px solid var(--hd-border-bright);
+  border-radius: var(--hd-radius);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+  overflow: hidden;
+  animation: hdDropIn 0.25s cubic-bezier(0.16,1,0.3,1) both;
+  z-index: 1000;
+}
+@keyframes hdDropIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Notification dropdown */
+.hd-notif-dropdown { min-width: 310px; }
+.hd-dropdown-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--hd-border);
+  background: rgba(255,255,255,0.02);
+}
+.hd-dropdown-header-title {
+  font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--hd-text-muted);
+}
+.hd-dropdown-header-action {
+  font-size: 0.72rem; color: #a5b4fc;
+  background: none; border: none;
+  cursor: pointer; font-family: inherit;
+  transition: color 0.2s;
+}
+.hd-dropdown-header-action:hover { color: white; }
+
+.hd-notif-item {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  padding: 0.8rem 1.1rem;
+  border-bottom: 1px solid var(--hd-border);
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.hd-notif-item:last-of-type { border-bottom: none; }
+.hd-notif-item:hover { background: rgba(255,255,255,0.03); }
+.hd-notif-icon {
+  font-size: 1.1rem;
+  width: 32px; height: 32px;
+  border-radius: var(--hd-radius-xs);
+  background: var(--hd-surface-2);
+  border: 1px solid var(--hd-border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.hd-notif-text { flex: 1; min-width: 0; }
+.hd-notif-msg {
+  font-size: 0.82rem; font-weight: 600; color: var(--hd-text);
+  margin: 0 0 0.15rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hd-notif-time {
+  font-size: 0.7rem; color: var(--hd-text-muted);
+  font-family: 'DM Mono', monospace;
+}
+.hd-dropdown-footer {
+  padding: 0.7rem 1.1rem;
+  border-top: 1px solid var(--hd-border);
+  text-align: center;
+  background: rgba(255,255,255,0.015);
+}
+.hd-view-all {
+  font-size: 0.78rem; font-weight: 600;
+  color: #a5b4fc; background: none; border: none;
+  cursor: pointer; font-family: inherit;
+  transition: color 0.2s;
+}
+.hd-view-all:hover { color: white; }
+
+/* ── User button ── */
+.hd-user-btn {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+  background: var(--hd-surface-2);
+  border: 1px solid var(--hd-border);
+  border-radius: var(--hd-radius-sm);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  font-family: inherit;
+}
+.hd-user-btn:hover {
+  background: var(--hd-surface-3);
+  border-color: var(--hd-border-bright);
+  transform: translateY(-1px);
+}
+
+.hd-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--hd-accent-soft);
+  border: 1px solid rgba(99,102,241,0.35);
+  display: flex; align-items: center; justify-content: center;
+  color: #a5b4fc;
+  font-size: 0.72rem; font-weight: 800;
+  flex-shrink: 0; letter-spacing: 0.02em;
+}
+.hd-user-name {
+  font-size: 0.82rem; font-weight: 600; color: var(--hd-text); white-space: nowrap;
+}
+.hd-arrow {
+  font-size: 0.55rem; color: var(--hd-text-muted);
+  transition: transform 0.25s;
+}
+.hd-user-btn.open .hd-arrow { transform: rotate(180deg); }
+
+/* User dropdown */
+.hd-user-dropdown { min-width: 270px; right: 0; }
+.hd-user-header {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 1.1rem;
+  border-bottom: 1px solid var(--hd-border);
+  background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(129,140,248,0.05));
+}
+.hd-avatar-lg {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: var(--hd-accent-soft);
+  border: 1px solid rgba(99,102,241,0.35);
+  display: flex; align-items: center; justify-content: center;
+  color: #a5b4fc; font-size: 0.95rem; font-weight: 800; flex-shrink: 0;
+}
+.hd-user-header-info { min-width: 0; }
+.hd-user-display-name {
+  font-size: 0.9rem; font-weight: 700; color: var(--hd-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin: 0 0 0.15rem;
+}
+.hd-user-role {
+  font-size: 0.7rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--hd-text-muted);
+}
+
+.hd-menu-section { padding: 0.4rem 0; }
+.hd-menu-divider { height: 1px; background: var(--hd-border); margin: 0.2rem 0; }
+.hd-menu-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.65rem 1.1rem;
+  cursor: pointer;
+  transition: background 0.15s, padding-left 0.15s;
+  text-decoration: none;
+  background: none; border: none;
+  width: 100%; text-align: left; font-family: inherit;
+}
+.hd-menu-item:hover { background: rgba(255,255,255,0.03); padding-left: 1.35rem; }
+.hd-menu-item-icon {
+  font-size: 1rem;
+  width: 28px; height: 28px;
+  border-radius: var(--hd-radius-xs);
+  background: var(--hd-surface-2);
+  border: 1px solid var(--hd-border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.hd-menu-item:hover .hd-menu-item-icon { background: var(--hd-accent-soft); border-color: rgba(99,102,241,0.3); }
+.hd-menu-item-label { font-size: 0.85rem; font-weight: 600; color: var(--hd-text-muted); transition: color 0.15s; }
+.hd-menu-item:hover .hd-menu-item-label { color: var(--hd-text); }
+
+.hd-menu-item.logout:hover { background: var(--hd-red-soft); }
+.hd-menu-item.logout:hover .hd-menu-item-icon { background: var(--hd-red-soft); border-color: rgba(239,68,68,0.3); }
+.hd-menu-item.logout:hover .hd-menu-item-label { color: #fca5a5; }
+
+/* ── Dropdown wrapper ── */
+.hd-dropdown-wrap { position: relative; }
+
+/* ── Keyframes ── */
+@keyframes hdSlideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes hdSlideLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 992px) { .hd-school-name { font-size: 1.05rem; } }
+@media (max-width: 768px) {
+  .hd-navbar { padding: 0 1rem; }
+  .hd-user-name { display: none; }
+  .hd-school-name { font-size: 0.95rem; letter-spacing: 0.04em; }
+  .hd-notif-dropdown { min-width: 270px; }
+  .hd-user-dropdown  { min-width: 240px; }
+}
+@media (max-width: 576px) {
+  .hd-navbar { padding: 0 0.75rem; height: 56px; }
+  .hd-school-name { font-size: 0.82rem; letter-spacing: 0.03em; }
+  .hd-icon-btn { width: 34px; height: 34px; font-size: 1rem; }
+  .hd-user-btn { padding: 0.3rem; }
+  .hd-notif-dropdown { min-width: 260px; right: -40px; }
+  .hd-user-dropdown  { min-width: 230px; }
+}

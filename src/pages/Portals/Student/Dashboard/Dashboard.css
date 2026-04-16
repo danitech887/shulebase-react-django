@@ -1,0 +1,35 @@
+/* Dashboard.css */
+@import '../theme.css';
+
+/* Donut ring for attendance */
+.dash-donut {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  background: conic-gradient(var(--sp-green) calc(var(--pct) * 1%), var(--sp-surface-3) 0);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.dash-donut::after {
+  content: ''; position: absolute;
+  width: 68px; height: 68px;
+  background: var(--sp-surface-2);
+  border-radius: 50%;
+}
+.dash-donut-label {
+  position: relative; z-index: 1;
+  font-size: 1rem; font-weight: 800; color: var(--sp-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fee balance bar */
+.dash-fee-bar-wrap { margin-top: 0.75rem; }
+.dash-fee-bar-track { background: var(--sp-surface-3); border-radius: 999px; height: 10px; overflow: hidden; }
+.dash-fee-bar-fill  { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--sp-green), #4ade80); transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+
+/* Summary grid */
+.dash-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}

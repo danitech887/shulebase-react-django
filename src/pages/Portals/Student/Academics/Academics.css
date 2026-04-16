@@ -1,0 +1,211 @@
+/* Academics.css */
+@import '../theme.css';
+
+/* ── CBC level badges ── */
+.cbc-EE  { background:rgba(34,197,94,0.15);  color:#4ade80; border:1px solid rgba(34,197,94,0.25); }
+.cbc-ME  { background:rgba(99,102,241,0.15); color:#a5b4fc; border:1px solid rgba(99,102,241,0.25); }
+.cbc-AE  { background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.25); }
+.cbc-BE  { background:rgba(239,68,68,0.15);  color:#f87171; border:1px solid rgba(239,68,68,0.25); }
+.cbc-N\/A{ background:var(--sp-surface-3);   color:var(--sp-text-muted); border:1px solid var(--sp-border); }
+
+/* ── Subject card ── */
+.subj-card {
+  background: var(--sp-surface-2);
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius);
+  padding: 1.1rem 1.1rem 1rem;
+  position: relative; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  height: 100%;
+}
+.subj-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.35); border-color:var(--sp-border-bright); }
+.subj-card::before {
+  content:''; position:absolute; left:0;top:0;bottom:0;width:3px;
+  background: var(--sp-accent);
+}
+.subj-name    { font-size:0.9rem; font-weight:700; color:var(--sp-text); margin-bottom:0.2rem; padding-left:0.35rem; }
+.subj-teacher { font-size:0.72rem; color:var(--sp-text-muted); margin-bottom:0.65rem; padding-left:0.35rem; }
+.subj-score   { font-size:1.5rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; }
+
+/* ── Competency row ── */
+.comp-row {
+  display:flex; justify-content:space-between; align-items:flex-start;
+  padding:0.75rem 0; border-bottom:1px solid var(--sp-border); gap:1rem;
+}
+.comp-row:last-child { border-bottom:none; }
+.comp-name    { font-size:0.85rem; font-weight:600; color:var(--sp-text); }
+.comp-comment { font-size:0.73rem; color:var(--sp-text-muted); margin-top:0.15rem; font-style:italic; }
+
+/* ── Resource list ── */
+.sp-resource-list { display:flex; flex-direction:column; gap:0.6rem; }
+
+.sp-resource-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  background: var(--sp-surface-2);
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-sm);
+  transition: border-color 0.2s, background 0.2s;
+}
+.sp-resource-card:hover { border-color:var(--sp-border-bright); background:var(--sp-surface-3); }
+
+.sp-resource-icon {
+  font-size: 1.3rem;
+  width: 38px; height: 38px;
+  border-radius: var(--sp-radius-xs);
+  background: var(--sp-surface-3);
+  border: 1px solid var(--sp-border);
+  display: flex; align-items:center; justify-content:center;
+  flex-shrink: 0;
+}
+
+.sp-resource-details { flex:1; min-width:0; }
+.sp-resource-title {
+  font-size: 0.86rem; font-weight: 600; color: var(--sp-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 0.15rem;
+}
+.sp-resource-type {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--sp-text-muted);
+}
+
+/* Open button for resource */
+.sp-resource-open-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.28rem 0.65rem; flex-shrink: 0;
+  background: none; border: 1px solid rgba(99,102,241,0.35);
+  border-radius: var(--sp-radius-xs); color: #a5b4fc;
+  font-family: inherit; font-size: 0.73rem; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.sp-resource-open-btn:hover { background:var(--sp-accent-soft); border-color:rgba(99,102,241,0.6); transform:translateY(-1px); }
+
+/* ── Download report button ── */
+.sp-download-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: var(--sp-surface-2); border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-sm); color: var(--sp-text-muted);
+  font-family: inherit; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  align-self: flex-end;
+}
+.sp-download-btn:hover:not(:disabled) { background:var(--sp-surface-3); border-color:var(--sp-border-bright); color:var(--sp-text); transform:translateY(-1px); }
+.sp-download-btn:disabled { opacity:0.45; cursor:not-allowed; }
+
+/* ═══════════════════════════════════════
+   MODAL DARK OVERRIDES (extra specificity)
+═══════════════════════════════════════ */
+
+.acad-modal-section-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--sp-text-muted);
+  padding-bottom: 0.5rem; border-bottom: 1px solid var(--sp-border);
+  margin-bottom: 0.65rem;
+}
+
+.acad-strand-block {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--sp-border);
+}
+.acad-strand-block:last-child { border-bottom: none; }
+.acad-strand-name { font-size: 0.88rem; font-weight: 700; color: var(--sp-text); margin-bottom: 0.4rem; }
+
+.acad-substrand-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.3rem 0.5rem; border-radius: var(--sp-radius-xs);
+  transition: background 0.15s;
+}
+.acad-substrand-row:hover { background: rgba(255,255,255,0.03); }
+.acad-substrand-name  { font-size: 0.82rem; color: var(--sp-text); }
+.acad-substrand-parent{ font-size: 0.7rem; color: var(--sp-text-dim); margin-left: 0.4rem; }
+.acad-substrand-meta  { display: flex; align-items: center; gap: 0.65rem; flex-shrink: 0; }
+.acad-substrand-score { font-family:'DM Mono',monospace; font-size:0.78rem; color:var(--sp-text-muted); min-width:45px; text-align:right; }
+.acad-substrand-level { font-family:'DM Mono',monospace; font-size:0.72rem; color:#a5b4fc; min-width:30px; text-align:right; }
+
+.acad-comp-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5rem 0; border-bottom: 1px solid var(--sp-border);
+}
+.acad-comp-row:last-child { border-bottom: none; }
+.acad-comp-name  { font-size:0.84rem; font-weight:600; color:var(--sp-text); }
+.acad-comp-value { font-size:0.8rem; color:var(--sp-text-muted); font-family:'DM Mono',monospace; }
+
+.acad-empty { text-align:center; padding:2rem 0; color:var(--sp-text-muted); font-size:0.84rem; }
+
+/* ── Video modal (xl) ── */
+.video-modal-body { 
+  display: flex; 
+  gap: 1.5rem; 
+  align-items: flex-start;
+}
+
+.video-col-player { 
+  flex: 2; 
+  min-width: 0; 
+}
+
+.video-col-notes { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  min-width: 300px;
+}
+
+.video-modal-notes-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--sp-text-muted); margin-bottom: 0.75rem; display: block;
+}
+
+/* Notes textarea inside modal */
+.modal .video-notes-area {
+  background: var(--sp-surface-2) !important;
+  border: 1px solid var(--sp-border-bright) !important;
+  border-radius: var(--sp-radius-xs) !important;
+  color: var(--sp-text) !important;
+  font-family: 'DM Sans', inherit !important;
+  font-size: 0.85rem !important;
+  resize: none !important;
+  width: 100%;
+  min-height: 250px;
+  padding: 0.85rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  flex-grow: 1;
+}
+
+.modal .video-notes-area:focus {
+  border-color: rgba(99,102,241,0.55) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.13) !important;
+  outline: none !important;
+}
+
+/* Video iframe wrapper */
+.video-frame-wrap {
+  border-radius: var(--sp-radius-sm);
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Save note button inside modal body */
+.video-save-btn {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  width: 100%; margin-top: 1rem;
+  padding: 0.65rem; background: var(--sp-accent); border: none;
+  border-radius: var(--sp-radius-sm); color: #fff;
+  font-family: inherit; font-size: 0.82rem; font-weight: 700;
+  cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+}
+.video-save-btn:hover:not(:disabled) { opacity: 0.9; }
+.video-save-btn:active:not(:disabled) { transform: scale(0.98); }
+.video-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Responsive stacks */
+@media (max-width: 992px) {
+  .video-modal-body { flex-direction: column; }
+  .video-col-player, .video-col-notes { width: 100%; flex: none; }
+  .video-col-notes { margin-top: 1rem; }
+}

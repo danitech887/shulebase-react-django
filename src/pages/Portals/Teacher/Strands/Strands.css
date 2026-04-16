@@ -1,0 +1,51 @@
+/* Strands.css */
+@import '../theme.css';
+
+/* Subject card header */
+.str-card-header {
+  background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(129,140,248,0.05)) !important;
+  border-bottom: 1px solid var(--t-border) !important;
+  padding: 1rem 1.25rem !important;
+  color: var(--t-text) !important;
+}
+
+/* Accordion overrides */
+.t-card .accordion-item {
+  background: transparent !important;
+  border-color: var(--t-border) !important;
+}
+.t-card .accordion-button {
+  background: var(--t-surface-2) !important;
+  color: var(--t-text) !important;
+  font-weight: 600; font-size: 0.88rem;
+  box-shadow: none !important;
+}
+.t-card .accordion-button:not(.collapsed) {
+  background: var(--t-surface-3) !important;
+  color: var(--t-text) !important;
+}
+.t-card .accordion-button::after { filter: invert(1) brightness(0.7); }
+.t-card .accordion-body { background: var(--t-surface) !important; color: var(--t-text) !important; }
+
+/* List group inside accordion */
+.t-card .list-group-item {
+  background: transparent !important;
+  border-color: var(--t-border) !important;
+  color: var(--t-text) !important;
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+  background: var(--t-surface-2) !important;
+  border: 1px solid var(--t-border-bright) !important;
+  border-radius: var(--t-radius-sm) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+}
+.dropdown-item { color: var(--t-text-muted) !important; font-size: 0.83rem !important; }
+.dropdown-item:hover { background: rgba(255,255,255,0.05) !important; color: var(--t-text) !important; }
+.dropdown-item.text-danger { color: #f87171 !important; }
+.dropdown-item.text-danger:hover { background: var(--t-red-soft) !important; }
+.dropdown-divider { border-color: var(--t-border) !important; }
+
+/* Detail / scoring views */
+.str-detail-card { background: var(--t-surface) !important; border: 1px solid var(--t-border) !important; border-radius: var(--t-radius) !important; }

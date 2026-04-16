@@ -1,0 +1,130 @@
+/* ═══════════════════════════════════════
+   GLOBAL MESSAGE MODAL — Toast Notification
+   Matches the dark app theme system
+═══════════════════════════════════════ */
+
+.gmm-root {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+/* ── Toast ── */
+.gmm-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem 0.9rem 1rem;
+  background: #1a1f2e;
+  border: 1px solid var(--gmm-border, rgba(99,102,241,0.25));
+  border-left: 3px solid var(--gmm-accent, #6366f1);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
+  min-width: 280px;
+  max-width: 420px;
+  position: relative;
+  overflow: hidden;
+  pointer-events: all;
+  transform: translateX(120%) scale(0.96);
+  opacity: 0;
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease;
+}
+
+.gmm-open .gmm-toast {
+  transform: translateX(0) scale(1);
+  opacity: 1;
+}
+
+/* subtle tinted background wash */
+.gmm-toast::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gmm-bg, rgba(99,102,241,0.08));
+  pointer-events: none;
+}
+
+/* ── Icon ── */
+.gmm-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Text ── */
+.gmm-text {
+  flex: 1;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e8eaf0;
+  line-height: 1.4;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Close ── */
+.gmm-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s;
+  position: relative;
+  z-index: 1;
+}
+.gmm-close:hover {
+  color: #e8eaf0;
+  background: rgba(255,255,255,0.08);
+}
+
+/* ── Progress bar ── */
+.gmm-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--gmm-accent, #6366f1);
+  border-radius: 0 0 0 12px;
+  width: 100%;
+  transform-origin: left;
+  opacity: 0.6;
+}
+
+.gmm-open .gmm-progress {
+  animation: gmm-shrink 4s linear forwards;
+}
+
+@keyframes gmm-shrink {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .gmm-root {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+    align-items: stretch;
+  }
+  .gmm-toast {
+    max-width: 100%;
+    min-width: unset;
+  }
+}
