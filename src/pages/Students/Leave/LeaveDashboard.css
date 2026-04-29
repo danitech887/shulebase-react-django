@@ -28,6 +28,40 @@
   --ld-radius-xs: 6px;
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --ld-bg: #f3f4f6;
+    --ld-surface: #ffffff;
+    --ld-surface-2: #f9fafb;
+    --ld-surface-3: #f3f4f6;
+    --ld-border: rgba(0,0,0,0.08);
+    --ld-border-bright: rgba(0,0,0,0.15);
+    --ld-text: #1f2937;
+    --ld-text-muted: #4b5563;
+    --ld-text-dim: #9ca3af;
+    --ld-accent-soft: rgba(99,102,241,0.1);
+    --ld-green-soft: rgba(16,185,129,0.1);
+    --ld-amber-soft: rgba(217,119,6,0.1);
+    --ld-red-soft: rgba(239,68,68,0.1);
+  }
+}
+
+.theme-light {
+  --ld-bg: #f3f4f6;
+  --ld-surface: #ffffff;
+  --ld-surface-2: #f9fafb;
+  --ld-surface-3: #f3f4f6;
+  --ld-border: rgba(0,0,0,0.08);
+  --ld-border-bright: rgba(0,0,0,0.15);
+  --ld-text: #1f2937;
+  --ld-text-muted: #4b5563;
+  --ld-text-dim: #9ca3af;
+  --ld-accent-soft: rgba(99,102,241,0.1);
+  --ld-green-soft: rgba(16,185,129,0.1);
+  --ld-amber-soft: rgba(217,119,6,0.1);
+  --ld-red-soft: rgba(239,68,68,0.1);
+}
+
 /* ── Root ── */
 .ld-root {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;

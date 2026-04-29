@@ -19,6 +19,7 @@ export default function Competencies() {
   const [year, setYear]           = useState(new Date().getFullYear());
   const [grades, setGrades]       = useState([]);
   const [streams, setStreams]      = useState([]);
+  const [assignedSubjects, setAssignedSubjects] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [modalSubject, setModalSubject] = useState('');
   const [term, setTerm]           = useState('Term 1');
@@ -26,6 +27,7 @@ export default function Competencies() {
   const [modalGrade, setModalGrade]   = useState('');
   const [modalStream, setModalStream] = useState('');
   const [studentsList, setStudentsList] = useState([]);
+  const [studentSearch, setStudentSearch] = useState('');
   const [assessments, setAssessments]   = useState({});
 
   useEffect(() => {
@@ -33,13 +35,21 @@ export default function Competencies() {
     api.get('teacher-portal/strands/')
       .then(res => {
         const s = res.data.strands || [];
-        if (s.length) {
-          setClassInfo({ grade: s[0].grade, stream: s[0].stream });
-          setGrades(Array.from(new Set(s.map(x => x.grade).filter(Boolean))));
-          setStreams(Array.from(new Set(s.map(x => x.stream).filter(Boolean))));
-        }
+        const assigned = res.data.assigned_subjects || [];
+        
+        // Only show grades/streams that the teacher is CURRENTLY assigned to
+        const allGrades = Array.from(new Set(assigned.map(x => x.grade).filter(Boolean))).sort();
+        const allStreams = Array.from(new Set(assigned.map(x => x.stream).filter(Boolean))).sort();
+
+        setGrades(allGrades);
+        setStreams(allStreams);
         setStrands(s);
+        setAssignedSubjects(assigned);
         setSubjects(res.data.subjects || []);
+
+        if (allGrades.length && allStreams.length) {
+          setClassInfo({ grade: allGrades[0], stream: allStreams[0] });
+        }
       })
       .catch(() => showMessage({ type:'error', text:'Unable to load metadata.' }))
       .finally(() => setLoading(false));
@@ -47,7 +57,7 @@ export default function Competencies() {
 
   const subjectGradeMap = React.useMemo(() => {
     const m = {};
-    (strands || []).forEach(s => {
+    (assignedSubjects || []).forEach(s => {
       const key = s.subject || '';
       if (!m[key]) m[key] = new Set();
       if (s.grade) m[key].add(s.grade);
@@ -55,11 +65,11 @@ export default function Competencies() {
     const out = {};
     Object.entries(m).forEach(([k, set]) => out[k] = Array.from(set));
     return out;
-  }, [strands]);
+  }, [assignedSubjects]);
 
   const subjectStreamMap = React.useMemo(() => {
     const m = {};
-    (strands || []).forEach(s => {
+    (assignedSubjects || []).forEach(s => {
       const key = s.subject || '';
       if (!m[key]) m[key] = new Set();
       if (s.stream) m[key].add(s.stream);
@@ -67,10 +77,18 @@ export default function Competencies() {
     const out = {};
     Object.entries(m).forEach(([k, set]) => out[k] = Array.from(set));
     return out;
-  }, [strands]);
+  }, [assignedSubjects]);
 
   const modalGradesOptions = modalSubject ? (subjectGradeMap[modalSubject] || []) : grades;
   const modalStreamsOptions = modalSubject ? (subjectStreamMap[modalSubject] || []) : streams;
+
+  const filteredSubjects = React.useMemo(() => {
+    return subjects.filter(sub => {
+      const matchGrade = !classInfo.grade || (subjectGradeMap[sub] || []).includes(classInfo.grade);
+      const matchStream = !classInfo.stream || (subjectStreamMap[sub] || []).includes(classInfo.stream);
+      return matchGrade && matchStream;
+    });
+  }, [subjects, classInfo, subjectGradeMap, subjectStreamMap]);
 
   const loadStudentsForCompetency = () => {
     const gradeToUse  = modalGrade  || classInfo.grade;
@@ -96,13 +114,74 @@ export default function Competencies() {
 
   const openModalForSubject = (subj) => {
     setModalSubject(subj);
-    // Prefer grades/streams relevant to the selected subject
+    // Prefer globally selected filters if they match this subject, else fallback to first available
     const gList = subjectGradeMap[subj] || [];
     const sList = subjectStreamMap[subj] || [];
-    setModalGrade((gList.length ? gList[0] : classInfo.grade) || '');
-    setModalStream((sList.length ? sList[0] : classInfo.stream) || '');
-    setStudentsList([]); setAssessments({});
+    
+    const initialGrade = (classInfo.grade && gList.includes(classInfo.grade)) ? classInfo.grade : (gList[0] || '');
+    const initialStream = (classInfo.stream && sList.includes(classInfo.stream)) ? classInfo.stream : (sList[0] || '');
+    
+    setModalGrade(initialGrade);
+    setModalStream(initialStream);
+    setStudentsList([]); setAssessments({}); setStudentSearch('');
     setShowModal(true);
+  };
+
+  const getRemarkFromLevel = (lvl, comp) => {
+    const details = {
+      'Communication': {
+        '4': 'Excellent. Expresses ideas clearly, listens attentively, and speaks confidently.',
+        '3': 'Very Good. Demonstrates clear communication and actively participates in discussions.',
+        '2': 'Good. Able to communicate thoughts but sometimes requires guidance.',
+        '1': 'Fair. Needs encouragement to express ideas and listen to others.'
+      },
+      'Collaboration': {
+        '4': 'Excellent. Outstanding teamwork, supports peers, and actively drives group goals.',
+        '3': 'Very Good. Cooperates well in groups and shares responsibilities effectively.',
+        '2': 'Good. Works with others but occasionally needs prompts to collaborate.',
+        '1': 'Fair. Tends to work in isolation and requires encouragement to team up.'
+      },
+      'Critical Thinking': {
+        '4': 'Excellent. Solves complex problems independently and evaluates situations deeply.',
+        '3': 'Very Good. Asks thoughtful questions and applies logic to solve tasks.',
+        '2': 'Good. Shows basic reasoning skills but needs support with complex tasks.',
+        '1': 'Fair. Struggles to approach problems independently.'
+      },
+      'Creativity': {
+        '4': 'Excellent. Highly imaginative, generates unique ideas, and explores novel designs.',
+        '3': 'Very Good. Shows creative approaches and participates actively in arts.',
+        '2': 'Good. Follows standard routines but occasionally shows unique outputs.',
+        '1': 'Fair. Requires strong guidance to show imaginative skills.'
+      },
+      'Self-efficacy': {
+        '4': 'Excellent. Highly confident, sets goals, and takes full responsibility for learning.',
+        '3': 'Very Good. Believes in own abilities and stays focused on assigned work.',
+        '2': 'Good. Completes tasks but relies on external assurance frequently.',
+        '1': 'Fair. Needs continuous motivation and self-confidence reinforcement.'
+      },
+      'Citizenship': {
+        '4': 'Excellent. Demonstrates high respect, follows rules perfectly, and cares for the environment.',
+        '3': 'Very Good. Respectful to others and shows positive civic awareness.',
+        '2': 'Good. Understands rules but needs reminders to uphold them regularly.',
+        '1': 'Fair. Requires guidance to interact constructively with community norms.'
+      },
+      'Digital Literacy': {
+        '4': 'Excellent. Navigates software easily, explores tools safely, and learns fast.',
+        '3': 'Very Good. Operates devices confidently and adheres to safety instructions.',
+        '2': 'Good. Basic ability to use devices but gets stuck easily.',
+        '1': 'Fair. Requires absolute step-by-step guidance to handle computing tools.'
+      }
+    };
+
+    if (details[comp] && details[comp][lvl]) {
+      return details[comp][lvl];
+    }
+
+    if (lvl === '4') return "Excellent";
+    if (lvl === '3') return "Very Good";
+    if (lvl === '2') return "Good";
+    if (lvl === '1') return "Fair";
+    return "";
   };
 
   const handleAssessmentChange = (reg, field, value) => {
@@ -110,6 +189,12 @@ export default function Competencies() {
       const next = JSON.parse(JSON.stringify(prev || {}));
       if (!next[reg]) next[reg] = { level:'', comment:'' };
       next[reg][field] = value;
+      
+      // Auto-remark when level changes
+      if (field === 'level') {
+        next[reg].comment = getRemarkFromLevel(value, competency);
+      }
+      
       return next;
     });
   };
@@ -167,7 +252,14 @@ export default function Competencies() {
 
         {/* Subject cards */}
         <Row className="g-4">
-          {subjects.map(sub => (
+          {filteredSubjects.length === 0 && !loading && (
+            <Col xs={12}>
+              <div className="text-center py-5 t-muted card" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                <p className="mb-0">No subjects found for the selected filters.</p>
+              </div>
+            </Col>
+          )}
+          {filteredSubjects.map(sub => (
             <Col md={6} lg={4} key={sub}>
               <div className="comp-subject-card card h-100">
                 <div className="card-body d-flex flex-column p-4">
@@ -192,21 +284,29 @@ export default function Competencies() {
             <div className="comp-filter-card card mb-4">
               <div className="card-body p-3">
                 <Row className="g-3 align-items-end">
-                  <Col md={4}>
+                  <Col md={3}>
                     <Form.Label className="t-label">Grade</Form.Label>
                     <Form.Select value={modalGrade||classInfo.grade} onChange={e => setModalGrade(e.target.value)}>
                       <option value="">Select Grade</option>
                       {modalGradesOptions.map(g => <option key={g} value={g}>{g}</option>)}
                     </Form.Select>
                   </Col>
-                  <Col md={4}>
+                  <Col md={3}>
                     <Form.Label className="t-label">Stream</Form.Label>
                     <Form.Select value={modalStream||classInfo.stream} onChange={e => setModalStream(e.target.value)}>
                       <option value="">Select Stream</option>
                       {modalStreamsOptions.map(s => <option key={s} value={s}>{s}</option>)}
                     </Form.Select>
                   </Col>
-                  <Col md={4} className="text-end">
+                  <Col md={3}>
+                    <Form.Label className="t-label">Search Student</Form.Label>
+                    <Form.Control 
+                      placeholder="Name or Reg No..." 
+                      value={studentSearch}
+                      onChange={e => setStudentSearch(e.target.value)}
+                    />
+                  </Col>
+                  <Col md={3} className="text-end">
                     <Form.Label className="t-label d-block">&nbsp;</Form.Label>
                     <Button variant="primary" className="w-100" onClick={loadStudentsForCompetency} disabled={loading}>
                       {loading ? <Spinner size="sm" /> : 'Load Students'}
@@ -242,7 +342,17 @@ export default function Competencies() {
                   </tr>
                 </thead>
                 <tbody>
-                  {studentsList.length > 0 ? studentsList.map(s => (
+                  {studentsList.filter(s => {
+                    const q = studentSearch.toLowerCase();
+                    return !q || s.registration_no.toLowerCase().includes(q) || 
+                           s.first_name.toLowerCase().includes(q) || 
+                           s.surname.toLowerCase().includes(q);
+                  }).length > 0 ? studentsList.filter(s => {
+                    const q = studentSearch.toLowerCase();
+                    return !q || s.registration_no.toLowerCase().includes(q) || 
+                           s.first_name.toLowerCase().includes(q) || 
+                           s.surname.toLowerCase().includes(q);
+                  }).map(s => (
                     <tr key={s.registration_no}>
                       <td className="px-3 t-mono">{s.registration_no}</td>
                       <td className="t-bold">{s.first_name} {s.surname}</td>

@@ -49,19 +49,31 @@ export default function ParentPortalLeave() {
     if (!leaveForm.startDate) { alert('Please provide a start date'); return; }
     try {
       setSubmitting(true);
-      await api.post('leaves/apply/', {
-        registration_no: selected?.registration_no,
-        reason: leaveForm.reason,
-        otherReason: leaveForm.otherReason,
-        startDate: leaveForm.startDate,
-        endDate: leaveForm.endDate || null,
+      
+      // Update payload to use field names expected by ParentPortalLeaveAPIView and LeaveManagement model
+      const payload = {
+        reason: leaveForm.reason === 'fees' ? 'School Fees' : 'Other',
+        other_reason: leaveForm.otherReason,
+        date_of_leave: leaveForm.startDate,
+        return_date: leaveForm.endDate || null,
+      };
+
+      await api.post('parent-portal/leave/', payload, {
+        params: { student_id: selected?.registration_no }
       });
+
       showSuccess('Leave application submitted successfully!');
       setLeaveForm({ reason: 'fees', otherReason: '', startDate: '', endDate: '' });
       handleCloseModal();
       fetchAll(selected?.registration_no);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to apply leave.');
+      let msg = 'Failed to apply leave.';
+      if (err.response?.data) {
+        msg = typeof err.response.data === 'object' 
+          ? Object.entries(err.response.data).map(([k, v]) => `${k}: ${v}`).join('\n')
+          : err.response.data.error || msg;
+      }
+      alert(msg);
     } finally { setSubmitting(false); }
   };
 

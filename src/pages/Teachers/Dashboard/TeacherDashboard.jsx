@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Spinner } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import api from '../../../api/api';
 import { useMessage } from '../../../context/MessageContext';
 import './TeacherDashboard.css';
@@ -9,6 +10,7 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total_teachers: 0, present_today: 0, absent_today: 0 });
   const [monthlyAttendance, setMonthlyAttendance] = useState([]);
+  const [hoveredPoint, setHoveredPoint] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -50,6 +52,26 @@ export default function TeacherDashboard() {
       <div className="dashboard-header">
         <h2>Teachers Dashboard</h2>
         <p>Monitor teacher statistics and attendance</p>
+      </div>
+
+      {/* ── Quick Actions ── */}
+      <div className="quick-actions-row mb-4">
+        <Link to="/teachers/details" className="action-btn">
+          <span className="action-icon">📝</span>
+          <span className="action-label">Manage Details</span>
+        </Link>
+        <Link to="/teachers/attendance" className="action-btn">
+          <span className="action-icon">📅</span>
+          <span className="action-label">Attendance</span>
+        </Link>
+        <Link to="/teachers/roles" className="action-btn">
+          <span className="action-icon">🔑</span>
+          <span className="action-label">Role Management</span>
+        </Link>
+        <Link to="/teachers/leave" className="action-btn">
+          <span className="action-icon">✉️</span>
+          <span className="action-label">Leave Management</span>
+        </Link>
       </div>
 
       {/* ── Stat Cards ── */}
@@ -99,22 +121,75 @@ export default function TeacherDashboard() {
                   No attendance data available
                 </div>
               ) : (
-                <div className="chart-placeholder">
-                  <div className="chart-bars">
-                    {monthlyAttendance.map((data, idx) => (
-                      <div key={idx} className="bar-group">
-                        <div className="bar-container">
-                          <div
-                            className="bar attendance"
-                            style={{ height: `${data.rate}%` }}
-                            title={`${data.month}: ${data.rate}%`}
-                          />
-                        </div>
-                        <span className="bar-label">{data.month}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                (() => {
+                  const svgWidth = 600;
+                  const svgHeight = 220;
+                  const paddingX = 50;
+                  const paddingY = 30;
+
+                  const points = monthlyAttendance.map((d, idx) => {
+                    const x = monthlyAttendance.length > 1 
+                      ? paddingX + (idx / (monthlyAttendance.length - 1)) * (svgWidth - 2 * paddingX)
+                      : svgWidth / 2;
+                    const rate = Number(d?.rate) || 0;
+                    const y = svgHeight - paddingY - (rate / 100) * (svgHeight - 2 * paddingY);
+                    return { x, y, month: d.month, rate };
+                  });
+
+                  const pathD = points.length > 0 
+                    ? `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}` 
+                    : '';
+
+                  return (
+                    <div style={{ position: 'relative', width: '100%', height: svgHeight }}>
+                      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                        {/* Y Axis Labels */}
+                        {[0, 25, 50, 75, 100].map((val) => {
+                          const y = svgHeight - paddingY - (val / 100) * (svgHeight - 2 * paddingY);
+                          return (
+                            <g key={val}>
+                              <line x1={paddingX} y1={y} x2={svgWidth - paddingX} y2={y} stroke="rgba(255,255,255,0.06)" strokeDasharray="4,4" />
+                              <text x={paddingX - 10} y={y + 4} textAnchor="end" fontSize="10" fill="var(--td-text-muted, #6b7280)">{val}%</text>
+                            </g>
+                          );
+                        })}
+
+                        {/* X Axis Labels */}
+                        {points.map((p, i) => (
+                          <text key={i} x={p.x} y={svgHeight - paddingY + 18} textAnchor="middle" fontSize="11" fill="var(--td-text-muted, #6b7280)">{p.month}</text>
+                        ))}
+
+                        {/* Line */}
+                        {pathD && (
+                          <path d={pathD} fill="none" stroke="var(--td-accent, #6366f1)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                        )}
+
+                        {/* Points & Interactive Hover */}
+                        {points.map((p, i) => (
+                          <g key={i}>
+                            <circle 
+                              cx={p.x} cy={p.y} r={hoveredPoint && hoveredPoint.index === i ? 6 : 4} 
+                              fill="var(--td-accent, #6366f1)" stroke="#ffffff" strokeWidth="2" 
+                              style={{ cursor: 'pointer', transition: 'r 0.2s' }} 
+                              onMouseEnter={() => setHoveredPoint({ ...p, index: i })}
+                              onMouseLeave={() => setHoveredPoint(null)}
+                            />
+                            
+                            {hoveredPoint && hoveredPoint.index === i && (
+                              <g>
+                                <rect 
+                                  x={p.x - 40} y={p.y - 35} width="80" height="25" rx="4" 
+                                  fill="#1f2535" stroke="var(--td-accent, #6366f1)" strokeWidth="1" 
+                                />
+                                <text x={p.x} y={p.y - 18} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#e8eaf0">{p.rate}%</text>
+                              </g>
+                            )}
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
+                  );
+                })()
               )}
             </Card.Body>
           </Card>

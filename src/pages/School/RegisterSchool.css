@@ -362,3 +362,103 @@
 .rs-root-modal .rs-grid-2 {
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 }
+
+/* ─── Pricing Plan Styles ──────────────────────────────────── */
+.rs-billing-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255,255,255,0.03);
+  padding: 0.6rem;
+  border-radius: 50px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+.rs-toggle-lbl {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--rs-muted);
+  transition: color 0.2s;
+}
+.rs-toggle-lbl.active { color: var(--rs-text); }
+
+.rs-toggle-track {
+  width: 44px;
+  height: 22px;
+  background: var(--rs-surface2);
+  border: 1px solid var(--rs-border-h);
+  border-radius: 20px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.rs-toggle-track.annual { background: var(--rs-accent); border-color: var(--rs-accent); }
+
+.rs-toggle-thumb {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.rs-toggle-track.annual .rs-toggle-thumb { transform: translateX(22px); }
+
+.rs-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.rs-plan-card {
+  background: var(--rs-surface2);
+  border: 1px solid var(--rs-border);
+  border-radius: var(--rs-radius-sm);
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.rs-plan-card:hover { border-color: var(--rs-border-h); transform: translateY(-2px); }
+.rs-plan-card.active {
+  border-color: var(--rs-accent);
+  background: rgba(99,102,241,0.06);
+  box-shadow: 0 0 0 1px var(--rs-accent);
+}
+
+.rs-plan-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.8rem;
+}
+.rs-plan-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+.rs-plan-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.25rem; }
+.rs-plan-price { margin-bottom: 0.5rem; }
+.rs-plan-curr { font-size: 0.65rem; color: var(--rs-muted); vertical-align: super; margin-right: 2px; }
+.rs-plan-amt { font-size: 1.15rem; font-weight: 700; color: var(--rs-text); }
+.rs-plan-period { font-size: 0.7rem; color: var(--rs-muted); }
+.rs-plan-desc { font-size: 0.75rem; color: var(--rs-muted); line-height: 1.4; }
+
+.rs-pricing-note {
+  font-size: 0.78rem;
+  color: var(--rs-muted);
+  text-align: center;
+  margin: 0;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .rs-pricing-grid { grid-template-columns: 1fr; }
+}

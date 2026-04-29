@@ -14,6 +14,7 @@ from .views.students_api import (
     NextRegistrationNumberView,
     StudentListView,
     StudentDetailView,
+    ResetStudentPasswordView,
     StudentStatsView,
     
     StudentSearchView,
@@ -27,6 +28,7 @@ from .views.students_api import (
     FeeRecordsView,
     UpdateFeeStatusView,
     FeesByGradeView,
+    FeeActivityView,
     StudentAttendanceView,
     StudentAttendanceByGradeView,
     StudentMonthlyAttendanceView,
@@ -49,6 +51,11 @@ from .views.students_api import (
     CBCStudentStrandsView,
     CBCStudentCompetenciesView,
     CBCGradeCompetenciesView,
+)
+
+from .views.import_students_api import (
+    ImportStudentsParseView,
+    ImportStudentsConfirmView,
 )
 
 
@@ -103,12 +110,16 @@ urlpatterns = [
     path('auth/schools/',  get_schools,       name='schools'),
     path('auth/change-password/', change_password, name='change-password'),
     path('auth/change-username/', change_username, name='change-username'),
+    path('auth/password-reset/', password_reset_request, name='password-reset'),
+    path('auth/password-reset-confirm/', password_reset_confirm, name='password-reset-confirm'),
 
 
     # ── Dashboard ──────────────────────────────────────────────────────────────
     path('dashboard/',             dashboard,                         name='dashboard'),
     path('dashboard/monthly/',     MonthlyFeesView.as_view(),         name='dashboard-monthly'),
     path('dashboard/activities/',  RecentActivitiesView.as_view(),    name='recent-activities'),
+    path('pricing/update/',        update_pricing,                    name='update-pricing'),
+    path('system-notifications/',  SystemNotificationListView.as_view(), name='system-notifications'),
 
     # ── Student Registration Config ────────────────────────────────────────────
     path('students/config-reg-no/',      ConfigRegNoView.as_view(),           name='config-reg-no'),
@@ -118,7 +129,14 @@ urlpatterns = [
 
     # ── Student CRUD ───────────────────────────────────────────────────────────
     path('students/',          StudentListView.as_view(),   name='students-list'),
+
+    # ── Student Import from Excel (MUST be above the <str:reg_no> wildcard) ────
+    path('students/import/parse/',   ImportStudentsParseView.as_view(),   name='import-students-parse'),
+    path('students/import/confirm/', ImportStudentsConfirmView.as_view(), name='import-students-confirm'),
+
     path('students/<str:reg_no>/', StudentDetailView.as_view(), name='student-detail'),
+    path('students/<str:reg_no>/reset_password/', ResetStudentPasswordView.as_view(), name='reset-student-password'),
+    path('students/config-reg-no/', ConfigRegNoView.as_view(), name='config-reg-no'),
 
     # ── Student Attendance ────────────────────────────────────────────────────
     path('students/attendance/monthly/', StudentMonthlyAttendanceView.as_view(), name='student-attendance-monthly'),
@@ -136,6 +154,7 @@ urlpatterns = [
     path('fees/by-grade/',              FeesByGradeView.as_view(),      name='fees-by-grade'),
     path('fees/',                       FeeRecordsView.as_view(),       name='get-fee-records'),
     path('fees/<int:fee_id>/update-status/',   UpdateFeeStatusView.as_view(),  name='update-fee-status'),
+    path('fees/activities/',            FeeActivityView.as_view(),      name='fee-activities'),
     path('fees/<int:fee_id>/receipt/',  print_fee_reciept,              name='print-fee-receipt'),
     path('fees/generate-all-fee-receipts/',           print_all_fee_reciepts,                name='generate-all-fee-receipts'),
 
@@ -161,6 +180,7 @@ urlpatterns = [
     path('attendance/daily-summary/', AttendanceDailySummaryView.as_view(), name='attendance-daily-summary'),
     # ── PDF / Print ───────────────────────────────────────────────────────────
     path('reports/print_attendance_sheet/', print_attendance_sheet, name='print-attendance-sheet'),
+    path('reports/student-report-form/', print_individual_report_form, name='admin-student-report-form'),
 
     # ── Leaves ────────────────────────────────────────────────────────────────
     path('leaves/',                          LeavesListView.as_view(),           name='leaves-list'),

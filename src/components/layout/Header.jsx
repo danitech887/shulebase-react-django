@@ -1,7 +1,10 @@
 import React, { useState, useContext, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { SubscriptionContext } from '../../context/SubscriptionContext';
 import logo from '/assets/images/logo.png';
+import api from '../../api/api';
 import './Header.css';
 
 function useOutsideClick(ref, handler) {
@@ -15,8 +18,10 @@ function useOutsideClick(ref, handler) {
 export default function Header({ sidebarCollapsed = false, onMenuClick }) {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
+  const { theme, toggleTheme } = useTheme();
+  const { setShowPricingModal } = useContext(SubscriptionContext);
 
-  const [notifications, setNotifications] = useState(3);
+  const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen,  setUserOpen]  = useState(false);
 
@@ -26,7 +31,7 @@ export default function Header({ sidebarCollapsed = false, onMenuClick }) {
   useOutsideClick(notifRef, () => setNotifOpen(false));
   useOutsideClick(userRef,  () => setUserOpen(false));
 
-  const username   = user?.username    || 'User';
+  const username   = user?.display_name || user?.username || 'User';
   const schoolName = user?.school_name || 'School';
   const role       = user?.role        || 'Staff';
 
@@ -39,8 +44,26 @@ export default function Header({ sidebarCollapsed = false, onMenuClick }) {
 
   const handleNotifOpen = () => { setNotifOpen(o => !o); setUserOpen(false); };
   const handleUserOpen  = () => { setUserOpen(o => !o);  setNotifOpen(false); };
-  const handleMarkRead  = () => setNotifications(0);
   const handleLogout    = async () => { await logout(); navigate('/login'); };
+
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const { data } = await api.get('system-notifications/');
+        setNotifications(data || []);
+      } catch (err) { console.error('Failed to fetch header notifications', err); }
+    };
+    fetchNotifs();
+  }, []);
+
+  const formatTimeAgo = (timestamp) => {
+    if (!timestamp) return '';
+    const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+  };
 
   const notifItems = [
     { icon: '📝', msg: 'New student registered', time: '2 hours ago' },
@@ -99,36 +122,47 @@ export default function Header({ sidebarCollapsed = false, onMenuClick }) {
         {/* ── Right Actions ── */}
         <div className="hd-right">
 
+          {/* Theme Toggle */}
+          <button 
+            className="hd-icon-btn hd-theme-btn" 
+            onClick={toggleTheme} 
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+
           {/* Notifications */}
           <div className="hd-dropdown-wrap" ref={notifRef}>
             <button className="hd-icon-btn hd-notif-btn" onClick={handleNotifOpen} aria-label="Notifications">
               🔔
-              {notifications > 0 && (
-                <span className="hd-notif-badge">{notifications}</span>
+              {notifications.length > 0 && (
+                <span className="hd-notif-badge">{notifications.length}</span>
               )}
             </button>
 
             {notifOpen && (
               <div className="hd-dropdown hd-notif-dropdown">
                 <div className="hd-dropdown-header">
-                  <span className="hd-dropdown-header-title">Notifications</span>
-                  {notifications > 0 && (
-                    <button className="hd-dropdown-header-action" onClick={handleMarkRead}>
-                      Mark all read
-                    </button>
-                  )}
+                  <span className="hd-dropdown-header-title">System Notifications</span>
                 </div>
-                {notifItems.map((n, i) => (
-                  <div key={i} className="hd-notif-item" onClick={handleMarkRead}>
-                    <div className="hd-notif-icon">{n.icon}</div>
-                    <div className="hd-notif-text">
-                      <p className="hd-notif-msg">{n.msg}</p>
-                      <span className="hd-notif-time">{n.time}</span>
-                    </div>
-                  </div>
-                ))}
-                <div className="hd-dropdown-footer">
-                  <button className="hd-view-all">View all notifications →</button>
+                <div className="hd-notif-scroll" style={{maxHeight:'300px', overflowY:'auto'}}>
+                  {notifications.length === 0 ? (
+                    <div style={{padding:'2rem', textAlign:'center', color:'#6b7280'}}>No notifications</div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n.id} className="hd-notif-item">
+                        <div className="hd-notif-icon">
+                          {n.priority === 'danger' ? '🚨' : n.priority === 'warning' ? '⚠️' : n.priority === 'success' ? '✨' : 'ℹ️'}
+                        </div>
+                        <div className="hd-notif-text">
+                          <p className="hd-notif-msg" style={{fontWeight:600}}>{n.title}</p>
+                          <p className="hd-notif-sub" style={{fontSize:'0.85rem', margin:'4px 0'}}>{n.content}</p>
+                          <span className="hd-notif-time">{formatTimeAgo(n.created_at)}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -172,6 +206,12 @@ export default function Header({ sidebarCollapsed = false, onMenuClick }) {
                 <div className="hd-menu-divider" />
 
                 <div className="hd-menu-section">
+                  {['admin', 'systemowner'].includes(user?.role?.toLowerCase()) && (
+                    <button className="hd-menu-item upgrade-plan" onClick={() => { setShowPricingModal(true); setUserOpen(false); }}>
+                      <span className="hd-menu-item-icon">💎</span>
+                      <span className="hd-menu-item-label">Display Pricing</span>
+                    </button>
+                  )}
                   <button className="hd-menu-item logout" onClick={handleLogout}>
                     <span className="hd-menu-item-icon">🚪</span>
                     <span className="hd-menu-item-label">Logout</span>

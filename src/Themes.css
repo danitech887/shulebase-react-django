@@ -1,0 +1,1337 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SHULEBASE — LIGHT THEME
+   Enhanced with better contrast, complete component coverage,
+   smooth transitions, polished aesthetics & accessibility fixes.
+   Apply by toggling  class="theme-light"  on <body>
+═══════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────
+   1. DESIGN TOKENS  (single source of truth for the light palette)
+───────────────────────────────────────────────────────────────── */
+body.theme-light {
+
+  /* ── Base surfaces ── */
+  --lt-bg:            #f0f4f8;       /* page background */
+  --lt-surface:       #ffffff;       /* cards, panels */
+  --lt-surface-2:     #f1f5f9;       /* subtle inset areas */
+  --lt-surface-3:     #e2e8f0;       /* active / pressed / dividers */
+  --lt-surface-4:     #cbd5e1;       /* strong dividers */
+
+  /* ── Typography ── */
+  --lt-text:          #0f172a;       /* primary — high contrast */
+  --lt-text-2:        #334155;       /* secondary */
+  --lt-text-muted:    #64748b;       /* muted labels */
+  --lt-text-dim:      #94a3b8;       /* placeholder / hint */
+
+  /* ── Borders ── */
+  --lt-border:        rgba(15,23,42,0.08);
+  --lt-border-2:      rgba(15,23,42,0.14);
+  --lt-border-3:      rgba(15,23,42,0.20);
+
+  /* ── Accent — indigo ── */
+  --lt-accent:        #4f46e5;
+  --lt-accent-2:      #4338ca;
+  --lt-accent-3:      #3730a3;
+  --lt-accent-soft:   rgba(79,70,229,0.09);
+  --lt-accent-soft2:  rgba(79,70,229,0.16);
+
+  /* ── Semantic colours ── */
+  --lt-green:         #059669;
+  --lt-green-soft:    rgba(5,150,105,0.09);
+  --lt-amber:         #d97706;
+  --lt-amber-soft:    rgba(217,119,6,0.09);
+  --lt-red:           #dc2626;
+  --lt-red-soft:      rgba(220,38,38,0.08);
+  --lt-cyan:          #0891b2;
+  --lt-cyan-soft:     rgba(8,145,178,0.09);
+
+  /* ── Elevation shadows ── */
+  --lt-shadow-xs:     0 1px 2px rgba(15,23,42,0.05);
+  --lt-shadow-sm:     0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04);
+  --lt-shadow-md:     0 4px 12px rgba(15,23,42,0.07), 0 2px 4px rgba(15,23,42,0.04);
+  --lt-shadow-lg:     0 12px 28px rgba(15,23,42,0.09), 0 4px 8px rgba(15,23,42,0.04);
+  --lt-shadow-xl:     0 24px 48px rgba(15,23,42,0.11), 0 8px 16px rgba(15,23,42,0.05);
+
+  /* ── Transition ── */
+  --lt-transition:    180ms cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   2. MAP TOKENS  →  every component CSS-variable prefix
+───────────────────────────────────────────────────────────────── */
+body.theme-light {
+
+  /* ── Global / body ── */
+  background-color:   var(--lt-bg)   !important;
+  color:              var(--lt-text) !important;
+
+  /* ── Header  (--hd-) ── */
+  --hd-bg:            var(--lt-surface);
+  --hd-surface:       var(--lt-surface);
+  --hd-surface-2:     var(--lt-surface-2);
+  --hd-surface-3:     var(--lt-surface-3);
+  --hd-border:        var(--lt-border);
+  --hd-border-bright: var(--lt-border-2);
+  --hd-text:          var(--lt-text);
+  --hd-text-muted:    var(--lt-text-muted);
+  --hd-text-dim:      var(--lt-text-dim);
+  --hd-accent:        var(--lt-accent);
+  --hd-accent-soft:   var(--lt-accent-soft);
+  --hd-red:           var(--lt-red);
+  --hd-red-soft:      var(--lt-red-soft);
+  --hd-glass:         rgba(255,255,255,0.9);
+
+  /* ── Sidebar  (--sb-) ── */
+  --sb-bg:              var(--lt-surface);
+  --sb-surface:         var(--lt-surface);
+  --sb-surface-2:       var(--lt-surface-2);
+  --sb-surface-3:       var(--lt-surface-3);
+  --sb-border:          var(--lt-border);
+  --sb-border-bright:   var(--lt-border-2);
+  --sb-text:            var(--lt-text);
+  --sb-text-muted:      var(--lt-text-muted);
+  --sb-text-dim:        var(--lt-text-dim);
+  --sb-accent:          var(--lt-accent);
+  --sb-accent-soft:     var(--lt-accent-soft);
+  --sb-accent-glow:     var(--lt-accent-soft2);
+  --sb-active-bg:       var(--lt-accent-soft);
+  --sb-active-text:     var(--lt-accent);
+
+  /* ── Fee Dashboard  (--fd-) ── */
+  --fd-bg:              var(--lt-bg);
+  --fd-surface:         var(--lt-surface);
+  --fd-surface-2:       var(--lt-surface-2);
+  --fd-surface-3:       var(--lt-surface-3);
+  --fd-border:          var(--lt-border);
+  --fd-border-bright:   var(--lt-border-2);
+  --fd-text:            var(--lt-text);
+  --fd-text-muted:      var(--lt-text-muted);
+  --fd-text-dim:        var(--lt-text-dim);
+  --fd-accent:          var(--lt-accent);
+  --fd-accent-soft:     var(--lt-accent-soft);
+  --fd-green:           var(--lt-green);
+  --fd-green-soft:      var(--lt-green-soft);
+  --fd-amber:           var(--lt-amber);
+
+  /* ── Leave Dashboard  (--ld-) ── */
+  --ld-bg:              var(--lt-bg);
+  --ld-surface:         var(--lt-surface);
+  --ld-surface-2:       var(--lt-surface-2);
+  --ld-surface-3:       var(--lt-surface-3);
+  --ld-border:          var(--lt-border);
+  --ld-border-bright:   var(--lt-border-2);
+  --ld-text:            var(--lt-text);
+  --ld-text-muted:      var(--lt-text-muted);
+  --ld-text-dim:        var(--lt-text-dim);
+  --ld-accent:          var(--lt-accent);
+  --ld-accent-soft:     var(--lt-accent-soft);
+  --ld-green:           var(--lt-green);
+  --ld-green-soft:      var(--lt-green-soft);
+  --ld-amber:           var(--lt-amber);
+  --ld-amber-soft:      var(--lt-amber-soft);
+  --ld-red:             var(--lt-red);
+  --ld-red-soft:        var(--lt-red-soft);
+  --ld-cyan:            var(--lt-cyan);
+  --ld-cyan-soft:       var(--lt-cyan-soft);
+
+  /* ── Dashboard  (--db-) ── */
+  --db-bg:              var(--lt-bg);
+  --db-surface:         var(--lt-surface);
+  --db-surface-2:       var(--lt-surface-2);
+  --db-border:          var(--lt-border);
+  --db-border-bright:   var(--lt-border-2);
+  --db-text:            var(--lt-text);
+  --db-text-muted:      var(--lt-text-muted);
+  --db-text-subtle:     var(--lt-text-dim);
+  --db-accent:          var(--lt-accent);
+  --db-accent-soft:     var(--lt-accent-soft);
+  --db-shadow:          var(--lt-shadow-md);
+  --db-glow:            0 0 40px rgba(79,70,229,0.04);
+
+  /* ── Teacher Portal  (--t-) ── */
+  --t-bg:               var(--lt-bg);
+  --t-surface:          var(--lt-surface);
+  --t-surface-2:        var(--lt-surface-2);
+  --t-surface-3:        var(--lt-surface-3);
+  --t-border:           var(--lt-border);
+  --t-border-bright:    var(--lt-border-2);
+  --t-text:             var(--lt-text);
+  --t-text-muted:       var(--lt-text-muted);
+  --t-text-dim:         var(--lt-text-dim);
+  --t-accent:           var(--lt-accent);
+  --t-accent-soft:      var(--lt-accent-soft);
+
+  /* ── Teacher Dashboard  (--td-) ── */
+  --td-bg:              var(--lt-bg);
+  --td-surface:         var(--lt-surface);
+  --td-surface-2:       var(--lt-surface-2);
+  --td-surface-3:       var(--lt-surface-3);
+  --td-border:          var(--lt-border);
+  --td-border-bright:   var(--lt-border-2);
+  --td-text:            var(--lt-text);
+  --td-text-muted:      var(--lt-text-muted);
+  --td-accent:          var(--lt-accent);
+
+  /* ── Teacher Roles  (--tr-) ── */
+  --tr-bg:              var(--lt-bg);
+  --tr-surface:         var(--lt-surface);
+  --tr-surface-2:       var(--lt-surface-2);
+  --tr-surface-3:       var(--lt-surface-3);
+  --tr-border:          var(--lt-border);
+  --tr-border-bright:   var(--lt-border-2);
+  --tr-text:            var(--lt-text);
+  --tr-text-muted:      var(--lt-text-muted);
+  --tr-accent:          var(--lt-accent);
+  --tr-accent-soft:     var(--lt-accent-soft);
+
+  /* ── Teacher Attendance  (--ta-) ── */
+  --ta-bg:              var(--lt-bg);
+  --ta-surface:         var(--lt-surface);
+  --ta-surface-2:       var(--lt-surface-2);
+  --ta-surface-3:       var(--lt-surface-3);
+  --ta-border:          var(--lt-border);
+  --ta-border-bright:   var(--lt-border-2);
+  --ta-text:            var(--lt-text);
+  --ta-text-muted:      var(--lt-text-muted);
+  --ta-accent:          var(--lt-accent);
+
+  /* ── Attendance (--att-) ── */
+  --att-bg:             var(--lt-bg);
+  --att-surface:        var(--lt-surface);
+  --att-surface-2:      var(--lt-surface-2);
+  --att-surface-3:      var(--lt-surface-3);
+  --att-border:         var(--lt-border);
+  --att-border-bright:  var(--lt-border-2);
+  --att-text:           var(--lt-text);
+  --att-text-muted:     var(--lt-text-muted);
+  --att-accent:         var(--lt-accent);
+
+  /* ── Teaching Progress  (--tp-) ── */
+  --tp-bg:              var(--lt-bg);
+  --tp-surface:         var(--lt-surface);
+  --tp-surface-2:       var(--lt-surface-2);
+  --tp-surface-3:       var(--lt-surface-3);
+  --tp-border:          var(--lt-border);
+  --tp-border-bright:   var(--lt-border-2);
+  --tp-text:            var(--lt-text);
+  --tp-text-muted:      var(--lt-text-muted);
+  --tp-accent:          var(--lt-accent);
+  --tp-glass-bg:        rgba(255,255,255,0.92);
+  --tp-glass-border:    var(--lt-border);
+  --tp-card-shadow:     var(--lt-shadow-sm);
+
+  /* ── Strands  (--str-) ── */
+  --str-indigo:         var(--lt-accent);
+  --str-indigo-dim:     var(--lt-accent-2);
+  --str-surface-glass:  rgba(255,255,255,0.92);
+  --str-glow:           var(--lt-shadow-sm);
+
+  /* ── Parent Portal  (--pp-) ── */
+  --pp-bg:              var(--lt-bg);
+  --pp-surface:         var(--lt-surface);
+  --pp-surface-2:       var(--lt-surface-2);
+  --pp-surface-3:       var(--lt-surface-3);
+  --pp-border:          var(--lt-border);
+  --pp-border-bright:   var(--lt-border-2);
+  --pp-text:            var(--lt-text);
+  --pp-text-muted:      var(--lt-text-muted);
+  --pp-text-dim:        var(--lt-text-dim);
+  --pp-accent:          var(--lt-accent);
+  --pp-accent-soft:     var(--lt-accent-soft);
+  --pp-green:           var(--lt-green);
+  --pp-green-soft:      var(--lt-green-soft);
+  --pp-amber:           var(--lt-amber);
+  --pp-amber-soft:      var(--lt-amber-soft);
+  --pp-red:             var(--lt-red);
+  --pp-red-soft:        var(--lt-red-soft);
+  --pp-cyan:            var(--lt-cyan);
+  --pp-cyan-soft:       var(--lt-cyan-soft);
+
+  /* ── Student Portal  (--sp-) ── */
+  --sp-bg:              var(--lt-bg);
+  --sp-surface:         var(--lt-surface);
+  --sp-surface-2:       var(--lt-surface-2);
+  --sp-surface-3:       var(--lt-surface-3);
+  --sp-border:          var(--lt-border);
+  --sp-border-bright:   var(--lt-border-2);
+  --sp-text:            var(--lt-text);
+  --sp-text-muted:      var(--lt-text-muted);
+  --sp-accent:          var(--lt-accent);
+
+  /* ── Academics  (--sa-) ── */
+  --sa-bg:              var(--lt-bg);
+  --sa-surface:         var(--lt-surface);
+  --sa-surface2:        var(--lt-surface-2);
+  --sa-text:            var(--lt-text);
+  --sa-muted:           var(--lt-text-muted);
+  --sa-border:          var(--lt-border);
+  --sa-border-h:        var(--lt-border-2);
+
+  /* ── Misc prefixes ── */
+  --ad-bg:    var(--lt-bg);  --ad-surface: var(--lt-surface);
+  --ad-text:  var(--lt-text);--ad-border:  var(--lt-border);
+
+  --pd-bg:    var(--lt-bg);  --pd-surface: var(--lt-surface);
+  --pd-text:  var(--lt-text);--pd-border:  var(--lt-border);
+
+  --sch-bg:   var(--lt-bg);  --sch-surface:var(--lt-surface);
+  --sch-text: var(--lt-text);--sch-border: var(--lt-border);
+
+  --lg-bg:    var(--lt-bg);  --lg-surface: var(--lt-surface);
+  --lg-text:  var(--lt-text);--lg-border:  var(--lt-border);
+
+  /* ── Teaching Progress (Admin)  (--am-) ── */
+  --am-ink:             var(--lt-text);
+  --am-surface:         var(--lt-surface);
+  --am-s2:              var(--lt-surface-2);
+  --am-s3:              var(--lt-surface-3);
+  --am-s4:              var(--lt-surface-4);
+  --am-s5:              var(--lt-surface-4);
+  --am-text:            var(--lt-text);
+  --am-text-2:          var(--lt-text-muted);
+  --am-text-3:          var(--lt-text-dim);
+  --am-border:          var(--lt-border);
+  --am-border-2:        var(--lt-border-2);
+  --am-border-3:        var(--lt-border-3);
+  --am-green:           var(--lt-green);
+  --am-green-dim:       var(--lt-green);
+  --am-green-soft:      var(--lt-green-soft);
+  --am-green-glow:      var(--lt-green-soft);
+  --am-sky:             var(--lt-cyan);
+  --am-sky-soft:        var(--lt-cyan-soft);
+  --am-amber:           var(--lt-amber);
+  --am-amber-soft:      var(--lt-amber-soft);
+  --am-rose:            var(--lt-red);
+  --am-rose-soft:       var(--lt-red-soft);
+  --am-shadow:          var(--lt-shadow-sm);
+  --am-shadow-lg:       var(--lt-shadow-md);
+
+  /* ── Teaching Progress (Teacher Portal) (--c-) ── */
+  --c-bg:               var(--lt-bg);
+  --c-surface:          var(--lt-surface);
+  --c-surface-2:        var(--lt-surface-2);
+  --c-surface-3:        var(--lt-surface-3);
+  --c-surface-4:        var(--lt-surface-4);
+  --c-text:             var(--lt-text);
+  --c-text-2:           var(--lt-text-muted);
+  --c-text-3:           var(--lt-text-dim);
+  --c-teal:             var(--lt-cyan);
+  --c-teal-dim:         var(--lt-cyan);
+  --c-teal-soft:        var(--lt-cyan-soft);
+  --c-teal-glow:        var(--lt-cyan-soft);
+  --c-green:            var(--lt-green);
+  --c-green-soft:       var(--lt-green-soft);
+  --c-gold:             var(--lt-amber);
+  --c-gold-soft:        var(--lt-amber-soft);
+  --c-rose:             var(--lt-red);
+  --c-rose-soft:        var(--lt-red-soft);
+  --c-border:           var(--lt-border);
+  --c-border-2:         var(--lt-border-2);
+  --c-border-3:         var(--lt-border-3);
+  --c-shadow:           var(--lt-shadow-sm);
+  --c-shadow-lg:        var(--lt-shadow-md);
+  --c-teal-shadow:      var(--lt-shadow-sm);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   3. SMOOTH THEME TRANSITION
+───────────────────────────────────────────────────────────────── */
+body.theme-light,
+body.theme-light * {
+  transition:
+    background-color var(--lt-transition),
+    border-color     var(--lt-transition),
+    color            var(--lt-transition),
+    box-shadow       var(--lt-transition) !important;
+}
+/* Exempt animations, transforms, opacity from the transition override */
+body.theme-light *[class*="animate"],
+body.theme-light *[class*="spinner"],
+body.theme-light *[class*="orb"],
+body.theme-light *[class*="blob"] {
+  transition: none !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   4. ROOT CONTAINERS
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-root,
+body.theme-light .ld-root,
+body.theme-light .db-root,
+body.theme-light .tr-root,
+body.theme-light .ta-root,
+body.theme-light .td-root,
+body.theme-light .att-root,
+body.theme-light .str-portal-root,
+body.theme-light .sa-root,
+body.theme-light .pp-root,
+body.theme-light .sp-page,
+body.theme-light .t-page,
+body.theme-light .tp-root,
+body.theme-light .tp-admin-page,
+body.theme-light .im-root,
+body.theme-light .login-right {
+  background-color: var(--lt-bg)    !important;
+  color:            var(--lt-text)  !important;
+}
+
+/* ── Import Students (--im-) light overrides ── */
+body.theme-light .im-root {
+  --im-bg: var(--lt-bg); --im-surface: var(--lt-surface); --im-surface-2: var(--lt-surface-2);
+  --im-surface-3: var(--lt-surface-3); --im-border: var(--lt-border); --im-border-bright: var(--lt-border-2);
+  --im-text: var(--lt-text); --im-text-muted: var(--lt-text-muted); --im-text-dim: var(--lt-text-dim);
+  --im-accent: var(--lt-accent); --im-accent-soft: var(--lt-accent-soft);
+  --im-green: var(--lt-green); --im-green-soft: var(--lt-green-soft);
+  --im-red: var(--lt-red); --im-red-soft: var(--lt-red-soft);
+  --im-amber: var(--lt-amber); --im-amber-soft: var(--lt-amber-soft);
+  --im-cyan: var(--lt-cyan); --im-cyan-soft: var(--lt-cyan-soft);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   5. CARDS  — white surface, soft elevation, clean border
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-card,
+body.theme-light .ld-card,
+body.theme-light .pp-card,
+body.theme-light .sp-card,
+body.theme-light .sa-card,
+body.theme-light .db-card,
+body.theme-light .t-card,
+body.theme-light .tr-card,
+body.theme-light .ta-card,
+body.theme-light .td-card,
+body.theme-light .att-card,
+body.theme-light .ann-card,
+body.theme-light .rev-card,
+body.theme-light .comp-subject-card,
+body.theme-light .str-subject-card,
+body.theme-light .str-stat-card,
+body.theme-light .str-glass-card,
+body.theme-light .tp-teacher-card,
+body.theme-light .tp-stat-card-premium,
+body.theme-light .tp-header-glass,
+body.theme-light .tp-admin-header {
+  background:   var(--lt-surface)    !important;
+  border-color: var(--lt-border)     !important;
+  box-shadow:   var(--lt-shadow-sm)  !important;
+  color:        var(--lt-text)       !important;
+}
+
+body.theme-light .fd-card:hover,
+body.theme-light .ld-card:hover,
+body.theme-light .pp-card:hover,
+body.theme-light .sp-card:hover,
+body.theme-light .t-card:hover,
+body.theme-light .tr-card:hover {
+  box-shadow:   var(--lt-shadow-md)  !important;
+  border-color: var(--lt-border-2)   !important;
+}
+
+/* Stat cards */
+body.theme-light .fd-stat,
+body.theme-light .ld-stat,
+body.theme-light .pp-stat,
+body.theme-light .pp-att-card,
+body.theme-light .sp-stat,
+body.theme-light .sa-stat,
+body.theme-light .db-stat,
+body.theme-light .tr-stat,
+body.theme-light .ta-stat,
+body.theme-light .att-stat {
+  background:   var(--lt-surface)   !important;
+  border-color: var(--lt-border)    !important;
+  box-shadow:   var(--lt-shadow-sm) !important;
+  color:        var(--lt-text)      !important;
+}
+
+/* Card headers */
+body.theme-light .fd-card-header,
+body.theme-light .ld-card-header,
+body.theme-light .pp-card-header,
+body.theme-light .sp-card-header,
+body.theme-light .t-card-header,
+body.theme-light .tr-card-header,
+body.theme-light .ta-card-header,
+body.theme-light .att-card-header {
+  background:   rgba(0,0,0,0.018) !important;
+  border-color: var(--lt-border)  !important;
+}
+
+/* Surface-2 inset areas */
+body.theme-light .fd-surface-2,
+body.theme-light .fd-dist-item,
+body.theme-light .ld-reason-item,
+body.theme-light .ld-statement-section,
+body.theme-light .pp-statement-section,
+body.theme-light .pp-subject-card,
+body.theme-light .sp-subject-card,
+body.theme-light .t-inset,
+body.theme-light .tr-inset,
+body.theme-light .ta-inset,
+body.theme-light .tp-subject-row,
+body.theme-light .tp-modern-table thead tr {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   6. TYPOGRAPHY  — prevent dark-mode gradients bleeding through
+───────────────────────────────────────────────────────────────── */
+body.theme-light .hd-school-name,
+body.theme-light .fd-title,
+body.theme-light .ld-title,
+body.theme-light .pp-title,
+body.theme-light .sp-title,
+body.theme-light .sa-page-title,
+body.theme-light .t-title,
+body.theme-light .tr-title,
+body.theme-light .ta-title,
+body.theme-light .td-title,
+body.theme-light .att-title,
+body.theme-light .db-title,
+body.theme-light .tp-title,
+body.theme-light .str-page-title,
+body.theme-light .ann-header h1,
+body.theme-light .rev-header h1,
+body.theme-light .login-hero-title {
+  background:              none              !important;
+  -webkit-background-clip: unset            !important;
+  background-clip:         unset            !important;
+  -webkit-text-fill-color: var(--lt-text)   !important;
+  color:                   var(--lt-text)   !important;
+}
+
+/* Section titles & subtitles */
+body.theme-light .fd-card-title,
+body.theme-light .ld-card-title,
+body.theme-light .pp-card-title,
+body.theme-light .sp-card-title,
+body.theme-light .sa-school-name,
+body.theme-light .tp-big-num,
+body.theme-light .tp-topic-main,
+body.theme-light .tp-subject-info strong,
+body.theme-light .comp-subject-name,
+body.theme-light .str-stat-pill .spv,
+body.theme-light .ssc-value,
+body.theme-light .sp-stat-value,
+body.theme-light .pp-att-card-value,
+body.theme-light .pp-stat-value,
+body.theme-light .fd-stat-value,
+body.theme-light .ld-stat-value,
+body.theme-light .pp-subject-score,
+body.theme-light .pp-cbc-level,
+body.theme-light .fd-bold,
+body.theme-light .ld-bold,
+body.theme-light .pp-bold,
+body.theme-light [class$="-bold"],
+body.theme-light [class$="-stat-value"] {
+  color: var(--lt-text) !important;
+}
+
+/* Muted / secondary text */
+body.theme-light .fd-card-sub,
+body.theme-light .ld-card-sub,
+body.theme-light .pp-card-sub,
+body.theme-light .fd-subtitle,
+body.theme-light .ld-subtitle,
+body.theme-light .pp-subtitle,
+body.theme-light .sp-subtitle,
+body.theme-light .fd-text-muted,
+body.theme-light .ld-text-muted,
+body.theme-light .pp-muted,
+body.theme-light .fd-muted,
+body.theme-light .ld-muted,
+body.theme-light .fd-stat-label,
+body.theme-light .ld-stat-label,
+body.theme-light .pp-stat-label,
+body.theme-light .pp-att-card-label,
+body.theme-light .ann-date,
+body.theme-light .rev-loc,
+body.theme-light .ann-target,
+body.theme-light .tp-grade-tag,
+body.theme-light .tp-subtitle,
+body.theme-light .tp-subtopic,
+body.theme-light .comp-subject-desc,
+body.theme-light .ann-header p,
+body.theme-light .rev-header p,
+body.theme-light [class$="-text-muted"],
+body.theme-light [class$="-subtitle"],
+body.theme-light [class$="-label"] {
+  color: var(--lt-text-muted) !important;
+}
+
+/* Monospace numbers */
+body.theme-light .fd-num,
+body.theme-light .ld-num,
+body.theme-light .pp-num,
+body.theme-light .fd-mono,
+body.theme-light .ld-mono,
+body.theme-light .pp-mono {
+  color: var(--lt-text-2) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   7. TABLES
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-table thead tr,
+body.theme-light .ld-table thead tr,
+body.theme-light .pp-table thead tr,
+body.theme-light .sp-table thead tr,
+body.theme-light .tr-table thead tr,
+body.theme-light .ta-table thead tr,
+body.theme-light .att-table thead tr {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border-2)  !important;
+}
+
+body.theme-light .fd-table th,
+body.theme-light .ld-table th,
+body.theme-light .pp-table th,
+body.theme-light .sp-table th,
+body.theme-light [class$="-table"] th {
+  color: var(--lt-text-muted) !important;
+}
+
+body.theme-light .fd-tr,
+body.theme-light .ld-tr,
+body.theme-light .pp-tr,
+body.theme-light .sp-tr,
+body.theme-light [class$="-tr"] {
+  border-color: var(--lt-border) !important;
+}
+
+body.theme-light .fd-tr:hover,
+body.theme-light .ld-tr:hover,
+body.theme-light .pp-tr:hover,
+body.theme-light .sp-tr:hover,
+body.theme-light [class$="-tr"]:hover {
+  background: rgba(79,70,229,0.028) !important;
+}
+
+body.theme-light .fd-tr-total,
+body.theme-light .ld-tr-total,
+body.theme-light .pp-tr-total,
+body.theme-light [class$="-tr-total"] {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border-2)  !important;
+}
+
+body.theme-light .fd-table td,
+body.theme-light .ld-table td,
+body.theme-light .pp-table td,
+body.theme-light [class$="-table"] td {
+  color: var(--lt-text-2) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   8. TABS & NAV
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-tab,
+body.theme-light .ld-tab,
+body.theme-light .pp-tab,
+body.theme-light .sp-tab,
+body.theme-light [class$="-tab"]:not([class*="-tab-active"]) {
+  background:   var(--lt-surface)  !important;
+  border-color: var(--lt-border)   !important;
+  color:        var(--lt-text-muted) !important;
+}
+
+body.theme-light .fd-tab:hover,
+body.theme-light .ld-tab:hover,
+body.theme-light .pp-tab:hover,
+body.theme-light .sp-tab:hover,
+body.theme-light [class$="-tab"]:hover {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border-2)  !important;
+  color:        var(--lt-text)      !important;
+}
+
+body.theme-light .fd-tab-active,
+body.theme-light .ld-tab-active,
+body.theme-light .pp-tab-active,
+body.theme-light .sp-tab-active,
+body.theme-light [class$="-tab-active"] {
+  background:   var(--lt-accent-soft)          !important;
+  border-color: rgba(79,70,229,0.28)           !important;
+  color:        var(--lt-accent)               !important;
+}
+
+/* Sidebar nav items */
+body.theme-light .sb-nav-item {
+  color: var(--lt-text-muted) !important;
+}
+body.theme-light .sb-nav-item:hover {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+  color:        var(--lt-text)      !important;
+}
+body.theme-light .sb-nav-item.active {
+  background:   var(--lt-accent-soft) !important;
+  border-color: rgba(79,70,229,0.22)  !important;
+  color:        var(--lt-accent)      !important;
+}
+body.theme-light .sb-nav-item.active .sb-item-icon,
+body.theme-light .tp-admin-title,
+body.theme-light .tp-title,
+body.theme-light .tp-big-num {
+  color: var(--lt-accent) !important;
+}
+body.theme-light .tp-admin-subtitle,
+body.theme-light .tp-subtitle,
+body.theme-light .tp-sub-topics,
+body.theme-light .tp-total-num,
+body.theme-light .tp-topics-label,
+body.theme-light .tp-reg-no,
+body.theme-light .tp-subtopic {
+  color: var(--lt-text-muted) !important;
+}
+body.theme-light .sb-group-label {
+  color: var(--lt-text-muted) !important;
+}
+body.theme-light .sb-group-chevron {
+  color: var(--lt-text-dim) !important;
+}
+body.theme-light .sb-toggle-btn {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+  color:        var(--lt-text-muted) !important;
+}
+body.theme-light .tp-btn-ghost-sm,
+body.theme-light .tp-admin-term-select,
+body.theme-light .tp-term-select {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+  color:        var(--lt-text)      !important;
+}
+body.theme-light .sb-toggle-btn:hover {
+  background:   var(--lt-surface-3) !important;
+  color:        var(--lt-text)      !important;
+}
+
+/* Sidebar Mobile Close Button */
+body.theme-light .sb-close-mobile {
+  background:   var(--lt-surface-3) !important;
+  border-color: var(--lt-border-2) !important;
+  color:        var(--lt-text) !important;
+  box-shadow:   var(--lt-shadow-md) !important;
+  z-index:      100020 !important;
+}
+body.theme-light .sb-close-mobile:hover {
+  background:   var(--lt-red-soft) !important;
+  border-color: var(--lt-red) !important;
+  color:        var(--lt-red) !important;
+}
+
+body.theme-light .sb-version {
+  color: var(--lt-text-dim) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   9. BUTTONS
+───────────────────────────────────────────────────────────────── */
+/* Ghost / outline */
+body.theme-light .fd-btn-outline,
+body.theme-light .ld-btn-outline,
+body.theme-light .pp-btn-outline,
+body.theme-light .sp-btn-outline,
+body.theme-light .fd-btn-cancel,
+body.theme-light .ld-btn-cancel,
+body.theme-light .pp-btn-cancel,
+body.theme-light .fd-btn-ghost,
+body.theme-light .ld-btn-ghost,
+body.theme-light .pp-btn-ghost,
+body.theme-light .hd-btn-outline,
+body.theme-light .sb-toggle-btn,
+body.theme-light .str-btn-secondary {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border-2)  !important;
+  color:        var(--lt-text)      !important;
+}
+body.theme-light .fd-btn-outline:hover,
+body.theme-light .ld-btn-outline:hover,
+body.theme-light .pp-btn-outline:hover,
+body.theme-light .fd-btn-cancel:hover,
+body.theme-light .ld-btn-cancel:hover,
+body.theme-light .pp-btn-cancel:hover,
+body.theme-light .fd-btn-ghost:hover,
+body.theme-light .ld-btn-ghost:hover,
+body.theme-light .pp-btn-ghost:hover {
+  background:   var(--lt-surface-3) !important;
+  border-color: var(--lt-border-3)  !important;
+}
+
+/* Primary solid  — keep accent colour, just tighten shadow */
+body.theme-light .fd-btn-primary,
+body.theme-light .ld-btn-primary,
+body.theme-light .pp-btn-primary,
+body.theme-light .fd-btn-save,
+body.theme-light .ld-btn-save,
+body.theme-light .pp-btn-save,
+body.theme-light .hd-btn-primary,
+body.theme-light .str-btn-primary {
+  box-shadow: 0 4px 14px rgba(79,70,229,0.25) !important;
+}
+body.theme-light .fd-btn-primary:hover,
+body.theme-light .ld-btn-primary:hover,
+body.theme-light .pp-btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(79,70,229,0.35) !important;
+}
+
+/* Success / Danger */
+body.theme-light .ld-btn-success,
+body.theme-light .pp-btn-success {
+  background:   rgba(5,150,105,0.1)    !important;
+  border-color: rgba(5,150,105,0.25)   !important;
+  color:        var(--lt-green)        !important;
+}
+body.theme-light .ld-btn-danger,
+body.theme-light .pp-btn-danger {
+  background:   rgba(220,38,38,0.08)   !important;
+  border-color: rgba(220,38,38,0.2)    !important;
+  color:        var(--lt-red)          !important;
+}
+
+/* View / Icon buttons in tables */
+body.theme-light .fd-view-btn,
+body.theme-light .ld-icon-btn,
+body.theme-light .pp-btn-ghost {
+  background:   var(--lt-surface-2)   !important;
+  border-color: var(--lt-border)      !important;
+  color:        var(--lt-text-muted)  !important;
+}
+body.theme-light .fd-view-btn:hover,
+body.theme-light .ld-icon-btn:hover,
+body.theme-light .pp-btn-ghost:hover {
+  background:   var(--lt-accent-soft)      !important;
+  border-color: rgba(79,70,229,0.22)       !important;
+  color:        var(--lt-accent)           !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   10. HEADER  (hd-)
+───────────────────────────────────────────────────────────────── */
+body.theme-light .hd-navbar {
+  background:   var(--lt-surface)                                         !important;
+  border-color: var(--lt-border)                                          !important;
+  box-shadow:   0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04) !important;
+}
+body.theme-light .hd-navbar::before {
+  opacity: 0.45;
+}
+body.theme-light .hd-hamburger,
+body.theme-light .hd-icon-btn {
+  background:   var(--lt-surface-2)  !important;
+  border-color: var(--lt-border)     !important;
+  color:        var(--lt-text-muted) !important;
+}
+body.theme-light .hd-hamburger:hover,
+body.theme-light .hd-icon-btn:hover {
+  background:   var(--lt-surface-3) !important;
+  border-color: var(--lt-border-2)  !important;
+  color:        var(--lt-text)      !important;
+}
+body.theme-light .hd-user-btn {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+}
+body.theme-light .hd-user-btn:hover {
+  background:   var(--lt-surface-3) !important;
+  border-color: var(--lt-border-2)  !important;
+}
+body.theme-light .hd-user-name,
+body.theme-light .hd-arrow {
+  color: var(--lt-text-muted) !important;
+}
+body.theme-light .hd-avatar {
+  background:   var(--lt-accent-soft)        !important;
+  border-color: rgba(79,70,229,0.25)         !important;
+  color:        var(--lt-accent)             !important;
+}
+body.theme-light .hd-notif-badge {
+  border-color: var(--lt-surface) !important;
+}
+/* Dropdowns */
+body.theme-light .hd-dropdown {
+  background:   var(--lt-surface)   !important;
+  border-color: var(--lt-border-2)  !important;
+  box-shadow:   var(--lt-shadow-lg) !important;
+}
+body.theme-light .hd-dropdown-header {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+}
+body.theme-light .hd-dropdown-header-title { color: var(--lt-text-muted) !important; }
+body.theme-light .hd-notif-item { border-color: var(--lt-border) !important; }
+body.theme-light .hd-notif-item:hover { background: rgba(79,70,229,0.03) !important; }
+body.theme-light .hd-notif-icon {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+}
+body.theme-light .hd-notif-msg   { color: var(--lt-text)       !important; }
+body.theme-light .hd-notif-time  { color: var(--lt-text-dim)   !important; }
+body.theme-light .hd-dropdown-footer {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+}
+body.theme-light .hd-user-header {
+  background: linear-gradient(135deg, var(--lt-accent-soft), rgba(79,70,229,0.04)) !important;
+  border-color: var(--lt-border) !important;
+}
+body.theme-light .hd-user-display-name { color: var(--lt-text)       !important; }
+body.theme-light .hd-user-role         { color: var(--lt-text-muted) !important; }
+body.theme-light .hd-menu-divider      { background: var(--lt-border) !important; }
+body.theme-light .hd-menu-item         { color: var(--lt-text-muted)  !important; }
+body.theme-light .hd-menu-item:hover   { background: rgba(79,70,229,0.04) !important; }
+body.theme-light .hd-menu-item:hover .hd-menu-item-label { color: var(--lt-text)   !important; }
+body.theme-light .hd-menu-item-icon {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+}
+body.theme-light .hd-menu-item:hover .hd-menu-item-icon {
+  background:   var(--lt-accent-soft)    !important;
+  border-color: rgba(79,70,229,0.2)      !important;
+}
+body.theme-light .hd-menu-item.logout:hover {
+  background: rgba(220,38,38,0.06) !important;
+}
+body.theme-light .hd-menu-item.logout:hover .hd-menu-item-icon {
+  background: rgba(220,38,38,0.08) !important;
+}
+body.theme-light .hd-menu-item.logout:hover .hd-menu-item-label {
+  color: var(--lt-red) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   11. SIDEBAR  (sb-)
+───────────────────────────────────────────────────────────────── */
+body.theme-light .sb-aside {
+  background:   var(--lt-surface) !important;
+  border-color: var(--lt-border)  !important;
+  box-shadow:   1px 0 3px rgba(15,23,42,0.08) !important;
+}
+body.theme-light .sb-aside::after { opacity: 0.4; }
+body.theme-light .sb-logo-area    { border-color: var(--lt-border) !important; }
+body.theme-light .sb-group-btn:hover { background: rgba(0,0,0,0.03) !important; }
+body.theme-light .sb-root-items   { border-color: var(--lt-border) !important; }
+body.theme-light .sb-footer       { border-color: var(--lt-border) !important; }
+
+/* Tooltip on collapsed */
+body.theme-light .sb-aside.collapsed .sb-nav-item::after {
+  background:   var(--lt-surface)   !important;
+  border-color: var(--lt-border-2)  !important;
+  color:        var(--lt-text)      !important;
+  box-shadow:   var(--lt-shadow-md) !important;
+}
+
+/* Backdrop */
+body.theme-light .sb-backdrop {
+  background:     rgba(15,23,42,0.22) !important;
+  backdrop-filter: blur(6px)          !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   12. MODALS
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-overlay,
+body.theme-light .ld-overlay,
+body.theme-light .pp-overlay {
+  background: rgba(15,23,42,0.45) !important;
+}
+
+body.theme-light .fd-modal,
+body.theme-light .ld-modal,
+body.theme-light .pp-modal {
+  background:   var(--lt-surface)    !important;
+  border-color: var(--lt-border-2)   !important;
+  box-shadow:   var(--lt-shadow-xl)  !important;
+}
+
+body.theme-light .fd-modal-header,
+body.theme-light .ld-modal-header,
+body.theme-light .pp-modal-header {
+  background:   linear-gradient(135deg, var(--lt-accent-soft), rgba(79,70,229,0.04)) !important;
+  border-color: var(--lt-border) !important;
+}
+body.theme-light .fd-modal-header.danger,
+body.theme-light .ld-modal-header.danger,
+body.theme-light .pp-modal-header.danger {
+  background: linear-gradient(135deg, rgba(220,38,38,0.08), rgba(220,38,38,0.03)) !important;
+}
+body.theme-light .fd-modal-header.success,
+body.theme-light .ld-modal-header.success,
+body.theme-light .pp-modal-header.success {
+  background: linear-gradient(135deg, rgba(5,150,105,0.08), rgba(5,150,105,0.03)) !important;
+}
+body.theme-light .fd-modal-title,
+body.theme-light .ld-modal-title,
+body.theme-light .pp-modal-title { color: var(--lt-text) !important; }
+
+body.theme-light .fd-modal-close,
+body.theme-light .ld-modal-close,
+body.theme-light .pp-modal-close {
+  color: var(--lt-text-muted) !important;
+}
+body.theme-light .fd-modal-close:hover,
+body.theme-light .ld-modal-close:hover,
+body.theme-light .pp-modal-close:hover {
+  background: var(--lt-surface-2) !important;
+  color:      var(--lt-text)      !important;
+}
+
+body.theme-light .fd-modal-footer,
+body.theme-light .ld-modal-footer,
+body.theme-light .pp-modal-footer {
+  background:   rgba(0,0,0,0.018) !important;
+  border-color: var(--lt-border)  !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   13. FORM INPUTS
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-input,
+body.theme-light .ld-input,
+body.theme-light .pp-input,
+body.theme-light input[class$="-input"],
+body.theme-light select[class$="-input"],
+body.theme-light textarea[class$="-input"],
+body.theme-light .tp-term-select,
+body.theme-light .form-group input,
+body.theme-light .form-group select,
+body.theme-light .form-group textarea,
+body.theme-light .rev-form input,
+body.theme-light .rev-form textarea {
+  background:   var(--lt-surface)  !important;
+  border-color: var(--lt-border-2) !important;
+  color:        var(--lt-text)     !important;
+}
+body.theme-light .fd-input::placeholder,
+body.theme-light .ld-input::placeholder,
+body.theme-light .pp-input::placeholder,
+body.theme-light input::placeholder,
+body.theme-light textarea::placeholder {
+  color: var(--lt-text-dim) !important;
+}
+body.theme-light .fd-input:focus,
+body.theme-light .ld-input:focus,
+body.theme-light .pp-input:focus,
+body.theme-light input:focus,
+body.theme-light select:focus,
+body.theme-light textarea:focus {
+  border-color: var(--lt-accent)      !important;
+  box-shadow:   0 0 0 3px rgba(79,70,229,0.1) !important;
+  outline:      none                  !important;
+}
+body.theme-light .fd-label,
+body.theme-light .ld-label,
+body.theme-light .pp-label,
+body.theme-light .form-group label,
+body.theme-light .rev-form-card label {
+  color: var(--lt-text-muted) !important;
+}
+
+/* Checklist */
+body.theme-light .ld-checklist,
+body.theme-light .pp-checklist {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+}
+body.theme-light .ld-check-item:hover,
+body.theme-light .pp-check-item:hover {
+  background: var(--lt-surface-3) !important;
+  color:      var(--lt-text)      !important;
+}
+body.theme-light .ld-check-item,
+body.theme-light .pp-check-item {
+  color: var(--lt-text-muted) !important;
+}
+
+/* Info / Warn boxes */
+body.theme-light .pp-info-box,
+body.theme-light .ld-info-box {
+  background:   rgba(79,70,229,0.07) !important;
+  border-color: rgba(79,70,229,0.18) !important;
+  color:        var(--lt-accent-2)   !important;
+}
+body.theme-light .pp-warn-box,
+body.theme-light .ld-warn-box {
+  background:   rgba(217,119,6,0.07)  !important;
+  border-color: rgba(217,119,6,0.18)  !important;
+  color:        var(--lt-amber)       !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   14. CHIPS / BADGES
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-grade-chip,
+body.theme-light .ld-grade-chip,
+body.theme-light .pp-chip-indigo,
+body.theme-light [class$="-chip-indigo"] {
+  background:   rgba(79,70,229,0.09) !important;
+  border-color: rgba(79,70,229,0.22) !important;
+  color:        var(--lt-accent)     !important;
+}
+body.theme-light .fd-stream-chip,
+body.theme-light .ld-status-chip,
+body.theme-light .pp-chip-surface,
+body.theme-light [class$="-chip-surface"],
+body.theme-light [class$="-stream-chip"],
+body.theme-light [class$="-reason-chip"],
+body.theme-light [class$="-mode-chip"] {
+  background:   var(--lt-surface-2)  !important;
+  border-color: var(--lt-border)     !important;
+  color:        var(--lt-text-muted) !important;
+}
+body.theme-light .pp-chip-green,
+body.theme-light .ld-chip-approved,
+body.theme-light [class$="-chip-green"] {
+  background:   rgba(5,150,105,0.09) !important;
+  border-color: rgba(5,150,105,0.22) !important;
+  color:        var(--lt-green)      !important;
+}
+body.theme-light .pp-chip-amber,
+body.theme-light .ld-chip-pending,
+body.theme-light [class$="-chip-amber"] {
+  background:   rgba(217,119,6,0.09) !important;
+  border-color: rgba(217,119,6,0.22) !important;
+  color:        var(--lt-amber)      !important;
+}
+body.theme-light .pp-chip-red,
+body.theme-light .ld-chip-rejected,
+body.theme-light [class$="-chip-red"] {
+  background:   rgba(220,38,38,0.08) !important;
+  border-color: rgba(220,38,38,0.18) !important;
+  color:        var(--lt-red)        !important;
+}
+body.theme-light .pp-chip-cyan,
+body.theme-light [class$="-chip-cyan"] {
+  background:   rgba(8,145,178,0.08) !important;
+  border-color: rgba(8,145,178,0.2)  !important;
+  color:        var(--lt-cyan)       !important;
+}
+
+/* Trend badges */
+body.theme-light .fd-trend,
+body.theme-light .ld-trend.good,
+body.theme-light .pp-trend.good {
+  background: rgba(5,150,105,0.09)  !important;
+  color:      var(--lt-green)       !important;
+}
+body.theme-light .ld-trend.warn,
+body.theme-light .pp-trend.warn {
+  background: rgba(217,119,6,0.09)  !important;
+  color:      var(--lt-amber)       !important;
+}
+body.theme-light .ld-trend.bad,
+body.theme-light .pp-trend.bad {
+  background: rgba(220,38,38,0.08)  !important;
+  color:      var(--lt-red)         !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   15. PROGRESS BARS  — tighten glow for light mode
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-prog-track,
+body.theme-light .ld-prog-track,
+body.theme-light .pp-prog-track,
+body.theme-light [class$="-prog-track"],
+body.theme-light [class$="-dist-track"],
+body.theme-light [class$="-reason-track"],
+body.theme-light [class$="-status-track"],
+body.theme-light [class$="-att-card-bar"],
+body.theme-light [class$="-stat-bar"] {
+  background: rgba(0,0,0,0.07) !important;
+}
+body.theme-light .fd-prog-fill,
+body.theme-light .ld-prog-fill,
+body.theme-light .pp-prog-fill,
+body.theme-light [class$="-prog-fill"] {
+  box-shadow: 0 0 6px rgba(79,70,229,0.25) !important;
+}
+body.theme-light .fd-stat-bar-fill,
+body.theme-light .ld-stat-bar-fill,
+body.theme-light .pp-stat-bar-fill {
+  box-shadow: 0 0 6px rgba(var(--acc-rgb, 79,70,229), 0.2) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   16. LOADING / SKELETON
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-spinner,
+body.theme-light .ld-spinner,
+body.theme-light .pp-spinner {
+  border-color:     var(--lt-border-2)  !important;
+  border-top-color: var(--lt-accent)    !important;
+}
+body.theme-light .fd-loading,
+body.theme-light .ld-loading,
+body.theme-light .pp-loading { color: var(--lt-text-muted) !important; }
+
+body.theme-light .sk-line {
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.04) 25%,
+    rgba(0,0,0,0.09) 50%,
+    rgba(0,0,0,0.04) 75%
+  ) !important;
+  background-size: 200% 100% !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   17. ALERTS  (success banner at top)
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-alert,
+body.theme-light .ld-alert,
+body.theme-light .pp-alert {
+  background:   rgba(5,150,105,0.08) !important;
+  border-color: rgba(5,150,105,0.22) !important;
+  color:        var(--lt-green)      !important;
+}
+body.theme-light .fd-alert-close,
+body.theme-light .ld-alert-close,
+body.theme-light .pp-alert-close { color: var(--lt-green) !important; }
+
+/* ─────────────────────────────────────────────────────────────────
+   18. SUPPRESS DARK-MODE DECORATIVE ELEMENTS
+───────────────────────────────────────────────────────────────── */
+body.theme-light .fd-blob,
+body.theme-light .ld-blob,
+body.theme-light .pp-blob,
+body.theme-light .db-orb,
+body.theme-light .tr-blob,
+body.theme-light .ta-blob,
+body.theme-light .att-blob,
+body.theme-light .sa-orb,
+body.theme-light .login-left::before,
+body.theme-light .login-left::after,
+body.theme-light .tr-root::before,
+body.theme-light .ta-root::before,
+body.theme-light .att-root::before,
+body.theme-light .fd-root::before,
+body.theme-light .tr-header::after,
+body.theme-light .ta-header::after,
+body.theme-light .att-header::after,
+body.theme-light .fd-header::after,
+body.theme-light .str-page-header::after,
+body.theme-light .stat-card::before,
+body.theme-light .ta-header-card.card::before,
+body.theme-light .att-stat::before,
+body.theme-light .fd-stat::before,
+body.theme-light .tr-stat::before,
+body.theme-light .tp-header-glass::after,
+body.theme-light .tp-admin-header::after {
+  display: none !important;
+}
+
+/* Soften (not hide) the accent lines on nav chrome */
+body.theme-light .hd-navbar::before { opacity: 0.4; }
+body.theme-light .sb-aside::after   { opacity: 0.3; }
+
+/* ─────────────────────────────────────────────────────────────────
+   19. MISC LIGHT-MODE SPECIFICS
+───────────────────────────────────────────────────────────────── */
+
+/* Empty cells */
+body.theme-light .fd-empty-cell,
+body.theme-light .ld-empty-cell,
+body.theme-light .pp-empty-cell { color: var(--lt-text-muted) !important; }
+
+/* Detail rows in statements */
+body.theme-light .fd-detail-row,
+body.theme-light .pp-detail-row,
+body.theme-light .pp-statement-row { border-color: var(--lt-border) !important; }
+body.theme-light .fd-detail-label,
+body.theme-light .pp-detail-label,
+body.theme-light .pp-statement-row span { color: var(--lt-text-muted) !important; }
+body.theme-light .fd-detail-val,
+body.theme-light .pp-detail-val,
+body.theme-light .pp-statement-row strong { color: var(--lt-text) !important; }
+
+/* Total bar */
+body.theme-light .fd-dist-total,
+body.theme-light .pp-total-bar,
+body.theme-light .ld-reason-total {
+  background:   rgba(79,70,229,0.07) !important;
+  border-color: rgba(79,70,229,0.18) !important;
+  color:        var(--lt-accent-2)   !important;
+}
+
+/* Action cards  (More tab) */
+body.theme-light .fd-action-card,
+body.theme-light .ld-action-card,
+body.theme-light .pp-action-item {
+  background:   var(--lt-surface)   !important;
+  border-color: var(--lt-border)    !important;
+  box-shadow:   var(--lt-shadow-sm) !important;
+}
+body.theme-light .fd-action-card:hover,
+body.theme-light .ld-action-card:hover,
+body.theme-light .pp-action-item:hover {
+  border-color: rgba(79,70,229,0.3)    !important;
+  box-shadow:   var(--lt-shadow-md)    !important;
+}
+body.theme-light .fd-action-title,
+body.theme-light .ld-action-title { color: var(--lt-text)       !important; }
+body.theme-light .fd-action-desc,
+body.theme-light .ld-action-desc  { color: var(--lt-text-muted) !important; }
+body.theme-light .fd-action-arrow,
+body.theme-light .ld-action-arrow { color: var(--lt-text-dim)   !important; }
+body.theme-light .fd-action-card:hover .fd-action-arrow,
+body.theme-light .ld-action-card:hover .ld-action-arrow {
+  color: var(--lt-accent) !important;
+}
+
+/* Payment cards */
+body.theme-light .fd-payment-prog {
+  background: rgba(0,0,0,0.06) !important;
+}
+
+/* Subject / academics cards */
+body.theme-light .pp-subject-card {
+  background:   var(--lt-surface-2) !important;
+  border-color: var(--lt-border)    !important;
+}
+body.theme-light .pp-subject-card:hover {
+  border-color: rgba(79,70,229,0.3)    !important;
+  box-shadow:   var(--lt-shadow-sm)    !important;
+}
+body.theme-light .pp-subject-name  { color: var(--lt-text-muted) !important; }
+body.theme-light .pp-cbc-remark    { color: var(--lt-text-muted) !important; }
+body.theme-light .pp-subject-bar   { background: rgba(0,0,0,0.06) !important; }
+
+/* Child switcher pills */
+body.theme-light .pp-child-pill {
+  background:   var(--lt-surface)    !important;
+  border-color: var(--lt-border)     !important;
+  color:        var(--lt-text-muted) !important;
+}
+body.theme-light .pp-child-pill:hover {
+  background:   var(--lt-surface-2)  !important;
+  border-color: var(--lt-border-2)   !important;
+  color:        var(--lt-text)       !important;
+}
+body.theme-light .pp-child-pill.active {
+  background:   var(--lt-accent-soft)    !important;
+  border-color: rgba(79,70,229,0.28)     !important;
+  color:        var(--lt-accent)         !important;
+}
+
+/* Page-content offset div */
+body.theme-light .sb-page-content {
+  background: var(--lt-bg) !important;
+}
+
+/* Scrollbars */
+body.theme-light *::-webkit-scrollbar-track { background: var(--lt-surface-2) !important; }
+body.theme-light *::-webkit-scrollbar-thumb {
+  background:    var(--lt-surface-4)  !important;
+  border-radius: 3px;
+}
+body.theme-light *::-webkit-scrollbar-thumb:hover {
+  background: var(--lt-text-dim) !important;
+}
+
+/* Generic fallback for any remaining dark backgrounds */
+body.theme-light [class*="-surface-2"],
+body.theme-light [class*="-inset"] {
+  background-color: var(--lt-surface-2) !important;
+}

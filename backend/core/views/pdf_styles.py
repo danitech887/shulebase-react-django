@@ -43,10 +43,15 @@ CBC_LEVEL_MAP = {
 }
 
 core_competencies = [
-    'Communication Skills','Critical Thinking','Creativity','Collaboration',
-    'Digital Literacy','Learning to Learn','Citizenship','Self-Efficacy',
+    'Communication','Collaboration','Critical Thinking',
+    'Creativity','Self-efficacy','Citizenship','Digital Literacy'
 ]
 
+
+def clean_str(s):
+    if not s: return ""
+    # Replace common unicode characters that latin-1 cannot handle
+    return str(s).replace('\u2013', '-').replace('\u2014', '-').replace('\u2018', "'").replace('\u2019', "'").replace('\u201c', '"').replace('\u201d', '"')
 
 def get_cbc_level_and_remark(avg_level):
     if avg_level is None or avg_level <= 0:
@@ -99,20 +104,20 @@ def pdf_header(request, pdf, _x=30):
     _set_text(pdf, GOLD)
     pdf.set_font("Arial", "B", 15)
     pdf.set_xy(0, 5)
-    pdf.cell(page_w, 8, name.upper(), align="C")
+    pdf.cell(page_w, 8, clean_str(name).upper(), align="C")
 
     # ── address / contacts ──
     _set_text(pdf, WHITE)
     pdf.set_font("Arial", "", 8)
     pdf.set_xy(0, 14)
-    pdf.cell(page_w, 5, f"  {address}   |   Tel: {contact}   |   {email}", align="C")
+    pdf.cell(page_w, 5, clean_str(f"  {address}   |   Tel: {contact}   |   {email}"), align="C")
 
     # ── motto ──
     if motto:
         pdf.set_xy(0, 20)
         pdf.set_font("Arial", "I", 7)
         _set_text(pdf, (220, 200, 140))
-        pdf.cell(page_w, 5, f'"{motto}"', align="C")
+        pdf.cell(page_w, 5, f'"{clean_str(motto)}"', align="C")
 
     # ── gold rule below banner ──
     _set_draw(pdf, GOLD)
@@ -168,7 +173,7 @@ def draw_styled_table_header(pdf, columns):
     _set_draw(pdf, NAVY)
     pdf.set_font("Arial", "B", 7)
     for label, w in columns:
-        pdf.cell(w, 7, label, border=0, align='C', fill=True)
+        pdf.cell(w, 7, clean_str(label), border=0, align='C', fill=True)
     pdf.ln()
     # thin gold underline
     y = pdf.get_y()
@@ -193,7 +198,7 @@ def draw_styled_row(pdf, values, widths, row_index=0, aligns=None, h=6):
     pdf.set_font("Arial", "", 6)
     aligns = aligns or ['C'] * len(values)
     for val, w, a in zip(values, widths, aligns):
-        pdf.cell(w, h, str(val), border=1, align=a, fill=True)
+        pdf.cell(w, h, clean_str(val), border=1, align=a, fill=True)
     pdf.ln()
     _set_fill(pdf, WHITE)
     _set_draw(pdf, BLACK)
@@ -261,13 +266,13 @@ class PdfReciept(FPDF):
         _set_draw(self, BLACK)
 
     # ── compact info pair ──
-    def info_pair(self, label, value, w_label=35, w_value=55):
+    def info_pair(self, label, value, w_label=35, w_value=55, ln=False):
         _set_text(self, MID)
         self.set_font("Arial", "B", 6)
         self.cell(w_label, 5, label)
         _set_text(self, BLACK)
         self.set_font("Arial", "", 6)
-        self.cell(w_value, 5, str(value), ln=True)
+        self.cell(w_value, 5, str(value), ln=ln)
 
     # ── summary table for fees ──
     def fee_summary_table(self, expected, this_payment, total_paid, balance):
@@ -281,6 +286,24 @@ class PdfReciept(FPDF):
             _set_text(self, clr)
             self.cell(w, 6, str(val), border=1, align='C')
         self.ln()
+        _set_text(self, BLACK)
+
+    def fee_activities_table(self, activities_breakdown):
+        """
+        activities_breakdown: list of dicts { 'name': str, 'expected': decimal, 'paid': decimal }
+        """
+        cols = [("Activity Breakdown", 44), ("Target", 22), ("This Receipt", 22)]
+        draw_styled_table_header(self, cols)
+        self.set_font("Arial", "", 6)
+        for act in activities_breakdown:
+            _set_text(self, BLACK)
+            self.cell(44, 5, clean_str(act['name']), border=1)
+            self.cell(22, 5, str(act['expected']), border=1, align='C')
+            
+            is_full = act['paid'] >= act['expected']
+            _set_text(self, GREEN if is_full else MID)
+            self.cell(22, 5, str(act['paid']), border=1, align='C')
+            self.ln()
         _set_text(self, BLACK)
 
 
@@ -304,29 +327,47 @@ class PdfReportForm(FPDF):
         self.rect(0, 0, self.w, self.h, style='F')
 
     # ── Student info banner ──
-    def student_info_banner(self, reg_no, full_name, grade, stream, term):
+    def student_info_banner(self, reg_no, full_name, grade, stream, term, assessment_number=None, profile_image=None):
         _set_fill(self, SKY)
         _set_draw(self, (190, 215, 235))
         x0 = self.l_margin
         y0 = self.get_y()
         bw = self.w - self.l_margin - self.r_margin
-        self.rect(x0, y0, bw, 20, style='FD')
+        banner_h = 22
+        self.rect(x0, y0, bw, banner_h, style='FD')
+
+        # If profile image exists, we leave space on the right
+        img_size = 18
+        text_bw = bw - (img_size + 4) if profile_image else bw
+
+        if profile_image:
+            try:
+                # Draw student image on the far right
+                self.image(str(profile_image), x=x0 + bw - img_size - 2, y=y0 + 2, w=img_size, h=img_size)
+            except Exception:
+                pass
 
         _set_text(self, NAVY)
         self.set_font("Arial", "B", 9)
         self.set_xy(x0 + 2, y0 + 2)
-        self.cell(bw / 2, 5, f"Reg No: {reg_no}")
-        self.set_xy(x0 + bw / 2, y0 + 2)
-        self.cell(bw / 2, 5, f"Name: {full_name}", align='R')
+        self.cell(text_bw / 2, 6, f"Reg No: {clean_str(reg_no)}")
+        
+        self.set_xy(x0 + text_bw / 2, y0 + 2)
+        self.cell(text_bw / 2, 6, f"Name: {clean_str(full_name)}", align='R')
 
         _set_text(self, MID)
+        self.set_font("Arial", "B", 8)
+        self.set_xy(x0 + 2, y0 + 10)
+        self.cell(text_bw / 2, 6, f"Assessment No: {clean_str(assessment_number or 'N/A')}")
+        
         self.set_font("Arial", "", 8)
-        self.set_xy(x0 + 2, y0 + 9)
-        self.cell(bw / 2, 5, f"Grade: {grade}   Stream: {stream}")
-        self.set_xy(x0 + bw / 2, y0 + 9)
-        self.cell(bw / 2, 5, f"Term: {term}", align='R')
+        self.set_xy(x0 + 2, y0 + 16)
+        self.cell(text_bw / 2, 6, f"Grade: {clean_str(grade)}   Stream: {clean_str(stream)}")
+        
+        self.set_xy(x0 + text_bw / 2, y0 + 16)
+        self.cell(text_bw / 2, 6, f"Term: {clean_str(term)}", align='R')
 
-        self.set_y(y0 + 23)
+        self.set_y(y0 + banner_h + 4)
         _set_text(self, BLACK)
         _set_draw(self, BLACK)
 

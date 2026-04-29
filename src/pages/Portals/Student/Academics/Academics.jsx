@@ -25,13 +25,15 @@ function CbcBadge({ rating = 'N/A' }) {
 
 function extractYoutubeId(url) {
   if (!url) return null;
-  const urlRegex = /(?:v=|\/|embed\/|youtu.be\/)([0-9A-Za-z_-]{11})/;
-  const match = url.match(urlRegex);
-  if (match) return match[1];
-  
-  // Safety check: if string is exactly 11 chars, treat as ID
-  if (/^[0-9A-Za-z_-]{11}$/.test(url)) {
-    return url;
+  // Handle various YouTube URL formats
+  const patterns = [
+    /(?:v=|\/|embed\/|youtu.be\/|v\/|watch\?v=|&v=)([0-9A-Za-z_-]{11})/,
+    /^([0-9A-Za-z_-]{11})$/
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
   }
   return null;
 }
@@ -392,12 +394,22 @@ export default function StudentPortalAcademics() {
               <div className="video-col-player">
                 <div className="video-frame-wrap ratio ratio-16x9">
                   <iframe
-                    src={`https://www.youtube.com/embed/${extractYoutubeId(selectedResource.url_or_file)}?autoplay=1&modestbranding=1&rel=0`}
+                    src={`https://www.youtube.com/embed/${extractYoutubeId(selectedResource.url_or_file)}?modestbranding=1&rel=0`}
                     title={selectedResource.title}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
+                </div>
+                {/* Fallback for restricted videos */}
+                <div className="mt-3 text-center">
+                  <p className="sp-text-muted small mb-2">Can't see the video? Some videos restrict playback on third-party sites.</p>
+                  <button 
+                    className="sp-btn-secondary w-100" 
+                    onClick={() => window.open(`https://www.youtube.com/watch?v=${extractYoutubeId(selectedResource.url_or_file)}`, '_blank')}
+                  >
+                    📺 Watch directly on YouTube
+                  </button>
                 </div>
                 {/* Resource meta below player */}
                 <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -539,6 +551,26 @@ export default function StudentPortalAcademics() {
           </div>
         </div>
       </div>
+
+      {/* ══════════ TEACHER REMARKS ══════════ */}
+      {(data?.class_teacher_comment || data?.headteacher_comment) && (
+        <div className="sp-card mb-4" style={{ background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+          <div className="sp-card-body d-flex flex-column gap-3">
+            {data?.class_teacher_comment && (
+              <div>
+                <h6 style={{ fontSize: '0.8rem', color: 'var(--sp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>Class Teacher's Remark</h6>
+                <p style={{ fontSize: '0.95rem', color: 'var(--sp-text)', margin: 0, fontStyle: 'italic' }}>"{data.class_teacher_comment}"</p>
+              </div>
+            )}
+            {data?.headteacher_comment && (
+              <div>
+                <h6 style={{ fontSize: '0.8rem', color: 'var(--sp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>Headteacher's Remark</h6>
+                <p style={{ fontSize: '0.95rem', color: 'var(--sp-text)', margin: 0, fontStyle: 'italic' }}>"{data.headteacher_comment}"</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ══════════ TABS ══════════ */}
       <div style={{ display:'flex', borderBottom:'1px solid var(--sp-border)', marginBottom:'1.25rem' }}>

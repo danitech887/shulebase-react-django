@@ -22,3 +22,18 @@
 .res-progress-bar .progress-bar { background: var(--t-accent) !important; }
 .res-progress-bar .progress-bar.bg-success { background: var(--t-green) !important; }
 .res-progress-bar { background: var(--t-surface-2) !important; height: 20px !important; }
+
+.t-btn-outline-green {
+  background: rgba(16,185,129,0.1);
+  color: #4ade80;
+  border: 1px solid rgba(16,185,129,0.3);
+  border-radius: var(--t-radius-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.t-btn-outline-green:hover {
+  background: rgba(16,185,129,0.2);
+  border-color: rgba(16,185,129,0.5);
+  color: #6ee7b7;
+}

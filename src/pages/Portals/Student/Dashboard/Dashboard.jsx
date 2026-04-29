@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Spinner } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import api from '../../../../api/api';
 import { useMessage } from '../../../../context/MessageContext';
 import './Dashboard.css';
 
 export default function StudentPortalDashboard() {
+  const navigate = useNavigate();
   const { showMessage } = useMessage();
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -39,10 +41,22 @@ export default function StudentPortalDashboard() {
     <div className="sp-page">
 
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
-        <div>
-          <h2 className="sp-title">Student Dashboard</h2>
-          <p className="sp-subtitle">Academic Year {current_year} — overview of your progress</p>
+      <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+        <div className="d-flex align-items-center gap-3">
+          {data?.profile_image ? (
+            <img src={data.profile_image} className="sp-header-avatar" alt="" />
+          ) : (
+            <div className="sp-header-avatar-placeholder">👤</div>
+          )}
+          <div>
+            <h2 className="sp-title">Welcome, {data?.student_name || 'Student'}</h2>
+            <p className="sp-subtitle">Academic Year {current_year} — overview of your progress</p>
+            {data?.class_teacher && (
+              <p className="sp-subtitle" style={{ color: 'var(--sp-accent)', fontWeight: 600 }}>
+                Class Teacher: {data.class_teacher}
+              </p>
+            )}
+          </div>
         </div>
         <div>
           <label className="sp-label">Term</label>
@@ -124,10 +138,9 @@ export default function StudentPortalDashboard() {
         <div className="sp-card-body">
           <div className="d-flex flex-wrap gap-3">
             {[
-              { icon: '💳', label: 'Fee Records',  color: '#22c55e', accent: 'var(--sp-green-soft)'  },
-              { icon: '📅', label: 'Attendance',   color: '#6366f1', accent: 'var(--sp-accent-soft)' },
-              { icon: '📚', label: 'Academics',    color: '#3b82f6', accent: 'var(--sp-blue-soft)'   },
-              { icon: '📋', label: 'Leave',        color: '#f59e0b', accent: 'var(--sp-yellow-soft)' },
+              { icon: '💳', label: 'Fee Records',  color: '#22c55e', accent: 'var(--sp-green-soft)', path: '/students-portal/fees' },
+              { icon: '📅', label: 'Attendance',   color: '#6366f1', accent: 'var(--sp-accent-soft)', path: '/students-portal/attendance' },
+              { icon: '📚', label: 'Academics',    color: '#3b82f6', accent: 'var(--sp-blue-soft)', path: '/students-portal/academics' },
             ].map(item => (
               <div key={item.label} style={{
                 display: 'flex', alignItems: 'center', gap: '0.6rem',
@@ -138,6 +151,7 @@ export default function StudentPortalDashboard() {
               }}
                 onMouseOver={e => e.currentTarget.style.transform='translateY(-2px)'}
                 onMouseOut={e => e.currentTarget.style.transform=''}
+                onClick={() => navigate(item.path)}
               >
                 <span style={{ fontSize: '1.3rem' }}>{item.icon}</span>
                 <span style={{ fontSize: '0.83rem', fontWeight: 600, color: item.color }}>{item.label}</span>

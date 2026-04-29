@@ -12,9 +12,45 @@ authApi.interceptors.request.use((cfg) => {
   return cfg;
 });
 
+/* ── Reusable row (defined outside to prevent focus loss) ── */
+const InfoRow = ({ label, name, value, as = 'input', icon, editMode, form, handleChange, errors, logoRef, logoFile }) => {
+  const isLogo = name === 'logo_path';
+
+  return (
+    <div className={`sa-field ${errors[name] ? 'sa-field--err' : ''}`}>
+      <label className="sa-label" htmlFor={`sa-${name}`}>
+        {icon && <span className="sa-label-icon">{icon}</span>}
+        {label}
+      </label>
+      {editMode
+        ? (isLogo ? (
+            <div className="sa-file-input-wrapper">
+              <button 
+                type="button" 
+                className="sa-btn-file-trigger"
+                onClick={() => logoRef.current?.click()}
+              >
+                {logoFile ? `📎 ${logoFile.name}` : '📷 Select Image...'}
+              </button>
+            </div>
+          ) : as === 'textarea'
+            ? <textarea id={`sa-${name}`} name={name} className="sa-input" rows={3}
+                value={form[name] ?? ''} onChange={handleChange} />
+            : <input    id={`sa-${name}`} name={name} className="sa-input"
+                value={form[name] ?? ''} onChange={handleChange} />
+          )
+        : <div className="sa-readonly">
+            {isLogo ? (value ? value.split('/').pop() : <em style={{ opacity: 0.35 }}>—</em>) : (value || <em style={{ opacity: 0.35 }}>—</em>)}
+          </div>
+      }
+      {errors[name] && <span className="sa-err-msg">{errors[name]}</span>}
+    </div>
+  );
+};
+
 /* ═══════════════════════════════════════════════════════════════
    SchoolAccount  →  GET + PATCH /api/school/update/
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 export default function SchoolAccount() {
   const EDITABLE = ['school_name', 'po_box', 'address', 'contact', 'email_address', 'motto', 'vision'];
 
@@ -141,42 +177,6 @@ export default function SchoolAccount() {
 
   const logoSrc = logoPreview || (school.logo_path ? `${BASE}${school.logo_path}` : null);
 
-  /* ── Reusable row ── */
-  const InfoRow = ({ label, name, value, as = 'input', icon }) => {
-    const isLogo = name === 'logo_path';
-
-    return (
-      <div className={`sa-field ${errors[name] ? 'sa-field--err' : ''}`}>
-        <label className="sa-label" htmlFor={`sa-${name}`}>
-          {icon && <span className="sa-label-icon">{icon}</span>}
-          {label}
-        </label>
-        {editMode
-          ? (isLogo ? (
-              <div className="sa-file-input-wrapper">
-                <button 
-                  type="button" 
-                  className="sa-btn-file-trigger"
-                  onClick={() => logoRef.current?.click()}
-                >
-                  {logoFile ? `📎 ${logoFile.name}` : '📷 Select Image...'}
-                </button>
-              </div>
-            ) : as === 'textarea'
-              ? <textarea id={`sa-${name}`} name={name} className="sa-input" rows={3}
-                  value={form[name] ?? ''} onChange={handleChange} />
-              : <input    id={`sa-${name}`} name={name} className="sa-input"
-                  value={form[name] ?? ''} onChange={handleChange} />
-            )
-          : <div className="sa-readonly">
-              {isLogo ? (value ? value.split('/').pop() : <em style={{ opacity: 0.35 }}>—</em>) : (value || <em style={{ opacity: 0.35 }}>—</em>)}
-            </div>
-        }
-        {errors[name] && <span className="sa-err-msg">{errors[name]}</span>}
-      </div>
-    );
-  };
-
   return (
     <div className="sa-root">
       <div className="sa-orb sa-orb-1" />
@@ -236,15 +236,15 @@ export default function SchoolAccount() {
         <fieldset className="sa-fieldset">
           <legend className="sa-legend">🏫 School Details</legend>
           <div className="sa-grid-2">
-            <InfoRow label="School Name"   name="school_name"   value={school.school_name}   icon="🏷️" />
-            <InfoRow label="Logo Path"     name="logo_path"     value={school.logo_path || '—'} icon="🖼️" />
-            <InfoRow label="P.O. Box"      name="po_box"        value={school.po_box}        icon="📬" />
-            <InfoRow label="Address"       name="address"       value={school.address}       icon="📍" />
-            <InfoRow label="Contact"       name="contact"       value={school.contact}       icon="📞" />
-            <InfoRow label="Email"         name="email_address" value={school.email_address} icon="✉️" />
-            <InfoRow label="Motto"         name="motto"         value={school.motto}         icon="✨" />
+            <InfoRow label="School Name"   name="school_name"   value={school.school_name}   icon="🏷️" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Logo Path"     name="logo_path"     value={school.logo_path || '—'} icon="🖼️" editMode={editMode} form={form} handleChange={handleChange} errors={errors} logoRef={logoRef} logoFile={logoFile} />
+            <InfoRow label="P.O. Box"      name="po_box"        value={school.po_box}        icon="📬" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Address"       name="address"       value={school.address}       icon="📍" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Contact"       name="contact"       value={school.contact}       icon="📞" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Email"         name="email_address" value={school.email_address} icon="✉️" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Motto"         name="motto"         value={school.motto}         icon="✨" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
           </div>
-          <InfoRow label="Vision" name="vision" value={school.vision} as="textarea" icon="🎯" />
+          <InfoRow label="Vision" name="vision" value={school.vision} as="textarea" icon="🎯" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
         </fieldset>
 
         {/* Feedback */}

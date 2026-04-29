@@ -53,27 +53,29 @@ class ReviewsDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        # Allow system owner to access any record for approval/deletion
         if user.role == 'SystemOwner' or user.is_superuser:
             return Reviews.objects.all()
-        # Users can only access their own records for detail view/update/delete
         return Reviews.objects.filter(created_by=user)
 
     def perform_update(self, serializer):
         user = self.request.user
         instance = self.get_object()
         
-        # If toggling approval, check if System Owner
         if 'is_approved' in self.request.data:
             if not (user.role == 'SystemOwner' or user.is_superuser):
                 raise PermissionDenied("Only system owners can approve reviews.")
         
-        # If updating content, check if owner
         if any(f in self.request.data for f in ['content', 'rating', 'location']):
-             if instance.created_by != user and not (user.role == 'SystemOwner' or user.is_superuser):
+             if instance.created_by != user:
                   raise PermissionDenied("You can only edit your own reviews.")
                   
         serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if instance.created_by != user and not (user.role == 'SystemOwner' or user.is_superuser):
+            raise PermissionDenied("You can only delete your own reviews.")
+        instance.delete()
 
 
 class PublicReviewsListView(generics.ListAPIView):

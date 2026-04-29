@@ -23,6 +23,46 @@
   --ad-radius-xs: 6px;
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --ad-bg: #f3f4f6;
+    --ad-surface: #ffffff;
+    --ad-surface-2: #f9fafb;
+    --ad-surface-3: #f3f4f6;
+    --ad-border: rgba(0,0,0,0.08);
+    --ad-border-bright: rgba(0,0,0,0.15);
+    --ad-text: #1f2937;
+    --ad-text-muted: #4b5563;
+    --ad-text-dim: #9ca3af;
+    --ad-accent-soft: rgba(99,102,241,0.1);
+    --ad-green-soft: rgba(16,185,129,0.1);
+  }
+
+  .ad-btn-report, .ad-btn-summative {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.03);
+  }
+}
+
+.theme-light {
+  --ad-bg: #f3f4f6;
+  --ad-surface: #ffffff;
+  --ad-surface-2: #f9fafb;
+  --ad-surface-3: #f3f4f6;
+  --ad-border: rgba(0,0,0,0.08);
+  --ad-border-bright: rgba(0,0,0,0.15);
+  --ad-text: #1f2937;
+  --ad-text-muted: #4b5563;
+  --ad-text-dim: #9ca3af;
+  --ad-accent-soft: rgba(99,102,241,0.1);
+  --ad-green-soft: rgba(16,185,129,0.1);
+}
+
+.theme-light .ad-btn-report, .theme-light .ad-btn-summative {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.03);
+}
+
 /* ── Root ── */
 .ad-root {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -552,4 +592,47 @@
   .ad-stats-grid { grid-template-columns: 1fr; }
   .ad-filters { grid-template-columns: 1fr; }
   .ad-title { font-size: 1.3rem; }
+}
+
+.ad-subject-actions { 
+  display: flex; 
+  gap: 10px; 
+  padding: 0 1.25rem 1.25rem; 
+} 
+
+.ad-btn-report, .ad-btn-summative { 
+  flex: 1; 
+  padding: 0.65rem; 
+  border-radius: 12px; 
+  font-size: 0.78rem; 
+  font-weight: 700; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  gap: 6px; 
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  cursor: pointer; 
+  border: 1px solid rgba(255, 255, 255, 0.08); 
+  background: rgba(255, 255, 255, 0.03); 
+  color: var(--ad-text-muted); 
+} 
+
+.ad-btn-report:hover { 
+  background: linear-gradient(135deg, var(--ad-accent), #818cf8); 
+  border-color: rgba(255, 255, 255, 0.2); 
+  color: white; 
+  transform: translateY(-2px); 
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); 
+} 
+
+.ad-btn-summative:hover { 
+  background: linear-gradient(135deg, var(--ad-green), #34d399); 
+  border-color: rgba(255, 255, 255, 0.2); 
+  color: white; 
+  transform: translateY(-2px); 
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); 
+}
+
+.ad-btn-report:active, .ad-btn-summative:active {
+  transform: translateY(0);
 }

@@ -17,10 +17,12 @@ export default function TeacherAttendance() {
   const [monthlyData, setMonthlyData]       = useState([]);
   const [records, setRecords]               = useState([]);
   const [teachers, setTeachers]             = useState([]);
+  const [hoveredPoint, setHoveredPoint]     = useState(null);
 
   const [attDate, setAttDate]               = useState(new Date().toISOString().slice(0, 10));
   const [attTerm, setAttTerm]               = useState('Term 1');
   const [attendanceForm, setAttendanceForm] = useState({});
+  const [timeInForm, setTimeInForm]         = useState({});
   const [selectedRecord, setSelectedRecord] = useState(null);
 
   const [filters, setFilters] = useState({ search: '', status: '', date_from: '', date_to: '' });
@@ -55,8 +57,13 @@ export default function TeacherAttendance() {
     setSelectedRecord(record);
     if (type === 'mark') {
       const init = {};
-      teachers.forEach(t => { init[t.registration_no] = 'Present'; });
+      const initTime = {};
+      teachers.forEach(t => { 
+        init[t.registration_no] = 'Present'; 
+        initTime[t.registration_no] = '08:00'; 
+      });
       setAttendanceForm(init);
+      setTimeInForm(initTime);
     }
     setShowModal(true);
   };
@@ -65,13 +72,18 @@ export default function TeacherAttendance() {
 
   const handleMarkAllPresent = () => {
     const f = {};
-    teachers.forEach(t => { f[t.registration_no] = 'Present'; });
+    const tF = {};
+    teachers.forEach(t => { 
+      f[t.registration_no] = 'Present'; 
+      tF[t.registration_no] = timeInForm[t.registration_no] || '08:00';
+    });
     setAttendanceForm(f);
+    setTimeInForm(tF);
   };
 
   const handleSaveAttendance = async () => {
     const payload = Object.entries(attendanceForm).map(([registration_no, status]) => ({
-      registration_no, status, time_in: status === 'Present' ? '08:00' : null,
+      registration_no, status, time_in: status === 'Present' ? (timeInForm[registration_no] || '08:00') : null,
     }));
     if (payload.length === 0) return showMessage({ type: 'warning', text: 'No attendance marked.' });
     setSaving(true);
@@ -205,20 +217,75 @@ export default function TeacherAttendance() {
               {monthlyData.length === 0 ? (
                 <p className="ta-muted">No monthly data available.</p>
               ) : (
-                <div className="ta-bars">
-                  {monthlyData.map((d, i) => {
-                    const raw = Number(d?.rate);
-                    const h = Number.isFinite(raw) ? Math.max(4, Math.min(100, (raw / maxRate) * 100)) : 4;
-                    return (
-                      <div key={i} className="ta-bar-group" style={{ '--bi': i }}>
-                        <div className="ta-bar-track">
-                          <div className="ta-bar" style={{ height: `${h}%` }} title={`${d?.rate ?? '-'}%`} />
-                        </div>
-                        <span className="ta-bar-label">{d.month}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                (() => {
+                  const svgWidth = 600;
+                  const svgHeight = 220;
+                  const paddingX = 50;
+                  const paddingY = 30;
+
+                  const points = monthlyData.map((d, idx) => {
+                    const x = monthlyData.length > 1 
+                      ? paddingX + (idx / (monthlyData.length - 1)) * (svgWidth - 2 * paddingX)
+                      : svgWidth / 2;
+                    const rate = Number(d?.rate) || 0;
+                    const y = svgHeight - paddingY - (rate / 100) * (svgHeight - 2 * paddingY);
+                    return { x, y, month: d.month, rate };
+                  });
+
+                  const pathD = points.length > 0 
+                    ? `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}` 
+                    : '';
+
+                  return (
+                    <div style={{ position: 'relative', width: '100%', height: svgHeight }}>
+                      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                        {/* Y Axis Labels */}
+                        {[0, 25, 50, 75, 100].map((val) => {
+                          const y = svgHeight - paddingY - (val / 100) * (svgHeight - 2 * paddingY);
+                          return (
+                            <g key={val}>
+                              <line x1={paddingX} y1={y} x2={svgWidth - paddingX} y2={y} stroke="rgba(255,255,255,0.06)" strokeDasharray="4,4" />
+                              <text x={paddingX - 10} y={y + 4} textAnchor="end" fontSize="10" fill="var(--ta-text-muted, #6b7280)">{val}%</text>
+                            </g>
+                          );
+                        })}
+
+                        {/* X Axis Labels */}
+                        {points.map((p, i) => (
+                          <text key={i} x={p.x} y={svgHeight - paddingY + 18} textAnchor="middle" fontSize="11" fill="var(--ta-text-muted, #6b7280)">{p.month}</text>
+                        ))}
+
+                        {/* Line */}
+                        {pathD && (
+                          <path d={pathD} fill="none" stroke="var(--ta-accent, #3b82f6)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                        )}
+
+                        {/* Points & Interactive Hover */}
+                        {points.map((p, i) => (
+                          <g key={i}>
+                            <circle 
+                              cx={p.x} cy={p.y} r={hoveredPoint && hoveredPoint.index === i ? 6 : 4} 
+                              fill="var(--ta-accent, #3b82f6)" stroke="#ffffff" strokeWidth="2" 
+                              style={{ cursor: 'pointer', transition: 'r 0.2s' }} 
+                              onMouseEnter={() => setHoveredPoint({ ...p, index: i })}
+                              onMouseLeave={() => setHoveredPoint(null)}
+                            />
+                            
+                            {hoveredPoint && hoveredPoint.index === i && (
+                              <g>
+                                <rect 
+                                  x={p.x - 40} y={p.y - 35} width="80" height="25" rx="4" 
+                                  fill="#1f2535" stroke="var(--ta-accent, #3b82f6)" strokeWidth="1" 
+                                />
+                                <text x={p.x} y={p.y - 18} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#e8eaf0">{p.rate}%</text>
+                              </g>
+                            )}
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
+                  );
+                })()
               )}
             </div>
           </div>
@@ -337,10 +404,10 @@ export default function TeacherAttendance() {
                   </div>
                   <div className="ta-table-wrap" style={{ maxHeight: 380, overflowY: 'auto' }}>
                     <table className="ta-table">
-                      <thead><tr><th>Teacher</th><th>Reg No</th><th>Status</th></tr></thead>
+                      <thead><tr><th>Teacher</th><th>Reg No</th><th>Status</th><th>Time In</th></tr></thead>
                       <tbody>
                         {teachers.length === 0 ? (
-                          <tr><td colSpan={3} className="ta-muted">No teachers found.</td></tr>
+                          <tr><td colSpan={4} className="ta-muted">No teachers found.</td></tr>
                         ) : teachers.map(t => (
                           <tr key={t.registration_no}>
                             <td className="ta-bold">{t.first_name} {t.surname}</td>
@@ -356,6 +423,19 @@ export default function TeacherAttendance() {
                                 <option value="Present">Present</option>
                                 <option value="Absent">Absent</option>
                               </select>
+                            </td>
+                            <td>
+                               {attendanceForm[t.registration_no] === 'Present' ? (
+                                  <input 
+                                     type="time" 
+                                     className="ta-input" 
+                                     style={{ minWidth: 110 }}
+                                     value={timeInForm[t.registration_no] || '08:00'} 
+                                     onChange={e => setTimeInForm({ ...timeInForm, [t.registration_no]: e.target.value })} 
+                                  />
+                               ) : (
+                                  <span className="ta-muted">—</span>
+                               )}
                             </td>
                           </tr>
                         ))}

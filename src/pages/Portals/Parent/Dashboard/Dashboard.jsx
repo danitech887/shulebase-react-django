@@ -32,6 +32,8 @@ export default function ParentPortalDashboard() {
   const [selected, setSelected]         = useState(null);
   const [stats, setStats]               = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [schoolName, setSchoolName]     = useState('School');
+  const [parentName, setParentName]     = useState('Parent');
 
   useEffect(() => {
     setTimeout(() => setAnimate(true), 80);
@@ -45,7 +47,8 @@ export default function ParentPortalDashboard() {
       const { data } = await students.get('parent-portal/dashboard/', { params });
       setChildren(data.children || []);
       setSelected(data.selected_child || null);
-      console.log(studentId)
+      setSchoolName(data.school_name || 'School');
+      setParentName(data.parent_name || 'Parent');
       setStats(data.stats || null);
     } catch (err) {
       console.error(err);
@@ -121,8 +124,8 @@ export default function ParentPortalDashboard() {
         <div className="pp-header-left">
           <div className="pp-header-icon">👨‍👩‍👧‍👦</div>
           <div>
-            <h1 className="pp-title">Parent Portal</h1>
-            <p className="pp-subtitle">Monitor your child's school progress in real time</p>
+            <h1 className="pp-title">Welcome, {parentName}</h1>
+            <p className="pp-subtitle">Parent Portal • Monitor your child's progress</p>
           </div>
         </div>
         <div className="pp-header-actions">

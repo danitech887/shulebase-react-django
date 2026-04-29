@@ -11,6 +11,7 @@ export default function ParentPortalFees() {
   const [confirmed, setConfirmed] = useState([]);
   const [pending, setPending]     = useState([]);
   const [summary, setSummary]     = useState({});
+  const [expectedFee, setExpectedFee] = useState(0);
   const [activeTab, setActiveTab] = useState('confirmed');
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
@@ -39,6 +40,7 @@ export default function ParentPortalFees() {
       setConfirmed(data.confirmed || []);
       setPending(data.pending || []);
       setSummary(data.summary || {});
+      setExpectedFee(data.expected_fee || 0);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -77,7 +79,7 @@ export default function ParentPortalFees() {
       
       const payload = {
         amount: payForm.amount,
-        mode_of_payment: payForm.mode === 'mpesa' ? 'M-Pesa' : 'bank transfer',
+        mode_of_payment: payForm.mode === 'mpesa' ? 'M-Pesa' : 'Bank Transfer',
         transaction_code: payForm.transaction_code,
         term: payForm.term,
         date_of_payment: payForm.date_of_payment || new Date().toISOString().split('T')[0],
@@ -112,6 +114,22 @@ export default function ParentPortalFees() {
       }
       alert(msg);
     } finally { setSubmitting(false); }
+  };
+
+  const handleDownloadReceipt = async (feeId) => {
+    try {
+      const response = await api.get(`fees/${feeId}/receipt/`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Receipt_${feeId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert('Failed to download receipt');
+    }
   };
 
   const totalPaid    = summary.total_paid || 0;
@@ -179,6 +197,32 @@ export default function ParentPortalFees() {
               </div>
             ))}
       </div>
+      
+      {/* Fee Completion Banner */}
+      {expectedFee > 0 && totalPaid >= expectedFee && (
+        <div className="pp-completion-banner" style={{
+          background: 'rgba(16, 185, 129, 0.15)',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
+          padding: '15px',
+          borderRadius: '8px',
+          marginTop: '20px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          color: '#10b981',
+          fontWeight: '600',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+        }}>
+          <span style={{ fontSize: '1.5rem' }}>🎉</span>
+          <div>
+            <div style={{ fontSize: '1.1rem' }}>Fee Payment Completed!</div>
+            <div style={{ fontWeight: 'normal', color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
+              The school fees for this child have been fully paid. Keep up the great support!
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs + table */}
       <div className="pp-tabs">
@@ -333,6 +377,11 @@ export default function ParentPortalFees() {
                 </div>
                 <div className="pp-modal-footer">
                   <button className="pp-btn-cancel" onClick={handleCloseModal}>Close</button>
+                  {activeTab === 'confirmed' && (
+                    <button className="pp-btn-primary" onClick={() => handleDownloadReceipt(viewRecord.id)}>
+                      📥 Download Receipt
+                    </button>
+                  )}
                 </div>
               </>
             )}

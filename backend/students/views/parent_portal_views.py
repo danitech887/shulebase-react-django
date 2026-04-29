@@ -5,7 +5,7 @@ from django.db.models import Sum, Avg, Q
 from decimal import Decimal
 from datetime import datetime
 
-from core.models import StudentInfo, StudentAttendance, Fee, LeaveManagement, SubStrandMark, GradeFeeConfig
+from core.models import StudentInfo, StudentAttendance, Fee, LeaveManagement, SubStrandMark, GradeFeeConfig, ReportCardComment
 from core.serializers import StudentInfoSerializer, LeaveManagementSerializer, StrandSerializer, StudentAttendanceSerializer, SubStrandMarkSerializer, FeeRecordSerializer
 
 class ParentBaseView(APIView):
@@ -51,6 +51,8 @@ class ParentPortalDashboardAPIView(ParentBaseView):
             pass
 
         data = {
+            "school_name": student.school.school_name if student else "School",
+            "parent_name": student.parent_name if student else "Parent",
             "children": StudentInfoSerializer(students, many=True).data,
             "selected_child": StudentInfoSerializer(student).data,
             "stats": {
@@ -71,9 +73,17 @@ class ParentPortalFeesAPIView(ParentBaseView):
         school_id, _, student = self.get_parent_context(request)
         payments = Fee.objects.filter(registration_no=student).order_by('-date_of_payment')
         
+        expected_fee = Decimal(0)
+        try:
+            grade_obj = GradeFeeConfig.objects.get(school_id=school_id, grade=student.grade)
+            expected_fee = grade_obj.expected_fee
+        except GradeFeeConfig.DoesNotExist:
+            pass
+
         return Response({
             "confirmed": FeeRecordSerializer(payments.filter(status='Confirmed'), many=True).data,
             "pending": FeeRecordSerializer(payments.exclude(status='Confirmed'), many=True).data,
+            "expected_fee": expected_fee,
             "summary": {
                 "total_paid": payments.filter(status='Confirmed').aggregate(Sum('amount'))['amount__sum'] or 0
             }
@@ -90,10 +100,27 @@ class ParentPortalFeesAPIView(ParentBaseView):
         data['school'] = school_id
         data['registration_no'] = student.pk if student else None
 
-        # The serializer will validate required fields like amount, transaction_code, etc.
         serializer = FeeRecordSerializer(data=data)
         if serializer.is_valid():
+            term = serializer.validated_data.get('term', 'Term 1')
             tx_code = serializer.validated_data.get('transaction_code', '').strip()
+
+            # Enforce fully paid fee restriction
+            expected_fee = Decimal(0)
+            try:
+                grade_obj = GradeFeeConfig.objects.get(school_id=school_id, grade=student.grade)
+                expected_fee = grade_obj.expected_fee
+            except GradeFeeConfig.DoesNotExist:
+                pass
+
+            total_paid = Fee.objects.filter(
+                registration_no=student, 
+                term=term,
+                school_id=school_id
+            ).exclude(status='Rejected').aggregate(Sum('amount'))['amount__sum'] or Decimal(0)
+
+            if total_paid >= expected_fee:
+                return Response({"error": f"Fees for {term} are fully paid. Payment restricted."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Ensure transaction code is unique for the school
             if tx_code and Fee.objects.filter(transaction_code=tx_code, school_id=school_id).exists():
@@ -174,25 +201,34 @@ class ParentPortalAttendanceAPIView(ParentBaseView):
 class ParentPortalLeaveAPIView(ParentBaseView):
     def get(self, request):
         _, _, student = self.get_parent_context(request)
-        leaves = LeaveManagement.objects.filter(registration_no=student).order_by('-date_of_leave')
+        leaves = LeaveManagement.objects.filter(student_id=student).order_by('-date_of_leave')
         
-        return Response({
-            "pending": leaves.filter(status='Pending').values('id', 'reason', 'date_of_leave', 'return_date'),
-            "approved": leaves.filter(status='Approved').values('id', 'reason', 'date_of_leave', 'return_date'),
-            "rejected": leaves.filter(status='Rejected').values('id', 'reason', 'date_of_leave', 'return_date'),
-        })
+        data = []
+        for lv in leaves:
+            data.append({
+                "id": lv.id,
+                "startDate": lv.date_of_leave,
+                "endDate": lv.return_date,
+                "reason": lv.reason,
+                "otherReason": lv.other_reason,
+                "status": (lv.status or 'pending').lower(),
+            })
+        return Response(data)
     def post(self, request):
         school_id, _, student = self.get_parent_context(request)
         
         data = request.data.copy()
         data['school'] = school_id
-        data['registration_no'] = student.pk if student else None
+        data['student'] = student.pk if student else None
+        data['phone'] = request.user.username
+        if 'term' not in data:
+            data['term'] = 'Term 1'
         
         serializer = LeaveManagementSerializer(data=data)
         
         if serializer.is_valid():
             serializer.save(
-                registration_no=student, 
+                student=student, 
                 school_id=school_id, 
                 status='Pending',
                 year=datetime.now().year
@@ -223,9 +259,13 @@ class ParentPortalAcademicsAPIView(ParentBaseView):
                 "remark": level_data['remark']
             })
 
+        rc_comment = ReportCardComment.objects.filter(student=student, term=term, year=year).first()
+
         return Response({
             "student": student.first_name,
             "term": term,
+            "class_teacher_comment": rc_comment.class_teacher_comment if rc_comment else "",
+            "headteacher_comment": rc_comment.headteacher_comment if rc_comment else "",
             "performance": performance
         })
 

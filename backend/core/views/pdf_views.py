@@ -23,18 +23,12 @@ from django.db.models import Sum, Q, Avg, Count, F
 from django.utils.timezone import now
 from fpdf import FPDF
 
-from core.models import (
-
-    MasterSchool, StudentInfo, SubStrandMark, 
-     Strand, LearnerCompetency,
-    Fee, GradeFeeConfig, LeaveManagement,
-    StudentAttendance, LearningArea, LearningAreaMark,
-)
+from core.models import*
 
 # ── Design-system import ──────────────────────────────────────────────────────
 from .pdf_styles import (
      PdfReciept, PdfReportForm,
-    pdf_header, pdf_footer,
+    pdf_header, pdf_footer, clean_str,
     draw_section_title, draw_styled_table_header, draw_styled_row,
     CBC_LEVEL_MAP, get_cbc_level_and_remark, core_competencies,
     NAVY, GOLD, SKY, WHITE, MID, GREEN, CRIMSON, BLACK,GREY,
@@ -58,105 +52,192 @@ def generate_result_papers(request):
     grade_filter = request.GET.get('grade', '')
     stream_filter = request.GET.get('stream', '')
     term_filter = request.GET.get('term', '')
-    assessement_type_filter = request.GET.get('assessement_type', '') or request.GET.get('exam_type', '')
+    year_filter = request.GET.get('year', str(datetime.now().year))
+    report_type = request.GET.get('report_type', 'cba').lower() # 'cba' or 'summative'
+    assessment_type = request.GET.get('assessement_type', '') or request.GET.get('exam_type', '')
 
-    grade_configs = {
-        "lower": {
-            "grades": ["Grade 1", "Grade 2", "Grade 3"],
-            "columns": [
-                ('Reg No',15),('Name',40),('Grade',12),('Stream',12),
-                ('Maths',13),('Eng',13),('Kisw',13),('Env Act',13),
-                ('Inte/Cre',14),('Total',13),('Mean',13),('Pos',12),('O/Pos',12),
-            ],
-            "fields": ["mathematics","english","kiswahili","environmental_activities","integrated_creative"],
-        },
-        "upper": {
-            "grades": ["Grade 4","Grade 5","Grade 6"],
-            "columns": [
-                ('Reg No',15),('Name',37),('Grade',12),('Stream',12),
-                ('Maths',12),('Eng',12),('Kisw',12),('Sci&Tech',13),
-                ('SST/CRE',13),('Agri&Nutr',13),('CreArts',12),
-                ('Total',12),('Mean',12),('Pos',11),('O/Pos',11),
-            ],
-            "fields": ["mathematics","english","kiswahili","science_technology","sst_cre","agri_nutrition","creative_arts"],
-        },
-        "junior": {
-            "grades": ["Grade 7","Grade 8","Grade 9"],
-            "columns": [
-                ('Reg No',14),('Name',35),('Grade',10),('Stream',10),
-                ('Maths',11),('Eng',11),('Kisw',11),('SST/CRE',12),
-                ('Agri&Nutr',12),('CreArts',11),('Pre/Bs',12),
-                ('InteSci',11),('Total',11),('Mean',11),('Pos',10),('O/Pos',10),
-            ],
-            "fields": ["mathematics","english","kiswahili","sst_cre","agri_nutrition","creative_arts","pretech_bs_computer","integrated_science"],
-        },
-    }
+    # ── Helpers ─────────────────────────────────────────────────────────────
+    def get_subject_data(g, s, term, year, r_type):
+        students = StudentInfo.objects.filter(school_id=school_id, grade=g)
+        if s: students = students.filter(stream=s)
+        students = students.order_by('registration_no')
 
-    # ── Sub-tasks ─────────────────────────────────────────────────────────────
-    def get_students_and_marks(g, term, exam_type):
-        marks_qs = Marks.objects.select_related('registration_no').filter(
-            school_id=school_id, registration_no__grade=g,
-            term=term, type_of_exam=exam_type
-        ).exclude(total_marks__isnull=True).exclude(total_marks=0)
-        students = StudentInfo.objects.filter(
-            school_id=school_id,
-            registration_no__in=marks_qs.values_list('registration_no__registration_no', flat=True),
-        )
-        return marks_qs, {s.registration_no: s for s in students}
+        if r_type == 'summative':
+            marks = LearningAreaMark.objects.filter(
+                school_id=school_id, grade=g, term=term, year=year
+            )
+            if s: marks = marks.filter(stream=s)
+            if assessment_type: marks = marks.filter(exam_type=assessment_type)
+            
+            # Pivot marks: { reg_no: { subject_id: mark } }
+            pivot = defaultdict(dict)
+            subjects = set()
+            for m in marks:
+                pivot[m.student.registration_no][m.learning_area.id] = m.marks
+                subjects.add((m.learning_area.id, m.learning_area.name))
+        else:
+            # CBA (SubStrandMark aggregated)
+            marks = SubStrandMark.objects.filter(
+                student__grade=g, term=term
+            ).select_related('sub_strand__strand')
+            if s: marks = marks.filter(student__stream=s)
+            
+            # Average scores per subject for each student
+            pivot_data = defaultdict(lambda: defaultdict(list))
+            subjects_map = {}
+            for m in marks:
+                sub_id = m.sub_strand.strand.subject
+                pivot_data[m.student.registration_no][sub_id].append(m.score)
+                subjects_map[sub_id] = sub_id
 
-    def write_pdf_to_zip(pdf, filename, zf):
-        zf.writestr(filename, pdf.output(dest='S').encode('latin1'))
+            # Finalize averages
+            pivot = defaultdict(dict)
+            for reg, subs in pivot_data.items():
+                for sub, scores in subs.items():
+                    pivot[reg][sub] = round(sum(scores) / len(scores), 1)
+            subjects = [(s, s) for s in subjects_map.keys()]
 
-    def generate_pdf_for_group(group_name, config, zf):
-        for g in config["grades"]:
-            if grade_filter and grade_filter != g:
-                continue
-            marks_qs, student_map = get_students_and_marks(g, term_filter, assessement_type_filter)
-            if not marks_qs.exists():
-                continue
+        return students, pivot, sorted(list(subjects), key=lambda x: x[1])
 
-            pdf = FPDF()
-            pdf.add_page()
-            pdf_header(request, pdf, 30)
+    def generate_pdf_for_grade(g, s, term, year, r_type):
+        students, pivot, subjects = get_subject_data(g, s, term, year, r_type)
+        if not students.exists() or not subjects:
+            return None
 
-            # ── Page subtitle ──
-            _set_fill(pdf, SKY)
-            pdf.rect(pdf.l_margin, pdf.get_y(), pdf.w - pdf.l_margin - pdf.r_margin, 8, style='F')
-            _set_text(pdf, NAVY)
-            pdf.set_font('Arial', 'B', 10)
-            pdf.cell(0, 8, f"  {g}   |   {assessement_type_filter}   |   {term_filter}", ln=True)
-            pdf.ln(2)
+        pdf = FPDF(orientation='L')
+        pdf.add_page()
+        pdf_header(request, pdf, 30)
 
-            # ── Column headers ──
-            cols = config["columns"]
-            widths = [w for _, w in cols]
-            draw_styled_table_header(pdf, cols)
+        # ── Title ──
+        _set_fill(pdf, NAVY)
+        pdf.rect(pdf.l_margin, pdf.get_y(), pdf.w - pdf.l_margin - pdf.r_margin, 10, style='F')
+        _set_text(pdf, WHITE)
+        pdf.set_font('Arial', 'B', 12)
+        title = f" {g} {s or ''}  |  {r_type.upper()} ANALYTICAL RESULTS  |  {term} {year}"
+        pdf.cell(0, 10, clean_str(title), ln=True, align='C')
+        pdf.ln(5)
 
-            # ── Rows ──
-            for row_idx, mark in enumerate(marks_qs):
-                student = student_map.get(mark.registration_no.registration_no)
-                if not student:
-                    continue
-                name = f"{student.first_name} {student.second_name or ''} {student.surname or ''}".strip()
-                row = [student.registration_no, name, student.grade, student.stream]
-                row += [getattr(mark, f, 0) or 0 for f in config["fields"]]
-                row += [mark.total_marks or 0, mark.mean_marks or 0,
-                        getattr(mark, 'position', '-'), getattr(mark, 'overall_position', '-')]
-                aligns = ['L','L'] + ['C'] * (len(row) - 2)
-                draw_styled_row(pdf, row, widths, row_idx, aligns)
+        # ── Summary Analytics ──
+        draw_section_title(pdf, "CLASS PERFORMANCE SUMMARY")
+        
+        # Calculate Stats
+        total_marks = []
+        subject_stats = defaultdict(list)
+        levels = {'EE': 0, 'ME': 0, 'AE': 0, 'BE': 0}
+        
+        for st in students:
+            st_marks = pivot.get(st.registration_no, {})
+            if st_marks:
+                avg = sum(st_marks.values()) / len(st_marks)
+                total_marks.append(avg)
+                if avg >= 80: levels['EE'] += 1
+                elif avg >= 60: levels['ME'] += 1
+                elif avg >= 40: levels['AE'] += 1
+                else: levels['BE'] += 1
+            
+            for sub_id, _ in subjects:
+                m = st_marks.get(sub_id)
+                if m is not None and isinstance(m, (int, float)):
+                    subject_stats[sub_id].append(m)
 
-            write_pdf_to_zip(pdf, f"{g}_{term_filter}_{assessement_type_filter}_results.pdf", zf)
+        class_avg = sum(total_marks) / len(total_marks) if total_marks else 0
+        
+        # Draw Stats Grid
+        pdf.set_font('Arial', 'B', 9)
+        col_w = (pdf.w - pdf.l_margin - pdf.r_margin) / 4
+        
+        y_start = pdf.get_y()
+        # Row 1: General Stats
+        pdf.cell(col_w, 8, f"Total Students: {len(students)}", border=1, align='C')
+        pdf.cell(col_w, 8, f"Class Mean: {class_avg:.1f}%", border=1, align='C')
+        pdf.cell(col_w, 8, f"Top Score: {max(total_marks):.1f}%" if total_marks else "Top Score: -", border=1, align='C')
+        pdf.cell(col_w, 8, f"Low Score: {min(total_marks):.1f}%" if total_marks else "Low Score: -", border=1, align='C', ln=True)
+        
+        # Row 2: Distribution
+        pdf.ln(2)
+        pdf.set_font('Arial', 'B', 8)
+        _set_text(pdf, BLACK)
+        pdf.cell(0, 6, "Performance Distribution:", ln=True)
+        
+        dist_w = (pdf.w - pdf.l_margin - pdf.r_margin) / 4
+        for label, color in [('EE (80-100)', GREEN), ('ME (60-79)', SKY), ('AE (40-59)', GOLD), ('BE (0-39)', CRIMSON)]:
+            _set_fill(pdf, color)
+            pdf.rect(pdf.get_x(), pdf.get_y(), 4, 4, 'F')
+            pdf.set_x(pdf.get_x() + 5)
+            _set_text(pdf, MID)
+            count = levels[label.split(' ')[0]]
+            pdf.cell(dist_w - 5, 5, f"{label}: {count} learner(s)")
+        pdf.ln(10)
 
-    # ── Build ZIP ─────────────────────────────────────────────────────────────
-    zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, "w") as zf:
-        for group, config in grade_configs.items():
-            generate_pdf_for_group(group, config, zf)
+        # ── Main Results Table ──
+        draw_section_title(pdf, "DETAILED SUBJECT BREAKDOWN")
+        cols = [('Reg No', 22), ('Student Name', 55)]
+        sub_width = (pdf.w - pdf.l_margin - pdf.r_margin - 95) / (len(subjects) + 1)
+        sub_width = max(sub_width, 18)
+        
+        for _, s_name in subjects:
+            cols.append((str(s_name)[:12], sub_width))
+        cols.append(('Avg', 18))
+        
+        draw_styled_table_header(pdf, cols)
 
-    zip_buf.seek(0)
-    resp = HttpResponse(zip_buf, content_type='application/zip')
-    resp['Content-Disposition'] = 'attachment; filename="result_papers.zip"'
-    return resp
+        # ── Rows ──
+        widths = [w for _, w in cols]
+        for i, student in enumerate(students):
+            name = f"{student.first_name} {student.surname}"
+            row = [student.registration_no, name[:25]]
+            st_marks = pivot.get(student.registration_no, {})
+            
+            for s_id, _ in subjects:
+                val = st_marks.get(s_id, '-')
+                row.append(val)
+            
+            # Row Average
+            valid_marks = [v for v in st_marks.values() if isinstance(v, (int, float))]
+            row_avg = round(sum(valid_marks)/len(valid_marks), 1) if valid_marks else '-'
+            row.append(row_avg)
+            
+            aligns = ['L', 'L'] + ['C'] * (len(subjects) + 1)
+            draw_styled_row(pdf, row, widths, i, aligns)
+
+        # ── Subject Averages Footer ──
+        pdf.set_font('Arial', 'B', 8)
+        _set_fill(pdf, GREY)
+        pdf.cell(77, 8, " SUBJECT AVERAGES", border=1, fill=True)
+        for s_id, _ in subjects:
+            s_marks = subject_stats.get(s_id, [])
+            avg = round(sum(s_marks)/len(s_marks), 1) if s_marks else '-'
+            pdf.cell(sub_width, 8, str(avg), border=1, align='C', fill=True)
+        pdf.cell(18, 8, "", border=1, ln=True, fill=True)
+        
+        return pdf
+
+    # ── Logic ─────────────────────────────────────────────────────────────
+    if grade_filter:
+        pdf = generate_pdf_for_grade(grade_filter, stream_filter, term_filter, year_filter, report_type)
+        if not pdf:
+            return HttpResponse("No data found for selected criteria.", status=404)
+        
+        resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="result_papers_{grade_filter}.pdf"'
+        return resp
+    else:
+        # Multiple grades -> ZIP
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, 'w') as zf:
+            for g in ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"]:
+                pdf = generate_pdf_for_grade(g, stream_filter, term_filter, year_filter, report_type)
+                if pdf:
+                    filename = f"{g}_{stream_filter}_{report_type}_results.pdf".replace(' ', '_')
+                    zf.writestr(filename, pdf.output(dest='S').encode('latin-1', 'replace'))
+
+        if buffer.tell() == 0:
+            return HttpResponse("No data found to generate result papers.", status=404)
+
+        buffer.seek(0)
+        resp = HttpResponse(buffer.read(), content_type='application/zip')
+        resp['Content-Disposition'] = f'attachment; filename="result_papers_all_grades.zip"'
+        return resp
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -212,7 +293,7 @@ def generate_academic_report(request):
 
     pdf_footer(pdf)
     safe_grade = (grade or 'all').replace(' ', '_')
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="academic_report_{safe_grade}.pdf"'
     return resp
 
@@ -270,7 +351,7 @@ def print_attendance_report(request):
             clr = GREEN if st == 'Present' else CRIMSON
             draw_styled_row(pdf, [s.registration_no, f"{s.first_name} {s.surname}", st], [40, 100, 40], i, ['L', 'L', 'C'])
         
-        return HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+        return HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
 
     elif report_type == 'weekly':
         # Matrix of 5 days (Mon-Fri) for the week containing target_date
@@ -313,7 +394,7 @@ def print_attendance_report(request):
                 row.append('P' if st == 'Present' else 'A')
             draw_styled_row(pdf, row, [30, 70] + [col_w]*5, i, ['L','L'] + ['C']*5)
         
-        return HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+        return HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
 
     elif report_type == 'termly':
         records = StudentAttendance.objects.filter(school_id=school_id, term=term, year=year, registration_no__in=students)
@@ -351,7 +432,7 @@ def print_attendance_report(request):
             p = round((c['P']/t*100), 1) if t > 0 else 0
             draw_styled_row(pdf, [s.registration_no, f"{s.first_name} {s.surname}", c['P'], c['A'], f"{p}%"], [30, 80, 25, 25, 20], i, ['L','L','C','C','C'])
 
-        return HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+        return HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
 
     return HttpResponse("Invalid report type", status=400)
 
@@ -397,25 +478,22 @@ def print_subject_aggregated_report(request):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="subject_performance_{subject}_{grade}.csv"'
         writer = csv.writer(response)
-        headers = ['Reg No', 'Name'] + [ss.name for ss in sub_strands] + ['Avg Score', 'Avg Level', 'Rating']
+        headers = ['Reg No', 'Name', 'Avg Score', 'Avg Level', 'Rating']
         writer.writerow(headers)
         for s in students:
-            row = [s.registration_no, f"{s.first_name} {s.surname}"]
             scores = []
             levels = []
             for ss in sub_strands:
                 val = mark_grid[s.registration_no].get(ss.id)
                 if val:
-                    row.append(f"{val['score']}% (L{val['level']})")
                     scores.append(val['score'])
                     levels.append(val['level'])
-                else:
-                    row.append('-')
+            
             avg_s = round(sum(scores)/len(scores), 1) if scores else 0
             avg_l = round(sum(levels)/len(levels), 1) if levels else 0
             rating = get_cbc_level_and_remark(avg_l)['level']
-            row += [avg_s, avg_l, rating]
-            writer.writerow(row)
+            
+            writer.writerow([s.registration_no, f"{s.first_name} {s.surname}", f"{avg_s}%", avg_l, rating])
         return response
 
     # ── PDF ──────────────────────────────────────────────────────────────────
@@ -428,40 +506,195 @@ def print_subject_aggregated_report(request):
     pdf.ln(3)
 
     # Dynamic columns
-    base_widths = [15, 30] # Reg, Name
-    avail = pdf.w - pdf.l_margin - pdf.r_margin - 45 - 35 # Reserve 35 for aggregates
-    topic_w = avail / max(len(sub_strands), 1)
-    
-    cols = [('Reg', 15), ('Student Name', 30)]
-    for ss in sub_strands:
-        cols.append((ss.name[:12], topic_w))
-    cols += [('Avg%', 12), ('Level', 11), ('Rating', 12)]
-    
+    cols = [('Reg No', 40), ('Student Name', 80), ('Avg Score', 30), ('Avg Level', 25), ('Rating', 35)]
     draw_styled_table_header(pdf, cols)
     widths = [w for _, w in cols]
 
     for i, s in enumerate(students):
-        row = [s.registration_no, f"{s.first_name} {s.surname}"[:20]]
         scores = []
         levels = []
         for ss in sub_strands:
             val = mark_grid[s.registration_no].get(ss.id)
             if val:
-                row.append(f"L{val['level']}")
                 scores.append(val['score'])
                 levels.append(val['level'])
-            else:
-                row.append('-')
         
         avg_s = round(sum(scores)/len(scores), 1) if scores else 0
         avg_l = round(sum(levels)/len(levels), 1) if levels else 0
         rating = get_cbc_level_and_remark(avg_l)['level']
-        row += [avg_s, avg_l, rating]
         
-        draw_styled_row(pdf, row, widths, i, ['L','L'] + ['C']*(len(row)-2))
+        row = [s.registration_no, f"{s.first_name} {s.surname}"[:30], f"{avg_s}%", f"L{avg_l}", rating]
+        draw_styled_row(pdf, row, widths, i, ['L','L','C','C','L'])
 
     pdf_footer(pdf)
-    return HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    return HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def print_learning_area_subject_report(request):
+    school_id = request.user.school_id
+    grade = request.GET.get('grade', '').strip()
+    stream = request.GET.get('stream', '').strip()
+    subject = request.GET.get('subject', '').strip()
+    term = request.GET.get('term', 'Term 1')
+    year = request.GET.get('year', str(datetime.now().year))
+    fmt = request.GET.get('format', 'pdf').lower()
+    la_id = request.GET.get('learning_area_id')
+
+    print(f"DEBUG: LearningAreaReport - school={school_id}, grade='{grade}', stream='{stream}', subject='{subject}', la_id='{la_id}'")
+
+    if not all([grade]) and not la_id:
+        return HttpResponse("Missing grade or learning_area_id", status=400)
+
+    students = StudentInfo.objects.filter(school_id=school_id, grade=grade, stream=stream).order_by('registration_no')
+    print(f"DEBUG: Students found: {students.count()}")
+
+    if la_id:
+        learning_area = LearningArea.objects.filter(school_id=school_id, id=la_id).first()
+    else:
+        learning_area = LearningArea.objects.filter(
+            Q(school_id=school_id) & 
+            (Q(name__iexact=subject) | Q(name__icontains=subject)) & 
+            (Q(grade_level__iexact=grade) | Q(grade_level__icontains=grade))
+        ).first()
+    
+    if not learning_area:
+        all_las = LearningArea.objects.filter(school_id=school_id, grade_level__icontains=grade)
+        print(f"DEBUG: Available LearningAreas in this grade: {[la.name for la in all_las]}")
+        return HttpResponse(f"REPORT_ERROR: No learning area found for {subject} in {grade}.", status=404)
+    
+    print(f"DEBUG: LearningArea found: {learning_area.name} (ID: {learning_area.id})")
+
+    marks = LearningAreaMark.objects.filter(student__in=students, learning_area=learning_area, term=term, year=year)
+    mark_grid = defaultdict(dict)
+    for m in marks:
+        mark_grid[m.student.registration_no][m.exam_type] = {'score': m.marks, 'remark': m.remark}
+
+    exam_types = ['Opener', 'Mid Term', 'End Term']
+
+    if fmt == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="learning_area_marks_{subject}_{grade}.csv"'
+        writer = csv.writer(response)
+        headers = ['Reg No', 'Name'] + exam_types + ['Average Score', 'CBC Level']
+        writer.writerow(headers)
+        for s in students:
+            scores = []
+            row = [s.registration_no, f"{s.first_name} {s.surname}"]
+            for et in exam_types:
+                val = mark_grid[s.registration_no].get(et)
+                if val and val['score'] is not None:
+                    scores.append(val['score'])
+                    row.append(f"{val['score']}%")
+                else:
+                    row.append("-")
+            
+            avg_s = round(sum(scores)/len(scores), 1) if scores else 0
+            lvl = _get_summative_level(avg_s)['level']
+            row.extend([f"{avg_s}%", lvl])
+            writer.writerow(row)
+        return response
+
+    # ── PDF ──────────────────────────────────────────────────────────────────
+    pdf = FPDF(orientation='L')
+    pdf.add_page()
+    pdf_header(request, pdf, 30)
+    draw_section_title(pdf, f"Learning Area Summative Marks: {subject}")
+    pdf.set_font('Arial', 'B', 9)
+    pdf.cell(0, 7, f"Grade: {grade} {stream} | Term: {term} | Year: {year}", ln=True)
+    pdf.ln(3)
+
+    cols = [('Reg No', 30), ('Student Name', 60)] + [(et, 25) for et in exam_types] + [('Average Score', 30), ('CBC Level', 25)]
+    draw_styled_table_header(pdf, cols)
+    widths = [w for _, w in cols]
+
+    for i, s in enumerate(students):
+        scores = []
+        row = [s.registration_no, f"{s.first_name} {s.surname}"[:20]]
+        for et in exam_types:
+            val = mark_grid[s.registration_no].get(et)
+            if val and val['score'] is not None:
+                scores.append(val['score'])
+                row.append(f"{val['score']}%")
+            else:
+                row.append("-")
+        
+        avg_s = round(sum(scores)/len(scores), 1) if scores else 0
+        lvl = _get_summative_level(avg_s)['level']
+        
+        row.extend([f"{avg_s}%", lvl])
+        draw_styled_row(pdf, row, widths, i, ['L','L','C','C','C','C','C'])
+
+    pdf_footer(pdf)
+    return HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def print_substrand_report(request):
+    school_id = request.user.school_id
+    sub_strand_id = request.GET.get('sub_strand_id', '')
+    grade = request.GET.get('grade', '').strip()
+    stream = request.GET.get('stream', '').strip()
+    term = request.GET.get('term', 'Term 1')
+    year = request.GET.get('year', str(datetime.now().year))
+    fmt = request.GET.get('format', 'pdf').lower()
+
+    if not sub_strand_id:
+        return HttpResponse("Missing sub_strand_id", status=400)
+
+    from core.models import SubStrand
+    sub_strand = get_object_or_404(SubStrand, id=sub_strand_id)
+
+    students = StudentInfo.objects.filter(school_id=school_id, grade=grade, stream=stream).order_by('registration_no')
+    if not students.exists():
+         return HttpResponse(f"REPORT_ERROR: No students found for {grade} {stream}.", status=404)
+
+    marks = SubStrandMark.objects.filter(sub_strand=sub_strand, term=term, year=year)
+    mark_grid = {m.student.registration_no: m for m in marks}
+
+    if fmt == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="substrand_{sub_strand.name}_{grade}.csv"'
+        writer = csv.writer(response)
+        headers = ['Reg No', 'Name', 'Score', 'Level', 'Remark']
+        writer.writerow(headers)
+        for s in students:
+            m = mark_grid.get(s.registration_no)
+            if m:
+                rating = get_cbc_level_and_remark(m.level)['level']
+                writer.writerow([s.registration_no, f"{s.first_name} {s.surname}", f"{m.score}%", m.level, rating])
+            else:
+                writer.writerow([s.registration_no, f"{s.first_name} {s.surname}", "-", "-", "-"])
+        return response
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf_header(request, pdf, 30)
+    draw_section_title(pdf, f"Topic Report: {sub_strand.name}")
+    pdf.set_font('Arial', 'B', 9)
+    pdf.cell(0, 7, f"Grade: {grade} {stream} | Term: {term} | Year: {year}", ln=True)
+    pdf.ln(3)
+
+    cols = [('Reg No', 30), ('Student Name', 70), ('Score', 25), ('Level', 20), ('Remark', 45)]
+    draw_styled_table_header(pdf, cols)
+    widths = [w for _, w in cols]
+
+    for i, s in enumerate(students):
+        m = mark_grid.get(s.registration_no)
+        if m:
+            rating = get_cbc_level_and_remark(m.level)['level']
+            row = [s.registration_no, f"{s.first_name} {s.surname}"[:25], f"{m.score}%", f"L{m.level}", rating]
+        else:
+            row = [s.registration_no, f"{s.first_name} {s.surname}"[:25], "-", "-", "-"]
+        
+        draw_styled_row(pdf, row, widths, i, ['L','L','C','C','C'])
+
+    pdf_footer(pdf)
+    return HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -499,10 +732,13 @@ def print_report_forms(request):
         project_score=Avg('level', filter=Q(assessement_type='SBA-Project')),
         practical_score=Avg('level', filter=Q(assessement_type='SBA-Practical')),
         written_score=Avg('level', filter=Q(assessement_type='SBA-Written')),
+        oral_score=Avg('level', filter=Q(assessement_type='SBA-Oral')),
+        observation_score=Avg('level', filter=Q(assessement_type='SBA-Observation')),
     ).filter(total_sub_strand_marks__gt=0)
 
     subject_data_lookup = defaultdict(lambda: defaultdict(lambda: {
-        'level':None,'score':None,'project':None,'practical':None,'written':None
+        'level':None,'score':None,'project':None,'practical':None,'written':None,
+        'oral':None,'observation':None
     }))
     for d in student_subject_averages:
         rn   = d['student__registration_no']
@@ -513,18 +749,49 @@ def print_report_forms(request):
             subject_data_lookup[rn][subj]['project']   = d['project_score']
             subject_data_lookup[rn][subj]['practical'] = d['practical_score']
             subject_data_lookup[rn][subj]['written']   = d['written_score']
+            subject_data_lookup[rn][subj]['oral']      = d['oral_score']
+            subject_data_lookup[rn][subj]['observation'] = d['observation_score']
 
     reg_nos = student_subject_averages.values_list('student__registration_no', flat=True).distinct()
     students = StudentInfo.objects.filter(school_id=school_id, registration_no__in=reg_nos)
     student_map = {s.registration_no: s for s in students}
+
+    # Weighting logic for Grade 4+
+    grade_num = 0
+    try:
+        grade_num = int(''.join(filter(str.isdigit, grade)))
+    except:
+        pass
 
     avg_mean_level, overall_avg_score = {}, {}
     for rn in reg_nos:
         data   = subject_data_lookup[rn].values()
         levels = [d['level'] for d in data if d['level'] is not None]
         scores = [d['score'] for d in data if d['score'] is not None]
-        avg_mean_level[rn]    = round(min(sum(levels)/len(levels), 4.0), 2) if levels else 0
-        overall_avg_score[rn] = round(sum(scores)/len(scores), 2) if scores else 0
+        
+        sba_avg_level = (sum(levels)/len(levels)) if levels else 0
+        sba_avg_score = (sum(scores)/len(scores)) if scores else 0
+
+        if grade_num >= 4:
+            nat_type = 'KPSEA' if grade_num == 6 else ('KESSA' if grade_num == 9 else None)
+            nat_score, nat_level = 0, 0
+            if nat_type:
+                nat_assessment = NationalAssessment.objects.filter(student__registration_no=rn, assessment_type=nat_type, year=year).first()
+                if nat_assessment:
+                    nat_score = nat_assessment.marks
+                    nat_level = nat_assessment.overall_level
+            
+            if nat_score > 0:
+                final_score = (sba_avg_score * 0.6) + (nat_score * 0.4)
+                final_level = (sba_avg_level * 0.6) + (nat_level * 0.4)
+                avg_mean_level[rn] = round(min(final_level, 4.0), 2)
+                overall_avg_score[rn] = round(final_score, 2)
+            else:
+                avg_mean_level[rn]    = round(min(sba_avg_level, 4.0), 2)
+                overall_avg_score[rn] = round(sba_avg_score, 2)
+        else:
+            avg_mean_level[rn]    = round(min(sba_avg_level, 4.0), 2)
+            overall_avg_score[rn] = round(sba_avg_score, 2)
 
     # Ranking
     overall_sorted = sorted(reg_nos, key=lambda r: avg_mean_level.get(r, 0), reverse=True)
@@ -551,6 +818,14 @@ def print_report_forms(request):
     subjects_in_grade = Strand.objects.filter(grade=grade, school_id=school_id)\
                                       .values_list('subject', flat=True).distinct()
 
+    # teachers mapping for bulk
+    teachers_qs = TeachersRole.objects.filter(school_id=school_id, grade=grade).select_related('registration_no')
+    ss_teacher_map = defaultdict(dict)
+    for t in teachers_qs:
+        if t.stream and t.subject and t.registration_no:
+            nm = f"{t.registration_no.first_name[0]}. {t.registration_no.surname}"
+            ss_teacher_map[t.stream][t.subject] = nm
+
     # ── PDF ──────────────────────────────────────────────────────────────────
     pdf = PdfReportForm()
 
@@ -569,6 +844,10 @@ def print_report_forms(request):
         comp_summary = LearnerCompetency.objects.filter(student=student, term=term, year=year)\
                         .values('competency').annotate(avg_level=Avg('level'))
         avg_level_map = {i['competency']: i['avg_level'] for i in comp_summary}
+
+        rc_comment = ReportCardComment.objects.filter(student=student, term=term, year=year).first()
+        ct_comment = rc_comment.class_teacher_comment if rc_comment else ""
+        ht_comment = rc_comment.headteacher_comment if rc_comment else ""
 
         comp_qs = LearnerCompetency.objects.filter(student=student, term=term, year=year)\
                    .values('subject','competency','level')
@@ -591,14 +870,15 @@ def print_report_forms(request):
 
         # Student banner
         full_name = f"{student.first_name} {student.second_name or ''} {student.surname or ''}".strip()
-        pdf.student_info_banner(student.registration_no, full_name, student.grade, student.stream, term)
+        profile_image = student.profile_image.path if student.profile_image else None
+        pdf.student_info_banner(student.registration_no, full_name, student.grade, student.stream, term, assessment_number=student.assessment_number, profile_image=profile_image)
         pdf.ln(4)
 
         # ── Learning area table ──
         draw_section_title(pdf, "Learning Area Performance")
         la_cols = [
-            ('Learning Area',40),('SBA-Proj',18),('SBA-Prac',18),('SBA-Writ',18),
-            ('Avg Score',18),('Avg Level',18),('CBC Level',18),('Remark',30),
+            ('Learning Area',32),('Teacher',24),('Proj',11),('Prac',11),('Writ',11),('Oral',11),('Obs',11),
+            ('Avg Sc.',13),('Avg Lv.',13),('Level',10),('Remark',21),
         ]
         draw_styled_table_header(pdf, la_cols)
 
@@ -609,18 +889,24 @@ def print_report_forms(request):
             proj    = data.get('project')
             prac    = data.get('practical')
             writ    = data.get('written')
+            oral    = data.get('oral')
+            obs     = data.get('observation')
             rep     = get_cbc_level_and_remark(avg_lv)
+            t_name  = ss_teacher_map.get(student.stream, {}).get(subj, "-")
 
             row_vals = [
                 subj,
+                t_name,
                 f"{round(proj,1)}" if proj is not None else "-",
                 f"{round(prac,1)}" if prac is not None else "-",
                 f"{round(writ,1)}" if writ is not None else "-",
+                f"{round(oral,1)}" if oral is not None else "-",
+                f"{round(obs,1)}" if obs is not None else "-",
                 f"{round(avg_sc,1)}" if avg_sc is not None else "-",
                 f"{round(avg_lv,2)}" if avg_lv is not None else "-",
                 rep['level'], rep['remark'],
             ]
-            aligns = ['L','C','C','C','C','C','C','C']
+            aligns = ['L','L','C','C','C','C','C','C','C','C','C']
             draw_styled_row(pdf, row_vals, [w for _,w in la_cols], row_idx, aligns)
 
         pdf.ln(3)
@@ -644,7 +930,7 @@ def print_report_forms(request):
         pdf.set_font('Arial', 'B', 5)
         pdf.cell(35, 6, 'Learning Area', border=0, fill=True, align='C')
         for comp in core_competencies:
-            pdf.cell(col_w, 6, comp, border=0, fill=True, align='C')
+            pdf.cell(col_w, 6, clean_str(comp), border=0, fill=True, align='C')
         pdf.ln()
 
         for row_idx, subj in enumerate(subjects_in_grade):
@@ -652,7 +938,7 @@ def print_report_forms(request):
             _set_fill(pdf, fill)
             _set_text(pdf, BLACK)
             pdf.set_font('Arial', '', 5)
-            pdf.cell(35, 5, subj, border=1, fill=True, align='L')
+            pdf.cell(35, 5, clean_str(subj), border=1, fill=True, align='L')
             for comp in core_competencies:
                 val = comp_map.get(subj, {}).get(comp)
                 print("compes: ",comp,val)
@@ -710,14 +996,17 @@ def print_report_forms(request):
         pdf.set_font('Arial', 'B', 8)
         pdf.cell(0, 5, f'Closing Date: {current_date}', ln=True)
         pdf.ln(3)
-        pdf.cell(0, 5, 'Class Teacher Comment: '+'.'*70, ln=True)
+        pdf.cell(0, 5, f'Class Teacher: {student.class_teacher_name}', ln=True)
+        pdf.cell(0, 5, f'Class Teacher Comment: {ct_comment}', ln=True)
+        pdf.ln(3)
+        pdf.cell(0, 5, f'H/T Comment: {ht_comment}', ln=True)
         pdf.ln(3)
         pdf.cell(0, 5, 'Guardian Comment: '+'.'*73, ln=True)
         pdf.ln(3)
         pdf.cell(0, 5, f'Date: {current_date}   H/T Sign & Stamp: '+'.'*40, ln=True)
         pdf_footer(pdf)
 
-    resp = HttpResponse(pdf.output(dest="S").encode("latin1"), content_type="application/pdf")
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type="application/pdf")
     resp["Content-Disposition"] = f'inline; filename="{grade} {stream} {term} report forms.pdf"'
     return resp
 
@@ -848,12 +1137,12 @@ def _get_summative_report_data(school_id, term, year, grade=None, stream=None, r
 
 def draw_term_performance_graph(pdf, historical_data, x_start=None):
     x_start = x_start or (pdf.l_margin + 12)
-    y_base = pdf.get_y() + 28
+    y_base = pdf.get_y() + 35
     chart_h = 24
     chart_w = 70
     
     pdf.set_font('Arial', 'B', 8); _set_text(pdf, NAVY)
-    pdf.text(x_start, pdf.get_y() + 4, "ACADEMIC PERFORMANCE TREND")
+    pdf.text(x_start, pdf.get_y() + 3, "ACADEMIC PERFORMANCE TREND")
     
     _set_draw(pdf, (220, 220, 220))
     for i in range(0, 101, 25):
@@ -872,7 +1161,7 @@ def draw_term_performance_graph(pdf, historical_data, x_start=None):
         pdf.rect(x, y_base - h, bar_w, h, style='F')
         _set_text(pdf, BLACK); pdf.set_font('Arial', 'B', 7); pdf.text(x - 2, y_base + 5, t)
         pdf.set_font('Arial', '', 6); pdf.text(x + 2, y_base - h - 2, f"{val}%")
-    pdf.set_y(y_base + 10)
+    pdf.set_y(y_base + 12)
 
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
@@ -890,6 +1179,14 @@ def print_summative_report_forms(request):
     if stream:
         reg_nos = [rn for rn in reg_nos if stats[rn]['stream'] == stream]
 
+    # teachers mapping for bulk summative
+    teachers_qs = TeachersRole.objects.filter(school_id=school_id, grade=grade).select_related('registration_no')
+    ss_teacher_map = defaultdict(dict)
+    for t in teachers_qs:
+        if t.stream and t.subject and t.registration_no:
+            nm = f"{t.registration_no.first_name[0]}. {t.registration_no.surname}"
+            ss_teacher_map[t.stream][t.subject] = nm
+
     pdf = PdfReportForm()
     if not reg_nos:
         pdf.add_page(); pdf_header(request, pdf, 30); pdf.set_font('Arial','I',12); pdf.cell(0,10,'No summative data found.',0,1,'C')
@@ -898,36 +1195,40 @@ def print_summative_report_forms(request):
         s_data = stats[rn]
         student = s_data['student_obj']
         pdf.add_page(); pdf.add_background_color(245, 249, 255); pdf.add_watermark(student.first_name.upper())
+        rc_comment = ReportCardComment.objects.filter(student=student, term=term, year=year).first()
+        ct_comment = rc_comment.class_teacher_comment if rc_comment else ""
+        ht_comment = rc_comment.headteacher_comment if rc_comment else ""
         pdf_header(request, pdf, 30)
         _set_text(pdf, NAVY); pdf.set_font('Arial', 'BU', 13); pdf.cell(0, 6, 'SUMMATIVE EVALUATION REPORT', align='C', ln=True); pdf.ln(4)
-        pdf.student_info_banner(rn, f"{student.first_name} {student.surname}", student.grade, student.stream, term)
+        profile_image = student.profile_image.path if student.profile_image else None
+        pdf.student_info_banner(rn, f"{student.first_name} {student.surname}", student.grade, student.stream, term, assessment_number=student.assessment_number, profile_image=profile_image)
         pdf.ln(3)
 
-        # 1. Competency Breakdown by Learning Area
+        # 1. Performance Table
+        draw_section_title(pdf, "Learning Area Marks")
+        cols = [('Learning Area',38),('Teacher',28),('Opener',16),('Mid Term',16),('End Term',16),('Average',16),('Level',15),('Remark',35)]
+        draw_styled_table_header(pdf, cols)
+        for i, (subj, m) in enumerate(s_data['subjects'].items()):
+            tn = ss_teacher_map.get(student.stream, {}).get(subj, "-")
+            row = [subj, tn, m['Opener'] or '-', m['Mid Term'] or '-', m['End Term'] or '-', round(m['Average'],1), m['Level'], m['Remark']]
+            draw_styled_row(pdf, row, [w for _,w in cols], i, ['L','L','C','C','C','C','C','C'], h=5)
+        pdf.ln(3)
+
+        # 2. Competency Breakdown by Learning Area
         draw_section_title(pdf, "Learning Area Competencies")
         col_w = (pdf.w - pdf.l_margin - pdf.r_margin - 35) / max(len(core_competencies), 1)
         _set_fill(pdf, NAVY); _set_text(pdf, GOLD); pdf.set_font('Arial', 'B', 4.5)
         pdf.cell(35, 5, 'Learning Area', border=0, fill=True, align='C')
         for comp in core_competencies:
-            pdf.cell(col_w, 5, comp, border=0, fill=True, align='C')
+            pdf.cell(col_w, 5, clean_str(comp), border=0, fill=True, align='C')
         pdf.ln()
         for i, subj in enumerate(s_data['subjects'].keys()):
             fill = SKY if i % 2 == 0 else WHITE; _set_fill(pdf, fill); _set_text(pdf, BLACK); pdf.set_font('Arial', '', 4.5)
-            pdf.cell(35, 4, subj, border=1, fill=True, align='L')
+            pdf.cell(35, 4, clean_str(subj), border=1, fill=True, align='L')
             for comp in core_competencies:
                 val = s_data['comp_map'].get(subj, {}).get(comp)
                 pdf.cell(col_w, 4, str(round(val,1)) if val else "-", border=1, fill=True, align='C')
             pdf.ln()
-        pdf.ln(3)
-
-        # 2. Performance Table
-        draw_section_title(pdf, "Learning Area Marks")
-        cols = [('Learning Area',42),('Opener',20),('Mid Term',20),('End Term',20),('Average',20),('Level',18),('Remark',40)]
-        draw_styled_table_header(pdf, cols)
-        for i, (subj, m) in enumerate(s_data['subjects'].items()):
-            row = [subj, m['Opener'] or '-', m['Mid Term'] or '-', m['End Term'] or '-', round(m['Average'],1), m['Level'], m['Remark']]
-            draw_styled_row(pdf, row, [w for _,w in cols], i, ['L','C','C','C','C','C','C'], h=5)
-        
         pdf.ln(3)
         _set_fill(pdf, NAVY); pdf.rect(pdf.l_margin, pdf.get_y(), 180, 8, style='F')
         _set_text(pdf, GOLD); pdf.set_font('Arial', 'B', 8); pdf.set_x(pdf.l_margin)
@@ -940,7 +1241,7 @@ def print_summative_report_forms(request):
         # 3. Aggregated Competency
         draw_section_title(pdf, "Aggregated Competency Levels")
         _set_fill(pdf, NAVY); _set_text(pdf, GOLD); pdf.set_font('Arial', 'B', 5.5)
-        for comp in core_competencies: pdf.cell(23, 5, comp, border=0, fill=True, align='C')
+        for comp in core_competencies: pdf.cell(23, 5, clean_str(comp), border=0, fill=True, align='C')
         pdf.ln(); _set_fill(pdf, SKY); _set_text(pdf, BLACK); pdf.set_font('Arial', '', 5.5)
         for comp in core_competencies:
             val = s_data['avg_comp'].get(comp)
@@ -967,11 +1268,12 @@ def print_summative_report_forms(request):
 
         draw_section_title(pdf, "Comments")
         pdf.set_font('Arial','B',8); _set_text(pdf, BLACK)
-        pdf.cell(0, 5, f'Class Teacher: '+' .'*40, ln=True); pdf.ln(2)
-        pdf.cell(0, 5, f'Head Teacher: '+' .'*41, ln=True); pdf.ln(4)
+        pdf.cell(0, 5, f'Class Teacher: {student.class_teacher_name}', ln=True)
+        pdf.cell(0, 5, f'Class Teacher Comment: {ct_comment}', ln=True); pdf.ln(2)
+        pdf.cell(0, 5, f'H/T Comment: {ht_comment}', ln=True); pdf.ln(4)
         pdf_footer(pdf)
 
-    resp = HttpResponse(pdf.output(dest="S").encode("latin1"), content_type="application/pdf")
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type="application/pdf")
     resp["Content-Disposition"] = f'inline; filename="Summative_Reports_{term}.pdf"'
     return resp
 
@@ -992,39 +1294,49 @@ def print_individual_summative_report_form(request):
 
     s_data = stats[registration_no]
     student = s_data['student_obj']
+    grade = student.grade
+
+    # teachers mapping
+    teachers = TeachersRole.objects.filter(school_id=school_id, grade=grade, stream=student.stream).select_related('registration_no')
+    t_map = {t.subject: f"{t.registration_no.first_name[0]}. {t.registration_no.surname}" 
+             for t in teachers if t.subject and t.registration_no}
 
     pdf = PdfReportForm()
     pdf.add_page(); pdf.add_background_color(245, 249, 255); pdf.add_watermark(student.first_name.upper())
+    rc_comment = ReportCardComment.objects.filter(student=student, term=term, year=year).first()
+    ct_comment = rc_comment.class_teacher_comment if rc_comment else ""
+    ht_comment = rc_comment.headteacher_comment if rc_comment else ""
     pdf_header(request, pdf, 30)
     _set_text(pdf, NAVY); pdf.set_font('Arial', 'BU', 13); pdf.cell(0, 6, 'SUMMATIVE EVALUATION REPORT', align='C', ln=True); pdf.ln(4)
-    pdf.student_info_banner(registration_no, f"{student.first_name} {student.surname}", student.grade, student.stream, term)
+    profile_image = student.profile_image.path if student.profile_image else None
+    pdf.student_info_banner(registration_no, f"{student.first_name} {student.surname}", student.grade, student.stream, term, assessment_number=student.assessment_number, profile_image=profile_image)
     pdf.ln(3)
 
-    # 1. Competency Breakdown by Learning Area
+    # 1. Performance Table
+    draw_section_title(pdf, "Learning Area Marks")
+    cols = [('Learning Area',38),('Teacher',28),('Opener',16),('Mid Term',16),('End Term',16),('Average',16),('Level',15),('Remark',35)]
+    draw_styled_table_header(pdf, cols)
+    for i, (subj, m) in enumerate(s_data['subjects'].items()):
+        tn = t_map.get(subj, "-")
+        row = [subj, tn, m['Opener'] or '-', m['Mid Term'] or '-', m['End Term'] or '-', round(m['Average'],1), m['Level'], m['Remark']]
+        draw_styled_row(pdf, row, [w for _,w in cols], i, ['L','L','C','C','C','C','C','C'], h=5)
+    pdf.ln(3)
+
+    # 2. Competency Breakdown by Learning Area
     draw_section_title(pdf, "Learning Area Competencies")
     col_w = (pdf.w - pdf.l_margin - pdf.r_margin - 35) / max(len(core_competencies), 1)
     _set_fill(pdf, NAVY); _set_text(pdf, GOLD); pdf.set_font('Arial', 'B', 4.5)
     pdf.cell(35, 5, 'Learning Area', border=0, fill=True, align='C')
     for comp in core_competencies:
-        pdf.cell(col_w, 5, comp, border=0, fill=True, align='C')
+        pdf.cell(col_w, 5, clean_str(comp), border=0, fill=True, align='C')
     pdf.ln()
     for i, subj in enumerate(s_data['subjects'].keys()):
         fill = SKY if i % 2 == 0 else WHITE; _set_fill(pdf, fill); _set_text(pdf, BLACK); pdf.set_font('Arial', '', 4.5)
-        pdf.cell(35, 4, subj, border=1, fill=True, align='L')
+        pdf.cell(35, 4, clean_str(subj), border=1, fill=True, align='L')
         for comp in core_competencies:
             val = s_data['comp_map'].get(subj, {}).get(comp)
             pdf.cell(col_w, 4, str(round(val,1)) if val else "-", border=1, fill=True, align='C')
         pdf.ln()
-    pdf.ln(3)
-
-    # 2. Performance Table
-    draw_section_title(pdf, "Learning Area Marks")
-    cols = [('Learning Area',42),('Opener',20),('Mid Term',20),('End Term',20),('Average',20),('Level',18),('Remark',40)]
-    draw_styled_table_header(pdf, cols)
-    for i, (subj, m) in enumerate(s_data['subjects'].items()):
-        row = [subj, m['Opener'] or '-', m['Mid Term'] or '-', m['End Term'] or '-', round(m['Average'],1), m['Level'], m['Remark']]
-        draw_styled_row(pdf, row, [w for _,w in cols], i, ['L','C','C','C','C','C','C'], h=5)
-    
     pdf.ln(3)
     _set_fill(pdf, NAVY); pdf.rect(pdf.l_margin, pdf.get_y(), 180, 8, style='F')
     _set_text(pdf, GOLD); pdf.set_font('Arial', 'B', 8); pdf.set_x(pdf.l_margin)
@@ -1037,7 +1349,7 @@ def print_individual_summative_report_form(request):
     # 3. Aggregated Competency
     draw_section_title(pdf, "Aggregated Competency Levels")
     _set_fill(pdf, NAVY); _set_text(pdf, GOLD); pdf.set_font('Arial', 'B', 5.5)
-    for comp in core_competencies: pdf.cell(23, 5, comp, border=0, fill=True, align='C')
+    for comp in core_competencies: pdf.cell(23, 5, clean_str(comp), border=0, fill=True, align='C')
     pdf.ln(); _set_fill(pdf, SKY); _set_text(pdf, BLACK); pdf.set_font('Arial', '', 5.5)
     for comp in core_competencies:
         val = s_data['avg_comp'].get(comp)
@@ -1064,11 +1376,12 @@ def print_individual_summative_report_form(request):
 
     draw_section_title(pdf, "Comments")
     pdf.set_font('Arial','B',8); _set_text(pdf, BLACK)
-    pdf.cell(0, 5, f'Class Teacher: '+' .'*40, ln=True); pdf.ln(2)
-    pdf.cell(0, 5, f'Head Teacher: '+' .'*41, ln=True); pdf.ln(4)
+    pdf.cell(0, 5, f'Class Teacher: {student.class_teacher_name}', ln=True)
+    pdf.cell(0, 5, f'Class Teacher Comment: {ct_comment}', ln=True); pdf.ln(2)
+    pdf.cell(0, 5, f'H/T Comment: {ht_comment}', ln=True); pdf.ln(4)
     pdf_footer(pdf)
 
-    resp = HttpResponse(pdf.output(dest="S").encode("latin1"), content_type="application/pdf")
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type="application/pdf")
     resp["Content-Disposition"] = f'inline; filename="Summative_Report_{registration_no}.pdf"'
     return resp
 
@@ -1081,7 +1394,7 @@ def print_individual_summative_report_form(request):
 @permission_classes([IsAuthenticated])
 def print_individual_report_form(request):
     school_id    = request.user.school_id
-    registration_no = request.user.registration_no
+    registration_no = request.GET.get('registration_no') or getattr(request.user, 'registration_no', None)
     term  = request.GET.get('term', '')
     year  = request.GET.get('year', str(datetime.now().year))
 
@@ -1100,15 +1413,19 @@ def print_individual_report_form(request):
         project_score=Avg('level', filter=Q(assessement_type='SBA-Project')),
         practical_score=Avg('level', filter=Q(assessement_type='SBA-Practical')),
         written_score=Avg('level', filter=Q(assessement_type='SBA-Written')),
+        oral_score=Avg('level', filter=Q(assessement_type='SBA-Oral')),
+        observation_score=Avg('level', filter=Q(assessement_type='SBA-Observation')),
         total_items=Count('id'),
     ).filter(total_items__gt=0)
-
-    subject_data = defaultdict(lambda: {'level':None,'score':None,'project':None,'practical':None,'written':None})
+    subject_data = defaultdict(lambda: {'level':None,'score':None,'project':None,'practical':None,'written':None, 'oral':None, 'observation':None})
     for rec in subject_averages:
         s = rec['sub_strand__strand__subject']
-        subject_data[s].update(level=rec['avg_level'], score=rec['avg_score'],
-                               project=rec['project_score'], practical=rec['practical_score'],
-                               written=rec['written_score'])
+        subject_data[s].update(
+            level=rec['avg_level'], score=rec['avg_score'],
+            project=rec['project_score'], practical=rec['practical_score'],
+            written=rec['written_score'], oral=rec['oral_score'],
+            observation=rec['observation_score']
+        )
 
     subjects_in_grade = marks_qs.values_list('sub_strand__strand__subject', flat=True).distinct()
     levels = [d['level'] for d in subject_data.values() if d['level'] is not None]
@@ -1126,6 +1443,13 @@ def print_individual_report_form(request):
     ).values('competency').annotate(avg_level=Avg('level')).order_by('competency')
     avg_level_map = {i['competency']: i['avg_level'] for i in competency_summary}
 
+    # teachers
+    teachers = TeachersRole.objects.filter(
+        school_id=school_id, grade=grade, stream=student.stream
+    ).select_related('registration_no')
+    t_map = {t.subject: f"{t.registration_no.first_name[0]}. {t.registration_no.surname}" 
+             for t in teachers if t.subject and t.registration_no}
+
     # ── PDF ──────────────────────────────────────────────────────────────────
     pdf = PdfReportForm()
     pdf.add_page()
@@ -1140,28 +1464,33 @@ def print_individual_report_form(request):
     pdf.ln(4)
 
     full_name = f"{student.first_name} {student.second_name or ''} {student.surname or ''}".strip()
-    pdf.student_info_banner(registration_no, full_name, grade, student.stream, term)
+    profile_image = student.profile_image.path if student.profile_image else None
+    pdf.student_info_banner(registration_no, full_name, grade, student.stream, term, assessment_number=student.assessment_number, profile_image=profile_image)
     pdf.ln(4)
 
     # Learning area table
     draw_section_title(pdf, "Learning Area Performance")
     la_cols = [
-        ('Learning Area',40),('SBA-Proj',18),('SBA-Prac',18),('SBA-Writ',18),
-        ('Avg Score',18),('Avg Level',18),('CBC Level',18),('Remark',30),
+        ('Learning Area',32),('Teacher',24),('Proj',11),('Prac',11),('Writ',11),('Oral',11),('Obs',11),
+        ('Avg Sc.',13),('Avg Lv.',13),('Level',10),('Remark',21),
     ]
     draw_styled_table_header(pdf, la_cols)
     for row_idx, subj in enumerate(subjects_in_grade):
         data = subject_data.get(subj, {})
         rep  = get_cbc_level_and_remark(data.get('level'))
+        t_name = t_map.get(subj, "-")
         draw_styled_row(pdf, [
             subj,
+            t_name,
             f"{round(data.get('project'),1)}" if data.get('project') is not None else "-",
             f"{round(data.get('practical'),1)}" if data.get('practical') is not None else "-",
             f"{round(data.get('written'),1)}" if data.get('written') is not None else "-",
+            f"{round(data.get('oral'),1)}" if data.get('oral') is not None else "-",
+            f"{round(data.get('observation'),1)}" if data.get('observation') is not None else "-",
             f"{round(data.get('score'),1)}" if data.get('score') is not None else "-",
             f"{round(data.get('level'),2)}" if data.get('level') is not None else "-",
             rep['level'], rep['remark'],
-        ], [w for _,w in la_cols], row_idx, ['L','C','C','C','C','C','C','C'])
+        ], [w for _,w in la_cols], row_idx, ['L','L','C','C','C','C','C','C','C','C','C'])
 
     pdf.ln(3)
 
@@ -1245,6 +1574,7 @@ def print_individual_report_form(request):
     pdf.set_font('Arial', 'B', 8)
     pdf.cell(0, 5, f'Closing Date: {current_date}', ln=True)
     pdf.ln(3)
+    pdf.cell(0, 5, f'Class Teacher: {student.class_teacher_name}', ln=True)
     pdf.cell(0, 5, 'Class Teacher Comment: '+'.'*70, ln=True)
     pdf.ln(3)
     pdf.cell(0, 5, 'Guardian Comment: '+'.'*73, ln=True)
@@ -1252,7 +1582,7 @@ def print_individual_report_form(request):
     pdf.cell(0, 5, f'Date: {current_date}   H/T Sign & Stamp: '+'.'*40, ln=True)
     pdf_footer(pdf)
 
-    resp = HttpResponse(pdf.output(dest="S").encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="{registration_no}_{term}_report.pdf"'
     return resp
 
@@ -1274,6 +1604,10 @@ def print_fee_reciept(request, fee_id):
 
     fee          = get_object_or_404(Fee.objects.filter(school_id=school_id), id=fee_id)
     personal     = fee.registration_no
+
+    if request.user.role == 'Parent':
+        if not StudentInfo.objects.filter(school_id=school_id, phone=request.user.username, registration_no=personal.registration_no).exists():
+            return HttpResponse("Unauthorized", status=403)
     grade_fee    = get_object_or_404(GradeFeeConfig.objects.filter(school_id=school_id), grade=personal.grade)
     expected_fee = Decimal(grade_fee.expected_fee or 0)
     all_payments = Fee.objects.filter(school_id=school_id, registration_no=personal.registration_no, term=fee.term)
@@ -1293,21 +1627,77 @@ def print_fee_reciept(request, fee_id):
     pdf.cell(0, 6, "FEE PAYMENT RECEIPT", align="C", ln=True)
     pdf.ln(4)
 
-    # Student info
-    draw_section_title(pdf, "Student Details", w=pdf.w - pdf.l_margin - pdf.r_margin)
-    pdf.info_pair("Reg No:",  personal.registration_no)
-    full = f"{personal.first_name} {personal.second_name or ''} {personal.surname or ''}".strip()
-    pdf.info_pair("Name:",    full)
-    pdf.info_pair("Grade:",   personal.grade)
-    pdf.info_pair("Stream:",  personal.stream)
-    pdf.info_pair("Term:",    fee.term)
-    pdf.info_pair("Date:",    str(fee.date_of_payment or current_date))
-    pdf.ln(4)
+    # Student info (Compact 2-column layout)
+    draw_section_title(pdf, "Student & Payment Details", w=pdf.w - pdf.l_margin - pdf.r_margin)
+    full = f"{personal.first_name} {personal.surname or ''}".strip()
+    
+    # Row 1
+    pdf.info_pair("Reg No:", personal.registration_no, w_label=15, w_value=35)
+    pdf.set_x(pdf.l_margin + 50)
+    pdf.info_pair("Name:", full, w_label=15, w_value=35)
+    pdf.ln(5)
+    
+    # Row 2
+    pdf.info_pair("Grade:", personal.grade, w_label=15, w_value=35)
+    pdf.set_x(pdf.l_margin + 50)
+    pdf.info_pair("Stream:", personal.stream, w_label=15, w_value=35)
+    pdf.ln(5)
+    
+    # Row 3
+    pdf.info_pair("Term:", fee.term, w_label=15, w_value=35)
+    pdf.set_x(pdf.l_margin + 50)
+    pdf.info_pair("Date:", str(fee.date_of_payment or current_date), w_label=15, w_value=35)
+    pdf.ln(5)
 
     # Fee table
     draw_section_title(pdf, "Payment Summary", w=pdf.w - pdf.l_margin - pdf.r_margin)
     pdf.fee_summary_table(expected_fee, fee.amount, total_paid, balance)
-    pdf.ln(8)
+    pdf.ln(6)
+
+    # Activity Breakdown
+    activities = FeeActivity.objects.filter(school_id=school_id, grade=personal.grade).order_by('id')
+    if activities.exists():
+        draw_section_title(pdf, "Activity Consumption", w=pdf.w - pdf.l_margin - pdf.r_margin)
+        breakdown = []
+        
+        # We calculate allocation based on the CURRENT payment amount as requested
+        rem_this_payment = Decimal(fee.amount or 0)
+        
+        # To know which activity this specific payment covers, we need to know what was already covered
+        # by PREVIOUS payments to follow the priority order correctly.
+        previous_payments = Fee.objects.filter(
+            school_id=school_id, 
+            registration_no=personal.registration_no, 
+            term=fee.term,
+            date_of_payment__lt=fee.date_of_payment
+        ).exclude(id=fee.id) # Safety exclude
+        
+        total_previously_paid = sum(Decimal(p.amount or 0) for p in previous_payments)
+        
+        rem_prev = total_previously_paid
+        for act in activities:
+            act_expected = Decimal(act.amount or 0)
+            
+            # How much of this activity was already covered by previous payments?
+            already_covered = min(rem_prev, act_expected)
+            rem_prev -= already_covered
+            
+            # How much is left to be covered in this activity?
+            remaining_to_cover = act_expected - already_covered
+            
+            # How much of the CURRENT payment goes to this activity?
+            allocated_from_this_payment = min(rem_this_payment, remaining_to_cover)
+            
+            breakdown.append({
+                'name': act.activity_name,
+                'expected': act_expected,
+                'paid': allocated_from_this_payment # This now represents "Paid in this receipt"
+            })
+            
+            rem_this_payment -= allocated_from_this_payment
+        
+        pdf.fee_activities_table(breakdown)
+        pdf.ln(4)
 
     # Footer strip
     _set_fill(pdf, GREY)
@@ -1320,7 +1710,7 @@ def print_fee_reciept(request, fee_id):
     pdf.ln()
     pdf_footer(pdf)
 
-    resp = HttpResponse(pdf.output(dest="S").encode("latin1"), content_type="application/pdf")
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type="application/pdf")
     resp["Content-Disposition"] = f'inline; filename="{personal.registration_no}_fee_receipt.pdf"'
     return resp
 
@@ -1375,7 +1765,7 @@ def print_attendance_sheet(request):
 
     pdf_footer(pdf)
     safe = lambda s, d: (s.replace(' ','_') if s else d)
-    resp = HttpResponse(pdf.output(dest="S").encode("latin1"), content_type="application/pdf")
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type="application/pdf")
     resp['Content-Disposition'] = f'attachment; filename="attendance_{safe(grade,"all")}_{safe(stream,"all")}_{safe(term,"all")}.pdf"'
     return resp
 
@@ -1465,7 +1855,7 @@ def print_all_fee_reciepts(request):
                 school = get_object_or_404(MasterSchool, id=school_id)
                 pdf_footer(pdf, getattr(school, 'vision', ''))
 
-    resp = HttpResponse(pdf.output(dest="S").encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="{grade}_{stream}_fee_statements.pdf"'
     return resp
 
@@ -1539,7 +1929,7 @@ def print_leave_receipt(request, leave_id):
     school = MasterSchool.objects.filter(id=school_id).first()
     pdf_footer(pdf, getattr(school, 'vision', '') if school else '')
 
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="leave_receipt_{leave_id}.pdf"'
     return resp
 
@@ -1604,7 +1994,7 @@ def generate_leave_report(request):
             ], [w for _,w in cols], idx, ['L','L','C','L','C','C','C'])
 
         pdf_footer(pdf)
-        content      = pdf.output(dest='S').encode('latin1')
+        content      = pdf.output(dest='S').encode('latin-1', 'replace')
         content_type = 'application/pdf'
         filename     = f"leave_report_{datetime.now().date()}.pdf"
 
@@ -1621,11 +2011,12 @@ def generate_leave_report(request):
 @permission_classes([IsAuthenticated])
 def generate_fee_report(request):
     school_id   = request.user.school_id
-    report_type = request.GET.get('reportType', '')
+    report_type = request.GET.get('report_type') or request.GET.get('reportType', '')
     period      = request.GET.get('period')
     start_date  = request.GET.get('start_date')
     end_date    = request.GET.get('end_date')
     out_format  = (request.GET.get('export_format') or request.GET.get('format') or 'pdf').lower()
+    
     def parse_date(s):
         try: return datetime.strptime(s, '%Y-%m-%d').date() if s else None
         except: return None
@@ -1641,28 +2032,101 @@ def generate_fee_report(request):
     if stream:
         fees_qs = fees_qs.filter(registration_no__stream=stream)
 
+    title_suffix = "All Records"
     if report_type == 'monthly-collection' and start:
         fees_qs = fees_qs.filter(date_of_payment__month=start.month, date_of_payment__year=start.year)
+        title_suffix = f"Monthly Collection ({start.strftime('%B %Y')})"
     elif report_type == 'payment-mode':
         fees_qs = fees_qs.filter(mode_of_payment__in=['M-Pesa','Cash','Bank Transfer'])
+        title_suffix = "Payment Mode Analysis"
     elif period == 'daily' and start:
         fees_qs = fees_qs.filter(date_of_payment=start)
+        title_suffix = f"Daily Report ({start.strftime('%d/%m/%Y')})"
+
+    if report_type == 'grade-wise':
+        fees_qs = fees_qs.order_by('registration_no__grade', '-date_of_payment', '-time')
+        title_suffix = "Grade-wise Summary"
 
     pdf = FPDF()
     pdf.add_page()
     pdf_header(request, pdf, 30)
-    draw_section_title(pdf, f"Fee Report  -  {report_type or 'All'}")
+    draw_section_title(pdf, f"Fee Report  -  {title_suffix}")
 
     cols = [('Reg No',25),('Name',50),('Grade',20),('Stream',20),('Mode',25),('Term',25),('Amount',30)]
-    draw_styled_table_header(pdf, cols)
+    
+    # ── Summary Section for Payment Mode Analysis ──
+    if report_type == 'payment-mode':
+        mode_summary = fees_qs.values('mode_of_payment').annotate(total=Sum('amount'), count=Count('id'))
+        draw_section_title(pdf, "Payment Mode Summary")
+        m_cols = [('Payment Mode', 60), ('Transaction Count', 60), ('Total Amount (Ksh)', 60)]
+        draw_styled_table_header(pdf, m_cols)
+        for i, m in enumerate(mode_summary):
+            draw_styled_row(pdf, [
+                m['mode_of_payment'], str(m['count']), f"{m['total'] or 0:,.2f}"
+            ], [60, 60, 60], i, ['L', 'C', 'R'])
+        pdf.ln(10)
+        draw_section_title(pdf, "Detailed Transactions")
 
-    for idx, fee in enumerate(fees_qs):
-        draw_styled_row(pdf, [
-            fee.registration_no.registration_no,
-            f"{fee.registration_no.first_name} {fee.registration_no.surname}",
-            fee.registration_no.grade, fee.registration_no.stream,
-            fee.mode_of_payment, fee.term, f"{fee.amount:,}",
-        ], [w for _,w in cols], idx, ['L','L','C','C','C','C','R'])
+    if report_type == 'grade-wise':
+        current_grade = None
+        grade_total = 0
+        idx = 0
+        
+        for fee in fees_qs:
+            fee_grade = fee.registration_no.grade
+            if fee_grade != current_grade:
+                if current_grade is not None:
+                    # Print grade total
+                    _set_fill(pdf, SKY)
+                    _set_text(pdf, BLACK)
+                    pdf.set_font('Arial', 'B', 9)
+                    tw = sum(w for _,w in cols)
+                    pdf.rect(pdf.l_margin, pdf.get_y(), tw, 6, style='F')
+                    pdf.set_x(pdf.l_margin)
+                    pdf.cell(tw, 6, f"TOTAL FOR {current_grade}:  Ksh {grade_total:,.2f}", align='R')
+                    pdf.ln(8)
+                
+                # Start new grade
+                current_grade = fee_grade
+                grade_total = 0
+                idx = 0
+                
+                # Print grade header
+                _set_fill(pdf, NAVY)
+                _set_text(pdf, WHITE)
+                pdf.set_font('Arial', 'B', 10)
+                pdf.cell(0, 8, f"  Grade: {current_grade}", ln=True, fill=True)
+                pdf.ln(2)
+                draw_styled_table_header(pdf, cols)
+            
+            draw_styled_row(pdf, [
+                fee.registration_no.registration_no,
+                f"{fee.registration_no.first_name} {fee.registration_no.surname}",
+                fee.registration_no.grade, fee.registration_no.stream,
+                fee.mode_of_payment, fee.term, f"{fee.amount:,.2f}",
+            ], [w for _,w in cols], idx, ['L','L','C','C','C','C','R'])
+            grade_total += fee.amount or 0
+            idx += 1
+            
+        if current_grade is not None:
+            _set_fill(pdf, SKY)
+            _set_text(pdf, BLACK)
+            pdf.set_font('Arial', 'B', 9)
+            tw = sum(w for _,w in cols)
+            pdf.rect(pdf.l_margin, pdf.get_y(), tw, 6, style='F')
+            pdf.set_x(pdf.l_margin)
+            pdf.cell(tw, 6, f"TOTAL FOR {current_grade}:  Ksh {grade_total:,.2f}", align='R')
+            pdf.ln(8)
+            
+    else:
+        draw_styled_table_header(pdf, cols)
+        for idx, fee in enumerate(fees_qs):
+            draw_styled_row(pdf, [
+                fee.registration_no.registration_no,
+                f"{fee.registration_no.first_name} {fee.registration_no.surname}",
+                fee.registration_no.grade, fee.registration_no.stream,
+                fee.mode_of_payment, fee.term, f"{fee.amount:,.2f}",
+            ], [w for _,w in cols], idx, ['L','L','C','C','C','C','R'])
 
     pdf.ln(4)
     total_amount = fees_qs.aggregate(Sum('amount'))['amount__sum'] or 0
@@ -1672,11 +2136,11 @@ def generate_fee_report(request):
     tw = sum(w for _,w in cols)
     pdf.rect(pdf.l_margin, pdf.get_y(), tw, 8, style='F')
     pdf.set_x(pdf.l_margin)
-    pdf.cell(tw, 8, f"TOTAL COLLECTED:  Ksh {total_amount:,}", align='R')
+    pdf.cell(tw, 8, f"TOTAL COLLECTED:  Ksh {total_amount:,.2f}", align='R')
     pdf.ln(10)
     _set_text(pdf, BLACK)
     pdf_footer(pdf)
-    resp = HttpResponse(pdf.output(dest="S").encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="fee_report_{datetime.now().date()}.pdf"'
     return resp
 
@@ -1781,7 +2245,7 @@ def generate_fee_records_report(request):
         _set_text(pdf, BLACK)
         pdf_footer(pdf)
 
-        content      = pdf.output(dest='S').encode('latin1')
+        content      = pdf.output(dest='S').encode('latin-1', 'replace')
         content_type = 'application/pdf'
         filename     = f"fee_records_{period}_{datetime.now().date()}.pdf"
 
@@ -1876,7 +2340,7 @@ def print_leave_receipts(request):
             school = MasterSchool.objects.filter(id=school_id).first()
             pdf_footer(pdf, getattr(school, 'vision', '') if school else '')
 
-    resp = HttpResponse(pdf.output(dest="S").encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest="S").encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="leave_receipts_{grade}_{stream}.pdf"'
     return resp
 
@@ -2248,7 +2712,7 @@ def school_performance_summary(request):
     _set_text(pdf, BLACK)
 
     pdf_footer(pdf)
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="school_performance_summary_{term}_{year}.pdf"'
     return resp
 
@@ -2470,7 +2934,7 @@ def class_grade_analysis_report(request):
 
     pdf_footer(pdf)
     safe = lambda s: s.replace(' ', '_') if s else 'all'
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="class_analysis_{safe(grade)}_{safe(stream)}_{safe(term)}.pdf"'
     return resp
 
@@ -2507,7 +2971,7 @@ def subject_performance_report(request):
     # Subject × assessment_type breakdown
     raw = (
         SubStrandMark.objects.filter(base_q)
-        .values('sub_strand__strand__subject', 'assessment_type')
+        .values('sub_strand__strand__subject', 'assessement_type')
         .annotate(avg_level=Avg('level'), avg_score=Avg('score'), n=Count('id'))
     )
 
@@ -2516,7 +2980,7 @@ def subject_performance_report(request):
     subjects  = set()
     for r in raw:
         subj = r['sub_strand__strand__subject']
-        at   = r['assessment_type'] or 'General'
+        at   = r['assessement_type'] or 'General'
         subjects.add(subj)
         subj_data[subj][at]['level'] = round(r['avg_level'] or 0, 2)
         subj_data[subj][at]['score'] = round(r['avg_score'] or 0, 1)
@@ -2645,7 +3109,7 @@ def subject_performance_report(request):
 
     pdf_footer(pdf)
     safe = lambda s: s.replace(' ','_') if s else 'all'
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="subject_performance_{safe(grade)}_{safe(term)}.pdf"'
     return resp
 
@@ -2777,7 +3241,7 @@ def student_ranking_report(request):
 
     pdf_footer(pdf)
     safe = lambda s: s.replace(' ','_') if s else 'all'
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="student_ranking_{safe(grade)}_{safe(stream)}_{safe(term)}.pdf"'
     return resp
 
@@ -2796,14 +3260,15 @@ def fee_collection_summary_report(request):
       • Collection rate %
       • Per-student fee status (paid / partial / defaulter)
       • Defaulters list
-    Filters: grade, stream, term
+    Filters: grade, stream, term, report_type
     """
     school_id = request.user.school_id
     messages.get_messages(request).used = True
 
-    grade  = request.GET.get('grade', '')
-    stream = request.GET.get('stream', '')
-    term   = request.GET.get('term', '')
+    grade       = request.GET.get('grade', '')
+    stream      = request.GET.get('stream', '')
+    term        = request.GET.get('term', '')
+    report_type = request.GET.get('report_type') or request.GET.get('reportType', 'fee-collection-summary')
 
     students_qs = StudentInfo.objects.filter(school_id=school_id)
     if grade:  students_qs = students_qs.filter(grade=grade)
@@ -2820,15 +3285,15 @@ def fee_collection_summary_report(request):
     for f in fee_qs:
         pay_map[f.registration_no_id] += Decimal(f.amount or 0)
 
-    # Expected fee config
-    grade_fee_cfg = GradeFeeConfig.objects.filter(school_id=school_id).first()
-    expected_per_student = Decimal(grade_fee_cfg.expected_fee if grade_fee_cfg else 0)
-
+    # Expected fee configs by grade
+    grade_configs = {c.grade: Decimal(c.expected_fee) for c in GradeFeeConfig.objects.filter(school_id=school_id)}
+    
     # Build rows
     rows = []
     for s in students:
+        expected_fee = grade_configs.get(s.grade, Decimal('0'))
         paid    = pay_map.get(s.registration_no, Decimal('0'))
-        balance = expected_per_student - paid
+        balance = expected_fee - paid
         status  = 'Cleared' if balance <= 0 else ('Partial' if paid > 0 else 'Defaulter')
         rows.append({
             'reg':    s.registration_no,
@@ -2838,9 +3303,15 @@ def fee_collection_summary_report(request):
             'paid':   paid,
             'balance':balance,
             'status': status,
+            'expected': expected_fee
         })
 
-    total_expected  = expected_per_student * len(students)
+    # Filter rows for Outstanding Balance Report if requested
+    if report_type == 'outstanding-balance':
+        # Only show those who haven't cleared
+        rows = [r for r in rows if r['balance'] > 0]
+
+    total_expected  = sum(r['expected'] for r in rows)
     total_collected = sum(r['paid'] for r in rows)
     total_balance   = total_expected - total_collected
     collection_rate = round(float(total_collected) / float(total_expected) * 100, 1) if total_expected else 0
@@ -2854,9 +3325,13 @@ def fee_collection_summary_report(request):
     pdf.add_page()
     pdf_header(request, pdf, 30)
 
+    report_title = "FEE COLLECTION ANALYTICS SUMMARY"
+    if report_type == 'outstanding-balance':
+        report_title = "OUTSTANDING BALANCE REPORT"
+
     _set_text(pdf, NAVY)
     pdf.set_font('Arial', 'BU', 13)
-    pdf.cell(0, 7, 'FEE COLLECTION SUMMARY REPORT', align='C', ln=True)
+    pdf.cell(0, 7, report_title, align='C', ln=True)
     _set_text(pdf, MID)
     pdf.set_font('Arial', '', 9)
     parts = []
@@ -2867,14 +3342,25 @@ def fee_collection_summary_report(request):
     pdf.ln(5)
 
     # ── KPI strip ────────────────────────────────────────────────────────────
-    kpis = [
-        ('Expected (Ksh)',  f"{total_expected:,.0f}", ''),
-        ('Collected (Ksh)', f"{total_collected:,.0f}", ''),
-        ('Balance (Ksh)',   f"{total_balance:,.0f}",  ''),
-        ('Collection Rate', f"{collection_rate}%",    ''),
-        ('Cleared',         cleared,                  'students'),
-        ('Defaulters',      len(defaulters),           'students'),
-    ]
+    if report_type == 'outstanding-balance':
+        kpis = [
+            ('Target Debt (Ksh)',  f"{total_expected:,.0f}", ''),
+            ('Recovered (Ksh)',    f"{total_collected:,.0f}", ''),
+            ('Remaining (Ksh)',    f"{total_balance:,.0f}",  ''),
+            ('Recovery Rate',      f"{collection_rate}%",    ''),
+            ('Defaulters',         len(defaulters),           'students'),
+            ('Partial Payers',     partial,                  'students'),
+        ]
+    else:
+        kpis = [
+            ('Expected (Ksh)',  f"{total_expected:,.0f}", ''),
+            ('Collected (Ksh)', f"{total_collected:,.0f}", ''),
+            ('Balance (Ksh)',   f"{total_balance:,.0f}",  ''),
+            ('Collection Rate', f"{collection_rate}%",    ''),
+            ('Cleared',         cleared,                  'students'),
+            ('Defaulters',      len(defaulters),           'students'),
+        ]
+    
     kpi_colors = [NAVY, GREEN, CRIMSON, (0,80,160), GREEN, CRIMSON]
     for (label, val, sub), col in zip(kpis, kpi_colors):
         _mini_kpi(pdf, label, val, sub, fill=col, w=31)
@@ -2882,19 +3368,23 @@ def fee_collection_summary_report(request):
     _gold_divider(pdf)
 
     # ── Collection rate bar ───────────────────────────────────────────────────
-    draw_section_title(pdf, "Collection Rate")
+    draw_section_title(pdf, "Collection/Recovery Rate")
     bar_w = pdf.w - pdf.l_margin - pdf.r_margin
     _progress_bar(pdf, pdf.l_margin, pdf.get_y(), bar_w, 6,
                   collection_rate, GREEN if collection_rate >= 80 else (180,120,0) if collection_rate >= 50 else CRIMSON)
     _set_text(pdf, WHITE)
     pdf.set_font('Arial', 'B', 7)
     pdf.set_xy(pdf.l_margin + bar_w/2 - 15, pdf.get_y())
-    pdf.cell(30, 6, f"{collection_rate}% Collected")
+    pdf.cell(30, 6, f"{collection_rate}% Achieved")
     pdf.ln(8)
     _set_text(pdf, BLACK)
 
     # ── Full student fee status table ─────────────────────────────────────────
-    draw_section_title(pdf, "Student Fee Status")
+    table_title = "Student Fee Status"
+    if report_type == 'outstanding-balance':
+        table_title = "Outstanding Balances Breakdown"
+        
+    draw_section_title(pdf, table_title)
     f_cols = [('Reg No',28),('Name',60),('Grade',18),('Stream',18),
               ('Paid (Ksh)',28),('Balance (Ksh)',28),('Status',20)]
     draw_styled_table_header(pdf, f_cols)
@@ -2920,8 +3410,8 @@ def fee_collection_summary_report(request):
         pdf.ln()
     _set_text(pdf, BLACK)
 
-    # ── Defaulters list ───────────────────────────────────────────────────────
-    if defaulters:
+    # ── Defaulters list (Only for full summary) ──────────────────────────────────
+    if report_type == 'fee-collection-summary' and defaulters:
         pdf.ln(5)
         draw_section_title(pdf, f"Defaulters List ({len(defaulters)} students)")
         d_cols = [('Reg No',28),('Name',80),('Grade',20),('Stream',20),('Balance (Ksh)',32)]
@@ -2945,7 +3435,7 @@ def fee_collection_summary_report(request):
 
     pdf_footer(pdf)
     safe = lambda s: s.replace(' ','_') if s else 'all'
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="fee_summary_{safe(grade)}_{safe(stream)}_{safe(term)}.pdf"'
     return resp
 
@@ -3097,7 +3587,7 @@ def attendance_summary_report(request):
 
     pdf_footer(pdf)
     safe = lambda s: s.replace(' ','_') if s else 'all'
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="attendance_summary_{safe(grade)}_{safe(term)}.pdf"'
     return resp
 
@@ -3133,8 +3623,8 @@ def leave_analysis_report(request):
     start = parse_date(start_date)
     end   = parse_date(end_date)
 
-    lv_qs = LeaveManagement.objects.filter(school_id=school_id).select_related('registration_no')
-    if grade: lv_qs = lv_qs.filter(registration_no__grade=grade)
+    lv_qs = LeaveManagement.objects.filter(school_id=school_id)
+    if grade: lv_qs = lv_qs.filter(student__grade=grade)
     if term:  lv_qs = lv_qs.filter(term=term)
     if start: lv_qs = lv_qs.filter(date_of_leave__gte=start)
     if end:   lv_qs = lv_qs.filter(date_of_leave__lte=end)
@@ -3149,7 +3639,7 @@ def leave_analysis_report(request):
     for lv in leaves:
         status_counts[(lv.status or 'Pending').capitalize()] += 1
         reason_counts[lv.reason or 'Other'] += 1
-        grade_counts[getattr(lv.registration_no, 'grade', '-')] += 1
+        grade_counts[getattr(lv.student, 'grade', '-')] += 1
 
     total = len(leaves) or 1
 
@@ -3243,7 +3733,7 @@ def leave_analysis_report(request):
     draw_styled_table_header(pdf, d_cols)
     d_widths = [w for _, w in d_cols]
     for idx, lv in enumerate(leaves):
-        s     = lv.registration_no
+        s     = lv.student
         name  = f"{getattr(s,'first_name','')} {getattr(s,'surname','')}".strip()
         status = (lv.status or 'Pending').capitalize()
         sclr  = {'Approved':GREEN,'Pending':(180,120,0),'Rejected':CRIMSON}.get(status, BLACK)
@@ -3266,7 +3756,7 @@ def leave_analysis_report(request):
 
     pdf_footer(pdf)
     safe = lambda s: s.replace(' ','_') if s else 'all'
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="leave_analysis_{safe(grade)}_{safe(term)}.pdf"'
     return resp
 
@@ -3349,10 +3839,10 @@ def competency_heatmap_report(request):
     # Legend
     draw_section_title(pdf, "Heat Level Legend")
     for label, col, lv_range in [
-        ('EE – Exceeding (3.5–4.0)', GREEN,           '3.5–4.0'),
-        ('ME – Meeting (2.5–3.4)',   (0,140,100),     '2.5–3.4'),
-        ('AE – Approaching (1.5–2.4)',(180,120,0),   '1.5–2.4'),
-        ('BE – Below (0–1.4)',        CRIMSON,         '0.0–1.4'),
+        (clean_str('EE – Exceeding (3.5–4.0)'), GREEN,           '3.5–4.0'),
+        (clean_str('ME – Meeting (2.5–3.4)'),   (0,140,100),     '2.5–3.4'),
+        (clean_str('AE – Approaching (1.5–2.4)'),(180,120,0),   '1.5–2.4'),
+        (clean_str('BE – Below (0–1.4)'),        CRIMSON,         '0.0–1.4'),
         ('No Data',                   (200,200,200),  '-'),
     ]:
         _set_fill(pdf, col)
@@ -3386,7 +3876,7 @@ def competency_heatmap_report(request):
         _set_fill(pdf, bg)
         _set_text(pdf, NAVY)
         pdf.set_font('Arial', 'B', 5)
-        pdf.cell(subj_col_w, 6, subj[:20], border=1, fill=True, align='L')
+        pdf.cell(subj_col_w, 6, clean_str(subj)[:20], border=1, fill=True, align='L')
         for comp in core_competencies:
             lv   = grid[subj].get(comp, 0)
             hclr = _heat_color(lv)
@@ -3430,7 +3920,7 @@ def competency_heatmap_report(request):
         pdf.cell(cr_w[0], 6, str(pos), border=1, align='C', fill=True)
         _set_text(pdf, BLACK)
         pdf.set_font('Arial', '', 7)
-        pdf.cell(cr_w[1], 6, comp,      border=1, align='L', fill=True)
+        pdf.cell(cr_w[1], 6, clean_str(comp),      border=1, align='L', fill=True)
         pdf.cell(cr_w[2], 6, str(avg),  border=1, align='C', fill=True)
         _set_text(pdf, bclr)
         pdf.set_font('Arial', 'B', 7)
@@ -3447,6 +3937,6 @@ def competency_heatmap_report(request):
 
     pdf_footer(pdf)
     safe = lambda s: s.replace(' ','_') if s else 'all'
-    resp = HttpResponse(pdf.output(dest='S').encode('latin1'), content_type='application/pdf')
+    resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="competency_heatmap_{safe(grade)}_{safe(term)}.pdf"'
     return resp

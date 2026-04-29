@@ -2,6 +2,7 @@ from django.urls import path
 from core.views.school_views import SchoolRegistrationView, SchoolUpdateView, PublicSchoolListView
 from core.views.announcement_views import AnnouncementListCreateView, AnnouncementDetailView
 from core.views.review_views import ReviewsListCreateView, ReviewsDetailView, PublicReviewsListView
+from core.views.dashboard_views import SystemNotificationListView
 
 urlpatterns = [
     path('register/', SchoolRegistrationView.as_view(), name='school-register'),
@@ -18,4 +19,7 @@ urlpatterns = [
     # Reviews (Authenticated)
     path('reviews/', ReviewsListCreateView.as_view(), name='reviews-list'),
     path('reviews/<int:pk>/', ReviewsDetailView.as_view(), name='reviews-detail'),
+
+    # System Notifications
+    path('system-notifications/', SystemNotificationListView.as_view(), name='system-notifications-list'),
 ]

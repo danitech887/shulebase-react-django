@@ -14,6 +14,7 @@ from core.models import (
     StudentInfo, GradeFeeConfig, Fee, LeaveManagement, StudentAttendance, 
     MasterSchool,Strand, SubStrandMark, LearnerCompetency, 
     Resource, LearningLog, StudentNote,TeachersRole,Announcement,
+    ReportCardComment
 )
 
 
@@ -99,6 +100,9 @@ class StudentPortalDashboardAPIView(APIView):
                     'pending': leaves.filter(status='Pending').count()
                 }
             },
+            'student_name': f"{student.first_name} {student.surname}",
+            'profile_image': request.build_absolute_uri(student.profile_image.url) if student.profile_image else None,
+            'class_teacher': student.class_teacher_name,
             'term_choices': ['Term 1', 'Term 2', 'Term 3'],
             'current_year': datetime.now().year
         })
@@ -191,11 +195,15 @@ class StudentPortalAcademicsAPIView(APIView):
         score_avg = base_marks.aggregate(Avg('score'))['score__avg'] or 0
         rating_info = get_cbc_level_and_remark(level_avg)
 
+        rc_comment = ReportCardComment.objects.filter(student=student, term=term, year=year).first()
+
         return Response({
             'overall_mean_score': round(score_avg, 2),
             'overall_mean_level': round(level_avg, 2),
             'overall_rating': rating_info['level'],
             'overall_remark': rating_info['remark'],
+            'class_teacher_comment': rc_comment.class_teacher_comment if rc_comment else "",
+            'headteacher_comment': rc_comment.headteacher_comment if rc_comment else "",
             'subjects': subject_summaries,
             'competencies': [
                 {

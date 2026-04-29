@@ -16,6 +16,7 @@ import {
   PersonBoundingBox,
   MegaphoneFill,
   ChatHeartFill,
+  FileEarmarkSpreadsheet,
 } from 'react-bootstrap-icons';
 import './Sidebar.css';
 
@@ -67,6 +68,7 @@ export default function Sidebar({ collapsed = false, mobileOpen = false, onToggl
             { to: '/teachers/attendance', label: 'Attendance',      icon: <Check2Circle /> },
             { to: '/teachers/roles',      label: 'Role Management', icon: <GraphUp /> },
             { to: '/teachers/leave',      label: 'Leave Management',icon: <CheckCircleFill /> },
+            { to: '/teachers/progress',   label: 'Teaching Progress',icon: <BookHalf /> },
           ],
         },
         {
@@ -125,7 +127,6 @@ export default function Sidebar({ collapsed = false, mobileOpen = false, onToggl
           items: [
             { to: '/students-portal/dashboard',  label: 'Dashboard',        icon: <HouseFill /> },
             { to: '/students-portal/fees',       label: 'Fee Status',        icon: <CashStack /> },
-            { to: '/students-portal/leave',      label: 'Leave Management',  icon: <CheckCircleFill /> },
             { to: '/students-portal/attendance', label: 'Attendance Record', icon: <Check2Circle /> },
             { to: '/students-portal/academics',  label: 'Academic Progress', icon: <GraphUp /> },
           ],
@@ -198,15 +199,11 @@ export default function Sidebar({ collapsed = false, mobileOpen = false, onToggl
             {collapsed ? '»' : '«'}
           </button>
 
-          {/* Mobile close button — robust click handling */}
+          {/* Mobile close button — absolute positioning for reliability */}
           <button
             type="button"
             className="sb-toggle-btn sb-close-mobile"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              closeSidebar();
-            }}
+            onClick={closeSidebar}
             aria-label="Close navigation"
           >
             ✕

@@ -1,9 +1,11 @@
 from rest_framework import serializers
 
 from .models import*
+from django.db import transaction
 
 
 class StudentSerializer(serializers.ModelSerializer):
+    class_teacher_name = serializers.ReadOnlyField()
     class Meta:
         model = StudentInfo
         fields = '__all__'
@@ -31,10 +33,15 @@ class UserSerializer(serializers.ModelSerializer):
 class SchoolRegistrationSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+    plan_name = serializers.ChoiceField(choices=Pricing.PLAN_CHOICES, write_only=True)
+    billing_cycle = serializers.ChoiceField(choices=Pricing.BILLING_CHOICES, write_only=True)
 
     class Meta:
         model = MasterSchool
-        fields = '__all__' # Adjust fields as needed
+        fields = ['id', 'school_name', 'po_box', 'address', 'contact', 'email_address', 'logo_path', 'motto', 'vision', 'status', 'username', 'password', 'plan_name', 'billing_cycle']
+        extra_kwargs = {
+            'status': {'read_only': True}
+        }
 
     def validate_email_address(self, value):
         # Exclude current instance when updating to allow using the same email
@@ -54,6 +61,8 @@ class SchoolRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         username = validated_data.pop('username')
         password = validated_data.pop('password')
+        plan_name = validated_data.pop('plan_name')
+        billing_cycle = validated_data.pop('billing_cycle')
         
         # Use an atomic transaction to ensure both or neither are created
         with transaction.atomic():
@@ -65,6 +74,11 @@ class SchoolRegistrationSerializer(serializers.ModelSerializer):
                 password=password,
                 role='Admin',
                 school_name=school.school_name,
+            )
+            Pricing.objects.create(
+                school=school,
+                plan_name=plan_name,
+                billing_cycle=billing_cycle
             )
         return school
 
@@ -91,9 +105,10 @@ class TeachersRoleSerializer(serializers.ModelSerializer):
 
 
 class StudentInfoSerializer(serializers.ModelSerializer):
+    class_teacher_name = serializers.ReadOnlyField()
     class Meta:
         model = StudentInfo
-        fields = ["registration_no", "first_name", "surname", "grade", "stream"]
+        fields = ["registration_no", "assessment_number", "first_name", "surname", "grade", "stream", "profile_image", "class_teacher", "class_teacher_name"]
 
 
 class StudentAttendanceSerializer(serializers.ModelSerializer):
@@ -135,15 +150,21 @@ class StrandSerializer(serializers.ModelSerializer):
 class SubStrandMarkSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubStrandMark
-        fields = ["id", "student", "sub_strand", "term", "year", "score", "remark", "recorded_by"]
-        read_only_fields = ["recorded_by", "year"]
+        fields = ["id", "student", "sub_strand", "term", "year", "raw_score", "score", "remark", "level", "assessement_type", "recorded_by"]
+        read_only_fields = ["recorded_by"]
 
+
+class TeachingTargetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeachingTarget
+        fields = "__all__"
 
 class TeachingProgressSerializer(serializers.ModelSerializer):
+    teacher_name = serializers.ReadOnlyField(source='registration_no.first_name') # Just for convenience
     class Meta:
         model = TeachingProgress
         fields = "__all__"
-        read_only_fields = ["registration_no", "school"]
+        read_only_fields = ["registration_no", "school", "date_of_teaching"]
 
 
 class ResourceSerializer(serializers.ModelSerializer):
@@ -153,6 +174,10 @@ class ResourceSerializer(serializers.ModelSerializer):
         read_only_fields = ["uploaded_by", "school"]
 
 class LearningLogSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source='student.first_name', read_only=True)
+    last_name = serializers.CharField(source='student.surname', read_only=True)
+    registration_no = serializers.CharField(source='student.registration_no', read_only=True)
+
     class Meta:
         model = LearningLog
         fields = "__all__"
@@ -182,6 +207,12 @@ class LearningAreaMarkSerializer(serializers.ModelSerializer):
 
     def get_student_name(self, obj):
         return f"{obj.student.first_name} {obj.student.surname}"
+
+class FeeActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeeActivity
+        fields = "__all__"
+        read_only_fields = ["school"]
 
 
 class TeacherLeaveSerializer(serializers.ModelSerializer):
@@ -224,3 +255,17 @@ class PublicSchoolSerializer(serializers.ModelSerializer):
     class Meta:
         model = MasterSchool
         fields = ["id", "school_name", "logo_path"]
+
+class LearnerPortfolioSerializer(serializers.ModelSerializer):
+    student_name = serializers.ReadOnlyField(source='student.first_name')
+    class Meta:
+        model = LearnerPortfolio
+        fields = '__all__'
+        read_only_fields = ['recorded_by', 'created_at', 'year']
+
+class NationalAssessmentSerializer(serializers.ModelSerializer):
+    student_name = serializers.ReadOnlyField(source='student.first_name')
+    class Meta:
+        model = NationalAssessment
+        fields = '__all__'
+        read_only_fields = ['recorded_by', 'created_at', 'year']

@@ -12,6 +12,8 @@ export default function TeacherPortalDashboard() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   const [selectedTerm, setSelectedTerm] = useState('');
+  const [filterGrade, setFilterGrade]   = useState('');
+  const [filterStream, setFilterStream] = useState('');
   const { showMessage } = useMessage();
 
   const attendance_trend_safe = data?.attendance_trend || [];
@@ -27,17 +29,19 @@ export default function TeacherPortalDashboard() {
     (async () => {
       try {
         setLoading(true);
-        const url = selectedTerm
-          ? `teacher-portal/dashboard/?filter_term=${encodeURIComponent(selectedTerm)}`
-          : 'teacher-portal/dashboard/';
-        const res = await api.get(url);
+        const params = new URLSearchParams();
+        if (selectedTerm) params.append('filter_term', selectedTerm);
+        if (filterGrade)  params.append('grade', filterGrade);
+        if (filterStream) params.append('stream', filterStream);
+        
+        const res = await api.get(`teacher-portal/dashboard/?${params.toString()}`);
         if (mounted) { setData(res.data); setError(null); }
       } catch (err) {
         if (mounted) { const msg = err.response?.data?.message || err.message || 'Failed to fetch dashboard'; setError(msg); showMessage({ type:'error', text:msg }); }
       } finally { if (mounted) setLoading(false); }
     })();
     return () => { mounted = false; };
-  }, [selectedTerm]);
+  }, [selectedTerm, filterGrade, filterStream]);
 
   if (loading) return (
     <div className="t-page d-flex justify-content-center align-items-center" style={{ minHeight:'60vh' }}>
@@ -74,12 +78,22 @@ export default function TeacherPortalDashboard() {
             {is_class_teacher && <span className="badge t-badge-blue ms-2">Class Teacher</span>}
           </p>
         </div>
-        <select className="t-input t-select" style={{ width:180 }} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-          <option value="">All Terms</option>
-          <option value="Term 1">Term 1</option>
-          <option value="Term 2">Term 2</option>
-          <option value="Term 3">Term 3</option>
-        </select>
+        <div className="d-flex gap-2">
+          <select className="t-input t-select" style={{ width:120 }} value={filterGrade} onChange={e => setFilterGrade(e.target.value)}>
+            <option value="">All Grades</option>
+            {data.grades?.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+          <select className="t-input t-select" style={{ width:120 }} value={filterStream} onChange={e => setFilterStream(e.target.value)}>
+            <option value="">All Streams</option>
+            {data.streams?.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select className="t-input t-select" style={{ width:140 }} value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
+            <option value="">All Terms</option>
+            <option value="Term 1">Term 1</option>
+            <option value="Term 2">Term 2</option>
+            <option value="Term 3">Term 3</option>
+          </select>
+        </div>
       </div>
 
       {/* Stat cards */}

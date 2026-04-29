@@ -4,6 +4,10 @@
    Font: DM Sans + DM Mono (Google Fonts)
 ═══════════════════════════════════════════ */
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 :root {
   --hd-bg:            #0d0f14;
   --hd-surface:       #131720;
@@ -28,28 +32,28 @@
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   position: fixed;
   top: 0;
+  left: 0;
   right: 0;
-  left: 240px;                      /* Sidebar width */
-  z-index: 800;                     /* below sidebar backdrop (99998) */
+  z-index: 800;                     /* below sidebar (99999) */
   background: var(--hd-surface);
   border-bottom: 1px solid var(--hd-border);
   box-shadow: 0 4px 24px rgba(0,0,0,0.35);
-  padding: 0 1.5rem;
+  padding: 0 1.5rem 0 calc(240px + 1.5rem); /* sidebar broad width + base padding */
   height: 62px;
   display: flex;
   align-items: center;
-  transition: left 260ms cubic-bezier(0.16,1,0.3,1);
+  transition: padding-left 260ms cubic-bezier(0.16,1,0.3,1);
   animation: hdSlideDown 0.4s cubic-bezier(0.16,1,0.3,1) both;
 }
 
 .hd-navbar.sidebar-collapsed {
-  left: 64px;
+  padding-left: calc(64px + 1.5rem); /* sidebar collapsed width + base padding */
 }
 
 @media (max-width: 768px) {
   .hd-navbar,
   .hd-navbar.sidebar-collapsed {
-    left: 0;
+    padding-left: 1rem;            /* reset on mobile */
   }
 }
 
@@ -133,8 +137,9 @@
   overflow: visible;
 }
 .hd-school-name {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 800;
+  font-family: Georgia, 'Times New Roman', Times, serif;
   letter-spacing: 0.06em;
   color: var(--hd-text);
   text-align: center;
@@ -376,6 +381,10 @@
 .hd-menu-item.logout:hover { background: var(--hd-red-soft); }
 .hd-menu-item.logout:hover .hd-menu-item-icon { background: var(--hd-red-soft); border-color: rgba(239,68,68,0.3); }
 .hd-menu-item.logout:hover .hd-menu-item-label { color: #fca5a5; }
+
+.hd-menu-item.upgrade-plan:hover { background: rgba(99, 102, 241, 0.1); }
+.hd-menu-item.upgrade-plan:hover .hd-menu-item-icon { background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.3); }
+.hd-menu-item.upgrade-plan:hover .hd-menu-item-label { color: #a5b4fc; }
 
 /* ── Dropdown wrapper ── */
 .hd-dropdown-wrap { position: relative; }

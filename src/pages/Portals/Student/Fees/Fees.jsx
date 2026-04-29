@@ -111,6 +111,29 @@ export default function StudentPortalFees() {
 
       </div>
 
+      {/* Completion Banner */}
+      {isCleared && expected_fee > 0 && (
+        <div className="sp-completion-banner mb-4" style={{
+          background: 'rgba(34, 197, 94, 0.15)',
+          border: '1px solid rgba(34, 197, 94, 0.3)',
+          padding: '15px',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          color: '#22c55e',
+          fontWeight: '600',
+        }}>
+          <span style={{ fontSize: '1.5rem' }}>🎉</span>
+          <div>
+            <div>Fee Payment Completed!</div>
+            <div style={{ fontWeight: 'normal', color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
+              The school fees for {selectedTerm} have been fully paid.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment history */}
       <div className="sp-card">
         <div className="sp-card-header">

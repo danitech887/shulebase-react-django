@@ -20,6 +20,8 @@ export default function ParentPortalAcademics() {
   const [year, setYear]                 = useState(new Date().getFullYear());
   const [showModal, setShowModal]       = useState(false);
   const [viewSubject, setViewSubject]   = useState(null);
+  const [classTeacherComment, setClassTeacherComment] = useState('');
+  const [headteacherComment, setHeadteacherComment] = useState('');
 
   useEffect(() => {
     setTimeout(() => setAnimate(true), 80);
@@ -36,6 +38,8 @@ export default function ParentPortalAcademics() {
 
       const res = await api.get('parent-portal/academics/', { params });
       setPerformance(res.data.performance || []);
+      setClassTeacherComment(res.data.class_teacher_comment || '');
+      setHeadteacherComment(res.data.headteacher_comment || '');
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -201,6 +205,32 @@ export default function ParentPortalAcademics() {
           </div>
         )}
       </div>
+
+      {/* Teacher Remarks */}
+      {(classTeacherComment || headteacherComment) && (
+        <div className="pp-card" style={{ position: 'relative', zIndex: 1, marginTop: '1.5rem', background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+          <div className="pp-card-header">
+            <div>
+              <span className="pp-card-title">Teacher Remarks</span>
+            </div>
+            <span className="pp-card-badge">📝</span>
+          </div>
+          <div style={{ padding: '0 1.5rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {classTeacherComment && (
+              <div>
+                <h6 style={{ fontSize: '0.8rem', color: 'var(--pp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>Class Teacher</h6>
+                <p style={{ fontSize: '0.95rem', color: 'var(--pp-text)', margin: 0, fontStyle: 'italic' }}>"{classTeacherComment}"</p>
+              </div>
+            )}
+            {headteacherComment && (
+              <div>
+                <h6 style={{ fontSize: '0.8rem', color: 'var(--pp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>Headteacher</h6>
+                <p style={{ fontSize: '0.95rem', color: 'var(--pp-text)', margin: 0, fontStyle: 'italic' }}>"{headteacherComment}"</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Subject detail modal */}
       {showModal && viewSubject && (

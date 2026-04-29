@@ -2,6 +2,7 @@
 Students Endpoints - Class-Based REST Framework Views for React Frontend
 """
 
+from core.serializers import UserSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -106,7 +107,7 @@ class StudentListView(APIView):
             )
 
         students = students.order_by('registration_no')
-        serializer = StudentSerializer(students, many=True)
+        serializer = StudentSerializer(students, many=True, context={'request': request})
         return Response({'count': students.count(), 'students': serializer.data})
 
     def post(self, request):
@@ -173,23 +174,45 @@ class StudentDetailView(APIView):
 
     def _get_student(self, request, reg_no):
         return get_object_or_404(StudentInfo, school_id=request.user.school_id, registration_no=reg_no)
-
+   
     def get(self, request, reg_no):
         student = self._get_student(request, reg_no)
-        return Response(StudentSerializer(student).data)
+        return Response(StudentSerializer(student, context={'request': request}).data)
 
     def put(self, request, reg_no):
         student = self._get_student(request, reg_no)
-        serializer = StudentSerializer(student, data=request.data, partial=True)
+        serializer = StudentSerializer(student, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def patch(self, request, reg_no):
+        return self.put(request, reg_no)
+
     def delete(self, request, reg_no):
         student = self._get_student(request, reg_no)
         student.delete()
         return Response({'message': f'Student {reg_no} deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+class ResetStudentPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, reg_no):
+        school_id = request.user.school_id
+        # Verify student exists in this school
+        student = get_object_or_404(StudentInfo, school_id=school_id, registration_no=reg_no)
+        
+        # Find the corresponding user
+        user = Users.objects.filter(username=reg_no, school_id=school_id).first()
+        if not user:
+            return Response({'error': 'User account not found for this student.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Reset password to registration_no
+        user.set_password(reg_no)
+        user.save()
+        
+        return Response({'message': f'Password for student {reg_no} has been reset to default.'})
 
 
 class StudentStatsView(APIView):
@@ -355,7 +378,7 @@ class StudentFeesView(APIView):
     def get(self, request, reg_no):
         school_id = request.user.school_id
         student = get_object_or_404(StudentInfo, school_id=school_id, registration_no=reg_no)
-        grade_fee = Grade.objects.filter(school_id=school_id, name=student.grade).first()
+        grade_fee = GradeFeeConfig.objects.filter(school_id=school_id, grade=student.grade).first()
         expected_fee = grade_fee.expected_fee if grade_fee else 0
         fees = Fee.objects.filter(school_id=school_id, registration_no=reg_no)
         total_paid = fees.aggregate(Sum('amount'))['amount__sum'] or 0
@@ -456,6 +479,22 @@ class RecordPaymentView(APIView):
 
         student = get_object_or_404(StudentInfo, school_id=school_id, registration_no=registration_no)
 
+        # Enforce fully paid fee restriction
+        from core.models import GradeFeeConfig
+        grade_fee = GradeFeeConfig.objects.filter(school_id=school_id, grade=student.grade).first()
+        expected_fee = grade_fee.expected_fee if grade_fee else Decimal('0')
+        
+        fees_qs = Fee.objects.filter(
+            school_id=school_id,
+            registration_no=student,
+            term=term,
+            year=str(datetime.now().year)
+        ).exclude(status='Rejected')
+        total_paid = fees_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        if total_paid >= expected_fee:
+            return Response({'error': f'Fees for {term} are fully paid (Ksh {total_paid}). Payment restricted.'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             amount = Decimal(amount)
             if amount <= 0:
@@ -471,6 +510,7 @@ class RecordPaymentView(APIView):
             transaction_code=transaction_code if mode_of_payment.lower() in ['mpesa', 'm-pesa'] else '',
             term=term,
             year=str(datetime.now().year),
+            status = 'Confirmed',
             date_of_payment=date_of_payment if date_of_payment else datetime.now().date(),
         )
 
@@ -493,8 +533,12 @@ class FeeRecordsView(APIView):
         grade = request.GET.get('grade', '').strip()
         stream = request.GET.get('stream', '').strip()
         term = request.GET.get('term', '').strip()
+        registration_no = request.GET.get('registration_no', '').strip()
 
         fees = Fee.objects.filter(school_id=school_id).select_related('registration_no')
+
+        if registration_no:
+            fees = fees.filter(registration_no__registration_no=registration_no)
 
         if grade:
             fees = fees.filter(registration_no__grade__iexact=grade)
@@ -565,8 +609,21 @@ class FeesByGradeView(APIView):
 
             collected = float(fees.aggregate(Sum('amount'))['amount__sum'] or Decimal('0'))
             balance = expected_total - collected
-            mpesa_amount = fees.filter(mode_of_payment='M-Pesa').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-            cash_amount = fees.filter(mode_of_payment='Cash').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+            collected = float(fees.aggregate(Sum('amount'))['amount__sum'] or Decimal('0'))
+            balance = expected_total - collected
+            
+            mpesa_qs = fees.filter(mode_of_payment='M-Pesa')
+            mpesa_amount = mpesa_qs.aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+            mpesa_count = mpesa_qs.count()
+
+            cash_qs = fees.filter(mode_of_payment='Cash')
+            cash_amount = cash_qs.aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+            cash_count = cash_qs.count()
+
+            bank_qs = fees.filter(mode_of_payment='Bank Transfer')
+            bank_transfer_amount = bank_qs.aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+            bank_count = bank_qs.count()
+
             streams_list = GradeStreamConfig.objects.filter(school_id=school_id, grade=grade.grade).values_list('stream', flat=True).distinct()
 
             grade_data.append({
@@ -577,7 +634,11 @@ class FeesByGradeView(APIView):
                 'collected': int(collected),
                 'balance': int(balance),
                 'mpesa': int(float(mpesa_amount)),
+                'mpesa_count': mpesa_count,
                 'cash': int(float(cash_amount)),
+                'cash_count': cash_count,
+                'bank_transfer': int(float(bank_transfer_amount)),
+                'bank_count': bank_count,
                 'expectedFee': int(expected_fee_per_student),
             })
 
@@ -597,6 +658,39 @@ class FeesByGradeView(APIView):
                 except (ValueError, TypeError):
                     continue
         return Response({'message': 'Fee settings updated successfully'})
+
+class FeeActivityView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        school_id = request.user.school_id
+        grade = request.GET.get('grade')
+        activities = FeeActivity.objects.filter(school_id=school_id)
+        if grade:
+            activities = activities.filter(grade=grade)
+        return Response(FeeActivitySerializer(activities, many=True).data)
+
+    def post(self, request):
+        school_id = request.user.school_id
+        grade = request.data.get('grade')
+        activities = request.data.get('activities', [])
+        
+        if not grade:
+            return Response({'error': 'Grade is required'}, status=400)
+
+        with transaction.atomic():
+            FeeActivity.objects.filter(school_id=school_id, grade=grade).delete()
+            for act in activities:
+                name = act.get('activity_name') or act.get('name')
+                amt = act.get('amount')
+                if name and amt:
+                    FeeActivity.objects.create(
+                        school_id=school_id,
+                        grade=grade,
+                        activity_name=name,
+                        amount=Decimal(str(amt))
+                    )
+        return Response({'message': 'Activities updated successfully'})
 
 
 # ==================== ATTENDANCE ====================
@@ -827,21 +921,25 @@ class StudentAcademicsView(APIView):
     def get(self, request, reg_no):
         school_id = request.user.school_id
         term = request.GET.get('term', '').strip()
+        year = request.GET.get('year', datetime.now().year)
         student = get_object_or_404(StudentInfo, school_id=school_id, registration_no=reg_no)
-        marks_qs = Marks.objects.filter(school_id=school_id, registration_no__registration_no=reg_no)
+        marks_qs = LearningAreaMark.objects.filter(school_id=school_id, student__registration_no=reg_no)
         if term:
             marks_qs = marks_qs.filter(term=term)
+        if year:
+            marks_qs = marks_qs.filter(year=year)
 
         marks_list = [{
             'id': mark.id,
             'term': mark.term,
-            'exam_type': mark.type_of_exam,
-            'total_marks': mark.total_marks,
+            'exam_type': mark.exam_type,
+            'subject': mark.learning_area.name if mark.learning_area else '',
+            'score': mark.marks,
             'grade': mark.grade,
             'year': mark.year,
         } for mark in marks_qs]
 
-        avg_marks = marks_qs.aggregate(Avg('total_marks'))['total_marks__avg'] or 0
+        avg_marks = marks_qs.aggregate(Avg('marks'))['marks__avg'] or 0
 
         return Response({
             'registration_no': reg_no,
@@ -950,6 +1048,10 @@ class LeavesListView(APIView):
         stream = request.GET.get('stream', '').strip()
         term = request.GET.get('term', '').strip()
         status_param = request.GET.get('status', '').strip().lower()
+        registration_no = request.GET.get('registration_no', '').strip()
+
+        if registration_no:
+            leaves = leaves.filter(student__registration_no=registration_no)
 
         if grade:
             leaves = leaves.filter(student_id__grade__iexact=grade)
@@ -1008,7 +1110,7 @@ class ApplyLeaveView(APIView):
 
         leave = LeaveManagement.objects.create(
             school=school,
-            registration_no=student,
+            student=student,
             reason=reason_db,
             other_reason=other_reason if reason_db == 'Other' else '',
             date_of_leave=start_date,
@@ -1179,58 +1281,121 @@ def get_cbc_level_and_remark(avg_level):
     return {'level': 'BE', 'remark': CBC_LEVEL_MAP['BE']['remark']}
 
 
-def get_dashboard_comparison_data(school_id, selected_term, selected_year, grade, stream):
-    learning_areas = Strand.objects.filter(school_id=school_id).values('subject').distinct()
-    dashboard_data = []
+def get_dashboard_comparison_data(school_id, selected_term, selected_year, grade, stream, report_type='cba'):
+    if report_type == 'summative':
+        learning_areas = LearningArea.objects.filter(school_id=school_id).values('name').distinct()
+        dashboard_data = []
+        for area in learning_areas:
+            subject_name = area['name']
+            marks_qs = LearningAreaMark.objects.filter(school_id=school_id, learning_area__name=subject_name)
+            if selected_year:
+                marks_qs = marks_qs.filter(year=selected_year)
+            if selected_term:
+                marks_qs = marks_qs.filter(term=selected_term)
+            if grade:
+                marks_qs = marks_qs.filter(grade=grade)
+            if stream:
+                marks_qs = marks_qs.filter(stream=stream)
 
-    for area in learning_areas:
-        subject_name = area['subject']
-        subject_strands = Strand.objects.filter(school_id=school_id, subject=subject_name)
-        area_substrands = SubStrand.objects.filter(strand__in=subject_strands)
-        total_substrands_count = area_substrands.count()
+            if not marks_qs.exists():
+                dashboard_data.append({
+                    'name': subject_name,
+                    'avg_level_area': 0,
+                    'avg_score': 0,
+                    'total_students': 0,
+                    'level_distribution': {},
+                    'total_substrands': 0
+                })
+                continue
 
-        if not area_substrands.exists():
-            continue
+            area_aggregate = marks_qs.aggregate(
+                avg_score=Avg('marks'),
+                total_students=Count('student', distinct=True)
+            )
+            
+            avg_score = area_aggregate['avg_score'] or 0
+            if avg_score >= 80:
+                avg_level = 4.0
+            elif avg_score >= 60:
+                avg_level = 3.0
+            elif avg_score >= 40:
+                avg_level = 2.0
+            else:
+                avg_level = 1.0
+                
+            all_marks = list(marks_qs.values_list('marks', flat=True))
+            final_distribution = {'Exceeding Expectations': 0, 'Meeting Expectation': 0, 'Approaching Expectation': 0, 'Below Expectation': 0}
+            for m in all_marks:
+                if m >= 80:
+                    final_distribution['Exceeding Expectations'] += 1
+                elif m >= 60:
+                    final_distribution['Meeting Expectation'] += 1
+                elif m >= 40:
+                    final_distribution['Approaching Expectation'] += 1
+                else:
+                    final_distribution['Below Expectation'] += 1
 
-        all_marks_in_area = SubStrandMark.objects.filter(sub_strand__in=area_substrands)
-        if selected_year:
-            all_marks_in_area = all_marks_in_area.filter(year=selected_year)
-        if selected_term:
-            all_marks_in_area = all_marks_in_area.filter(term=selected_term)
-        if grade:
-            all_marks_in_area = all_marks_in_area.filter(student__grade=grade)
-        if stream:
-            all_marks_in_area = all_marks_in_area.filter(student__stream=stream)
-
-        if not all_marks_in_area.exists():
             dashboard_data.append({
                 'name': subject_name,
-                'avg_level_area': 0,
-                'avg_score': 0,
-                'total_students': 0,
-                'level_distribution': {},
-                'total_substrands': total_substrands_count
+                'avg_level_area': round(avg_level, 2),
+                'avg_score': round(avg_score, 2),
+                'total_students': area_aggregate['total_students'],
+                'level_distribution': final_distribution,
+                'total_substrands': 0,
             })
-            continue
+        return dashboard_data
+    else:
+        learning_areas = Strand.objects.filter(school_id=school_id).values('subject').distinct()
+        dashboard_data = []
 
-        area_aggregate = all_marks_in_area.aggregate(
-            avg_level=Avg('level'),
-            avg_score=Avg('score'),
-            total_students=Count('student', distinct=True)
-        )
-        level_distribution_raw = all_marks_in_area.values('level').annotate(count=Count('level'))
-        distribution_map = {LEVEL_NAMES.get(item['level']): item['count'] for item in level_distribution_raw if item['level'] in LEVEL_NAMES}
-        final_distribution = {label: distribution_map.get(label, 0) for _, label in LEVEL_NAMES.items()}
+        for area in learning_areas:
+            subject_name = area['subject']
+            subject_strands = Strand.objects.filter(school_id=school_id, subject=subject_name)
+            area_substrands = SubStrand.objects.filter(strand__in=subject_strands)
+            total_substrands_count = area_substrands.count()
 
-        dashboard_data.append({
-            'name': subject_name,
-            'avg_level_area': round(area_aggregate['avg_level'] or 0, 2),
-            'avg_score': round(area_aggregate['avg_score'] or 0, 2),
-            'total_students': area_aggregate['total_students'],
-            'level_distribution': final_distribution,
-            'total_substrands': total_substrands_count,
-        })
-    return dashboard_data
+            if not area_substrands.exists():
+                continue
+
+            all_marks_in_area = SubStrandMark.objects.filter(sub_strand__in=area_substrands)
+            if selected_year:
+                all_marks_in_area = all_marks_in_area.filter(year=selected_year)
+            if selected_term:
+                all_marks_in_area = all_marks_in_area.filter(term=selected_term)
+            if grade:
+                all_marks_in_area = all_marks_in_area.filter(student__grade=grade)
+            if stream:
+                all_marks_in_area = all_marks_in_area.filter(student__stream=stream)
+
+            if not all_marks_in_area.exists():
+                dashboard_data.append({
+                    'name': subject_name,
+                    'avg_level_area': 0,
+                    'avg_score': 0,
+                    'total_students': 0,
+                    'level_distribution': {},
+                    'total_substrands': total_substrands_count
+                })
+                continue
+
+            area_aggregate = all_marks_in_area.aggregate(
+                avg_level=Avg('level'),
+                avg_score=Avg('score'),
+                total_students=Count('student', distinct=True)
+            )
+            level_distribution_raw = all_marks_in_area.values('level').annotate(count=Count('level'))
+            distribution_map = {LEVEL_NAMES.get(item['level']): item['count'] for item in level_distribution_raw if item['level'] in LEVEL_NAMES}
+            final_distribution = {label: distribution_map.get(label, 0) for _, label in LEVEL_NAMES.items()}
+
+            dashboard_data.append({
+                'name': subject_name,
+                'avg_level_area': round(area_aggregate['avg_level'] or 0, 2),
+                'avg_score': round(area_aggregate['avg_score'] or 0, 2),
+                'total_students': area_aggregate['total_students'],
+                'level_distribution': final_distribution,
+                'total_substrands': total_substrands_count,
+            })
+        return dashboard_data
 
 
 class CBCDashboardStatsView(APIView):
@@ -1249,67 +1414,131 @@ class CBCDashboardStatsView(APIView):
         term = request.GET.get('term', '')
         grade = request.GET.get('grade', '')
         stream = request.GET.get('stream', '')
+        report_type = request.GET.get('report_type', 'cba')
 
-        learning_areas_data = get_dashboard_comparison_data(school_id, term, year, grade, stream)
+        learning_areas_data = get_dashboard_comparison_data(school_id, term, year, grade, stream, report_type)
 
-        marks_qs = SubStrandMark.objects.filter(student__school_id=school_id)
-        if year:
-            marks_qs = marks_qs.filter(year=year)
-        if term:
-            marks_qs = marks_qs.filter(term=term)
-
-        grades = list(GradeStreamConfig.objects.filter(school_id=school_id).values_list('grade', flat=True).distinct())
-        grades_to_process = [grade] if grade else grades
-
-        top_students_per_grade = {}
-        pie_data = []
-        line_data = []
-        grade_distribution_data = []
-
-        for g in grades_to_process:
-            student_filter = {'school_id': school_id, 'grade': g}
+        if report_type == 'summative':
+            marks_qs = LearningAreaMark.objects.filter(school_id=school_id)
+            if year:
+                marks_qs = marks_qs.filter(year=year)
+            if term:
+                marks_qs = marks_qs.filter(term=term)
+            if grade:
+                marks_qs = marks_qs.filter(grade=grade)
             if stream:
-                student_filter['stream'] = stream
+                marks_qs = marks_qs.filter(stream=stream)
 
-            reg_nos = StudentInfo.objects.filter(**student_filter).values_list('registration_no', flat=True)
-            grade_marks = (
-                marks_qs.filter(student__registration_no__in=reg_nos)
-                .values('student__registration_no')
-                .annotate(avg_score=Avg('score'))
-                .order_by('-avg_score')[:3]
-            )
+            grades = list(GradeStreamConfig.objects.filter(school_id=school_id).values_list('grade', flat=True).distinct())
+            grades_to_process = [grade] if grade else grades
+            top_students_per_grade = {}
+            pie_data = []
+            line_data = []
+            grade_distribution_data = []
 
-            students_list = []
-            for m in grade_marks:
-                student = StudentInfo.objects.filter(school_id=school_id, registration_no=m['student__registration_no']).first()
-                if student:
-                    students_list.append({
-                        'name': f"{student.first_name} {student.surname}",
-                        'stream': student.stream,
-                        'avg_score': round(m['avg_score'], 2),
-                    })
-            top_students_per_grade[g] = students_list
+            for g in grades_to_process:
+                student_filter = {'school_id': school_id, 'grade': g}
+                if stream:
+                    student_filter['stream'] = stream
 
-            pie_data.append(len(reg_nos))
-            avg_score = marks_qs.filter(student__registration_no__in=reg_nos).aggregate(avg=Avg('score'))['avg'] or 0
-            line_data.append(round(avg_score, 2))
+                reg_nos = StudentInfo.objects.filter(**student_filter).values_list('registration_no', flat=True)
+                grade_marks = (
+                    marks_qs.filter(student__registration_no__in=reg_nos)
+                    .values('student__registration_no')
+                    .annotate(avg_score=Avg('marks'))
+                    .order_by('-avg_score')[:3]
+                )
 
-            dist_raw = marks_qs.filter(student__registration_no__in=reg_nos).values('level').annotate(count=Count('level'))
-            dist_map = {LEVEL_NAMES.get(item['level']): item['count'] for item in dist_raw if item['level'] in LEVEL_NAMES}
-            grade_distribution_data.append({
-                'EE': dist_map.get('Exceeding Expectations', 0),
-                'ME': dist_map.get('Meeting Expectation', 0),
-                'AE': dist_map.get('Approaching Expectation', 0),
-                'BE': dist_map.get('Below Expectation', 0),
+                students_list = []
+                for m in grade_marks:
+                    student = StudentInfo.objects.filter(school_id=school_id, registration_no=m['student__registration_no']).first()
+                    if student:
+                        students_list.append({
+                            'name': f"{student.first_name} {student.surname}",
+                            'stream': student.stream,
+                            'avg_score': round(m['avg_score'], 2),
+                        })
+                top_students_per_grade[g] = students_list
+
+                pie_data.append(len(reg_nos))
+                avg_score = marks_qs.filter(student__registration_no__in=reg_nos).aggregate(avg=Avg('marks'))['avg'] or 0
+                line_data.append(round(avg_score, 2))
+
+                all_m = list(marks_qs.filter(student__registration_no__in=reg_nos).values_list('marks', flat=True))
+                dist = {'EE': 0, 'ME': 0, 'AE': 0, 'BE': 0}
+                for x in all_m:
+                    if x >= 80: dist['EE'] += 1
+                    elif x >= 60: dist['ME'] += 1
+                    elif x >= 40: dist['AE'] += 1
+                    else: dist['BE'] += 1
+                grade_distribution_data.append(dist)
+
+            return Response({
+                'learning_areas': learning_areas_data,
+                'top_students': top_students_per_grade,
+                'pie_chart': {'labels': grades_to_process, 'data': pie_data},
+                'line_chart': {'labels': grades_to_process, 'data': line_data},
+                'grade_distributions': grade_distribution_data
             })
+        else:
+            marks_qs = SubStrandMark.objects.filter(student__school_id=school_id)
+            if year:
+                marks_qs = marks_qs.filter(year=year)
+            if term:
+                marks_qs = marks_qs.filter(term=term)
 
-        return Response({
-            'learning_areas': learning_areas_data,
-            'top_students': top_students_per_grade,
-            'pie_chart': {'labels': grades_to_process, 'data': pie_data},
-            'line_chart': {'labels': grades_to_process, 'data': line_data},
-            'grade_distributions': grade_distribution_data
-        })
+            grades = list(GradeStreamConfig.objects.filter(school_id=school_id).values_list('grade', flat=True).distinct())
+            grades_to_process = [grade] if grade else grades
+
+            top_students_per_grade = {}
+            pie_data = []
+            line_data = []
+            grade_distribution_data = []
+
+            for g in grades_to_process:
+                student_filter = {'school_id': school_id, 'grade': g}
+                if stream:
+                    student_filter['stream'] = stream
+
+                reg_nos = StudentInfo.objects.filter(**student_filter).values_list('registration_no', flat=True)
+                grade_marks = (
+                    marks_qs.filter(student__registration_no__in=reg_nos)
+                    .values('student__registration_no')
+                    .annotate(avg_score=Avg('score'))
+                    .order_by('-avg_score')[:3]
+                )
+
+                students_list = []
+                for m in grade_marks:
+                    student = StudentInfo.objects.filter(school_id=school_id, registration_no=m['student__registration_no']).first()
+                    if student:
+                        students_list.append({
+                            'name': f"{student.first_name} {student.surname}",
+                            'stream': student.stream,
+                            'avg_score': round(m['avg_score'], 2),
+                        })
+                top_students_per_grade[g] = students_list
+
+                pie_data.append(len(reg_nos))
+                avg_score = marks_qs.filter(student__registration_no__in=reg_nos).aggregate(avg=Avg('score'))['avg'] or 0
+                line_data.append(round(avg_score, 2))
+
+                dist_raw = marks_qs.filter(student__registration_no__in=reg_nos).values('level').annotate(count=Count('level'))
+                dist_map = {LEVEL_NAMES.get(item['level']): item['count'] for item in dist_raw if item['level'] in LEVEL_NAMES}
+                grade_distribution_data.append({
+                    'EE': dist_map.get('Exceeding Expectations', 0),
+                    'ME': dist_map.get('Meeting Expectation', 0),
+                    'AE': dist_map.get('Approaching Expectation', 0),
+                    'BE': dist_map.get('Below Expectation', 0),
+                })
+
+            return Response({
+                'learning_areas': learning_areas_data,
+                'top_students': top_students_per_grade,
+                'pie_chart': {'labels': grades_to_process, 'data': pie_data},
+                'line_chart': {'labels': grades_to_process, 'data': line_data},
+                'grade_distributions': grade_distribution_data
+            })
 
 
 class CBCStudentPerformanceView(APIView):

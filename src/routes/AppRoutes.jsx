@@ -13,6 +13,7 @@ import SchoolAccount   from '../pages/School/SchoolAccount';
 
 // Auth
 import Login from '../pages/Login/Login';
+import PasswordReset from '../pages/Login/PasswordReset';
 import ChangeUsernamePassword from '../pages/Account/ChangeUsernamePassword';
 
 // Admin Perspectives
@@ -22,6 +23,7 @@ import FeeDashboard from '../pages/Students/Fee/FeeDashboard';
 import LeaveDashboard from '../pages/Students/Leave/LeaveDashboard';
 import AttendanceDashboard from '../pages/Students/Attendance/AttendanceDashboard';
 import AcademicDashboard from '../pages/Students/Academics/AcademicDashboard';
+import ImportStudents from '../pages/Students/Import/ImportStudents';
 
 // Staff/Teacher Management (Admin View)
 import TeacherDashboard from '../pages/Teachers/Dashboard/TeacherDashboard';
@@ -103,6 +105,7 @@ export default function AppRoutes() {
     <Routes>
       {/* ── Public Routes ── */}
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<PasswordReset />} />
       <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Home />} />
 
       {/* ── Protected Application Shell ── */}
@@ -128,6 +131,7 @@ export default function AppRoutes() {
           <Route path="students/leave" element={<LeaveDashboard />} />
           <Route path="students/attendance" element={<AttendanceDashboard />} />
           <Route path="students/academics" element={<AcademicDashboard />} />
+          <Route path="students/import" element={<ImportStudents />} />
           
           {/* Staff Management (Admin's perspective of teachers) */}
           <Route path="teachers/dashboard" element={<TeacherDashboard />} />

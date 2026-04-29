@@ -72,6 +72,7 @@ export default function FeesChart() {
           {/* Chart Area */}
           <div style={{ flex: 1, position: 'relative' }}>
             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+
               {/* Grid Lines */}
               <line x1="0" y1="0" x2="100" y2="0" stroke="#e9ecef" strokeWidth="1" vectorEffect="non-scaling-stroke" />
               <line x1="0" y1="50" x2="100" y2="50" stroke="#e9ecef" strokeWidth="1" vectorEffect="non-scaling-stroke" />

@@ -5,7 +5,7 @@ from .models import (
     TeachingProgress, TeacherLeave, Resource, LearningArea, StudentInfo,
     LearningAreaMark, Fee, StudentAttendance, Strand, SubStrand, SubStrandMark,
     LearnerCompetency, GradeStreamConfig, GradeFeeConfig, LeaveManagement,
-    StudentNote, LearningLog, ContactMessage, Announcement, Reviews
+    StudentNote, LearningLog, ContactMessage, Announcement, Reviews, SystemNotification, Pricing
 )
 
 # ---------------- User & Auth ----------------
@@ -22,6 +22,23 @@ class MasterSchoolAdmin(admin.ModelAdmin):
     list_display = ('school_name', 'email_address', 'status', 'created_at')
     list_filter = ('status',)
     search_fields = ('school_name', 'email_address')
+    actions = ['approve_schools', 'reject_schools']
+
+    def approve_schools(self, request, queryset):
+        rows_updated = queryset.update(status='Approved')
+        self.message_user(request, f"{rows_updated} schools successfully approved.")
+    approve_schools.short_description = "Approve selected schools"
+
+    def reject_schools(self, request, queryset):
+        rows_updated = queryset.update(status='Rejected')
+        self.message_user(request, f"{rows_updated} schools rejected.")
+    reject_schools.short_description = "Reject selected schools"
+
+@admin.register(Pricing)
+class PricingAdmin(admin.ModelAdmin):
+    list_display = ('school', 'plan_name', 'billing_cycle', 'is_paid', 'created_at')
+    list_filter = ('plan_name', 'billing_cycle', 'is_paid')
+    search_fields = ('school__school_name',)
 
 @admin.register(RegConfig)
 class RegConfigAdmin(admin.ModelAdmin):
@@ -153,3 +170,10 @@ class ReviewsAdmin(admin.ModelAdmin):
     def approve_reviews(self, request, queryset):
         queryset.update(is_approved=True)
     approve_reviews.short_description = "Approve selected reviews"
+
+@admin.register(SystemNotification)
+class SystemNotificationAdmin(admin.ModelAdmin):
+    list_display = ('title', 'priority', 'is_active', 'created_at')
+    list_filter = ('priority', 'is_active')
+    search_fields = ('title', 'content')
+

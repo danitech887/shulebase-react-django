@@ -13,6 +13,7 @@ export default function AcademicDashboard() {
   const [selectedStream, setSelectedStream] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [assessmentType, setAssessmentType] = useState('cba');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [learningAreas, setLearningAreas] = useState([]);
@@ -32,10 +33,12 @@ export default function AcademicDashboard() {
   const [gradeCompetencies, setGradeCompetencies] = useState([]);
   const [loadingGradeCompetencies, setLoadingGradeCompetencies] = useState(false);
   const [animate, setAnimate] = useState(false);
-  const [resultPaperParams, setResultPaperParams] = useState({ grade: '', stream: '', term: '', assessement_type: '' });
-  const [gradeReportParams, setGradeReportParams] = useState({ grade: '', stream: '', term: '', report_type: 'cba' });
+  const [resultPaperParams, setResultPaperParams] = useState({ grade: '', stream: '', term: '', assessement_type: '', report_type: 'cba', exam_type: 'End Term' });
+  const [gradeReportParams, setGradeReportParams] = useState({ grade: '', stream: '', term: '', report_type: 'cba', assessement_type: '', exam_type: 'End Term' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [exportParams, setExportParams] = useState({ report_type: 'Overall Academic Performance', grade: '', format: 'PDF', stream: '', term: 'Term 1', year: new Date().getFullYear(), subject: '' });
+  const [headteacherComment, setHeadteacherComment] = useState('');
+  const [isSavingComment, setIsSavingComment] = useState(false);
   
   const { grades, streams } = useGradesAndStreams(students, 
     modalType === 'gradeReport' ? gradeReportParams.grade :
@@ -48,7 +51,7 @@ export default function AcademicDashboard() {
   useEffect(() => {
     setTimeout(() => setAnimate(true), 80);
     fetchData();
-  }, [selectedYear, selectedTerm, selectedGrade, selectedStream]);
+  }, [selectedYear, selectedTerm, selectedGrade, selectedStream, assessmentType]);
 
   const fetchData = async () => {
     try {
@@ -58,6 +61,7 @@ export default function AcademicDashboard() {
       if (selectedTerm) params.append('term', selectedTerm);
       if (selectedGrade) params.append('grade', selectedGrade);
       if (selectedStream) params.append('stream', selectedStream);
+      if (assessmentType) params.append('report_type', assessmentType);
       const res = await students.get(`academics/cbc/dashboard/?${params.toString()}`);
       const data = res.data || {};
       setLearningAreas(data.learning_areas || []);
@@ -176,6 +180,45 @@ export default function AcademicDashboard() {
     finally { setLoadingGradeCompetencies(false); }
   };
 
+  const handleOpenReview = async (studentData) => {
+    setSelectedStudent(studentData);
+    setHeadteacherComment('');
+    handleOpenModal('reviewPerformance');
+    try {
+      const termToUse = selectedTerm || 'Term 1';
+      const yearToUse = selectedYear || new Date().getFullYear();
+      const res = await students.get(`teacher-portal/report-comments/?student_id=${studentData.registration_no}&term=${termToUse}&year=${yearToUse}`);
+      if (res.data) {
+        setHeadteacherComment(res.data.headteacher_comment || '');
+      }
+    } catch (err) {
+      console.error('Error fetching comment', err);
+    }
+  };
+
+  const handleSaveReview = async () => {
+    setIsSavingComment(true);
+    try {
+      const termToUse = selectedTerm || 'Term 1';
+      const yearToUse = selectedYear || new Date().getFullYear();
+      await students.post(`teacher-portal/report-comments/`, {
+        student_id: selectedStudent.registration_no,
+        term: termToUse,
+
+        year: yearToUse,
+        headteacher_comment: headteacherComment
+      });
+      setSuccessMessage('Performance review saved successfully!');
+      handleCloseModal();
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError('Failed to save performance review.');
+      console.error(err);
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
+
   const handleOpenModal = (type, data = null) => {
     setModalType(type);
     if (type === 'student' && data) setSelectedStudent(data);
@@ -247,25 +290,37 @@ export default function AcademicDashboard() {
       if (resultPaperParams.grade) params.append('grade', resultPaperParams.grade);
       if (resultPaperParams.stream) params.append('stream', resultPaperParams.stream);
       if (resultPaperParams.term) params.append('term', resultPaperParams.term);
-      if (resultPaperParams.assessement_type) params.append('assessement_type', resultPaperParams.assessement_type);
-      // Use arraybuffer and validate content-type like grade report
-      const r = await students.get(`academics/generate-result-papers/?${params.toString()}`, { responseType: 'arraybuffer' });
+      if (resultPaperParams.report_type === 'summative') {
+        if (resultPaperParams.exam_type) params.append('exam_type', resultPaperParams.exam_type);
+      } else {
+        if (resultPaperParams.assessement_type) params.append('assessement_type', resultPaperParams.assessement_type);
+      }
+      if (resultPaperParams.report_type) params.append('report_type', resultPaperParams.report_type);
+      
+      const r = await students.get(`academics/generate-result-papers/?${params.toString()}`, { responseType: 'blob' });
       const contentType = (r.headers && (r.headers['content-type'] || r.headers['Content-Type'])) || '';
-      if (!contentType.toLowerCase().includes('pdf')) {
+      
+      const isZip = contentType.toLowerCase().includes('zip');
+      const isPdf = contentType.toLowerCase().includes('pdf');
+
+      if (!isZip && !isPdf) {
         try {
-          const dec = new TextDecoder('utf-8');
-          const text = dec.decode(r.data);
-          console.error('generate result papers: non-pdf response body:\n', text);
-          setError('Failed to generate result papers: server returned non-PDF response (see console).');
-        } catch (decodeErr) {
-          console.error('generate result papers: could not decode non-pdf response', decodeErr, r);
+          const text = await r.data.text();
+          console.error('generate result papers: unexpected response body:\n', text);
+          setError('Failed to generate result papers: server returned unexpected response.');
+        } catch (err) {
           setError('Failed to generate result papers: invalid server response.');
         }
       } else {
-        const blob = new Blob([r.data], { type: 'application/pdf' });
+        const blob = new Blob([r.data], { type: contentType });
         const url = URL.createObjectURL(blob);
         const safeGrade = (resultPaperParams.grade || 'grade').replace(/\s+/g, '_');
-        const a = Object.assign(document.createElement('a'), { href: url, download: `result_papers_${safeGrade}.pdf`, style: 'display:none' });
+        const ext = isZip ? 'zip' : 'pdf';
+        const a = Object.assign(document.createElement('a'), { 
+          href: url, 
+          download: `result_papers_${resultPaperParams.report_type}_${safeGrade}.${ext}`, 
+          style: 'display:none' 
+        });
         document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); document.body.removeChild(a);
       }
       setSuccessMessage('Result papers generated successfully!');
@@ -285,6 +340,11 @@ export default function AcademicDashboard() {
       if (gradeReportParams.grade) params.append('grade', gradeReportParams.grade);
       if (gradeReportParams.stream) params.append('stream', gradeReportParams.stream);
       if (gradeReportParams.term) params.append('term', gradeReportParams.term);
+      if (gradeReportParams.report_type === 'summative') {
+        if (gradeReportParams.exam_type) params.append('exam_type', gradeReportParams.exam_type);
+      } else {
+        if (gradeReportParams.assessement_type) params.append('assessement_type', gradeReportParams.assessement_type);
+      }
 
       const endpoint = gradeReportParams.report_type === 'summative' 
         ? 'academics/generate-summative-report-forms/' 
@@ -313,6 +373,38 @@ export default function AcademicDashboard() {
       case 'AE': return '#d97706';
       case 'BE': return '#ef4444';
       default: return '#6b7280';
+    }
+  };
+
+  const generateSubjectReport = async (subject, type = 'pdf') => {
+    if (!selectedGrade) {
+        setError('Please select a Grade and Stream first to generate subject reports.');
+        return;
+    }
+    
+    setIsGenerating(true);
+    try {
+      const endpoint = type === 'summative' ? 'teacher-portal/reports/learning-area-marks/' : 'teacher-portal/reports/subject-aggregated/';
+      const url = `${endpoint}?subject=${encodeURIComponent(subject)}&grade=${encodeURIComponent(selectedGrade)}&stream=${encodeURIComponent(selectedStream)}&term=${encodeURIComponent(selectedTerm || 'Term 1')}&year=${selectedYear}&format=pdf`;
+      
+      const response = await students.get(url, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${type === 'summative' ? 'Summative' : 'CBA'}_Report_${subject}_${selectedGrade}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      setSuccessMessage('Report generated successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      console.error('Error generating report:', err);
+      setError('Failed to generate report. Please ensure data exists for the selected period.');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -395,10 +487,10 @@ export default function AcademicDashboard() {
           </select>
         </div>
         <div className="ad-filter-group">
-          <label className="ad-filter-label">Stream</label>
-          <select className="ad-input" value={selectedStream} onChange={e => setSelectedStream(e.target.value)} disabled={!selectedGrade}>
-            <option value="">All Streams</option>
-            {streams.map(s => <option key={s} value={s}>{s}</option>)}
+          <label className="ad-filter-label">Assessment Type</label>
+          <select className="ad-input" value={assessmentType} onChange={e => setAssessmentType(e.target.value)}>
+            <option value="cba">CBA (Competency Based)</option>
+            <option value="summative">Summative</option>
           </select>
         </div>
       </div>
@@ -586,6 +678,14 @@ export default function AcademicDashboard() {
                   </div>
                 ))}
               </div>
+              <div className="ad-subject-actions">
+                <button className="ad-btn-report" onClick={() => generateSubjectReport(s.subject, 'pdf')}>
+                  <span>📄</span> CBA Report
+                </button>
+                <button className="ad-btn-summative" onClick={() => generateSubjectReport(s.subject, 'summative')}>
+                  <span>📊</span> Summative
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -672,6 +772,7 @@ export default function AcademicDashboard() {
                                   <div style={{ display: 'flex', gap: '8px' }}>
                                     <button className="ad-view-btn" onClick={() => fetchStudentStrands(stud)}>Strands</button>
                                     <button className="ad-view-btn" style={{background: 'rgba(99,102,241,0.1)', color: '#818cf8', borderColor: 'rgba(99,102,241,0.3)'}} onClick={() => fetchStudentCompetencies(stud)}>Competencies</button>
+                                    <button className="ad-view-btn" style={{background: 'rgba(16,185,129,0.1)', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)'}} onClick={() => handleOpenReview(stud)}>Review</button>
                                   </div>
                                 </td>
                               </tr>
@@ -956,6 +1057,13 @@ export default function AcademicDashboard() {
                 <div className="ad-modal-body">
                   <div className="ad-form-grid">
                     <div className="ad-form-group">
+                      <label className="ad-label">Report Type <span className="ad-req">*</span></label>
+                      <select className="ad-input" value={resultPaperParams.report_type} onChange={e => setResultPaperParams({...resultPaperParams, report_type: e.target.value})}>
+                        <option value="cba">CBA (Competency Based)</option>
+                        <option value="summative">Summative (Learning Area Marks)</option>
+                      </select>
+                    </div>
+                    <div className="ad-form-group">
                       <label className="ad-label">Grade <span className="ad-req">*</span></label>
                       <select className="ad-input" value={resultPaperParams.grade} onChange={e => setResultPaperParams({...resultPaperParams, grade: e.target.value})}>
                         <option value="">Select Grade...</option>
@@ -966,15 +1074,7 @@ export default function AcademicDashboard() {
                       <label className="ad-label">Stream</label>
                       <select className="ad-input" value={resultPaperParams.stream} onChange={e => setResultPaperParams({...resultPaperParams, stream: e.target.value})}>
                         <option value="">All Streams</option>
-                        {loadingResultPaperStreams && <option value="">Loading streams...</option>}
-                        {!loadingResultPaperStreams && resultPaperStreams.length === 0 && (
-                          <>
-                            <option value="A">A</option>
-                            <option value="B">B</option>
-                            <option value="C">C</option>
-                          </>
-                        )}
-                        {!loadingResultPaperStreams && resultPaperStreams.length > 0 && resultPaperStreams.map(s => (
+                        {streams.map(s => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
@@ -985,15 +1085,26 @@ export default function AcademicDashboard() {
                         <option value="">All Terms</option><option value="Term 1">Term 1</option><option value="Term 2">Term 2</option><option value="Term 3">Term 3</option>
                       </select>
                     </div>
-                    <div className="ad-form-group">
-                      <label className="ad-label">Assessment Type</label>
-                      <select className="ad-input" value={resultPaperParams.assessement_type} onChange={e => setResultPaperParams({...resultPaperParams, assessement_type: e.target.value})}>
-                        <option value="">Select Type...</option>
-                        <option value="SBA-Written">SBA-Written (Written)</option>
-                        <option value="SBA-Project">SBA-Project (Project)</option>
-                        <option value="SBA-Practical">SBA-Practical (Practical)</option>
-                      </select>
-                    </div>
+                    {resultPaperParams.report_type === 'summative' ? (
+                      <div className="ad-form-group">
+                        <label className="ad-label">Type of Exam <span className="ad-req">*</span></label>
+                        <select className="ad-input" value={resultPaperParams.exam_type} onChange={e => setResultPaperParams({...resultPaperParams, exam_type: e.target.value})}>
+                          <option value="Opener">Opener</option>
+                          <option value="Mid Term">Mid Term</option>
+                          <option value="End Term">End Term</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="ad-form-group">
+                        <label className="ad-label">Assessment Type</label>
+                        <select className="ad-input" value={resultPaperParams.assessement_type} onChange={e => setResultPaperParams({...resultPaperParams, assessement_type: e.target.value})}>
+                          <option value="">Select Type...</option>
+                          <option value="SBA-Written">SBA-Written (Written)</option>
+                          <option value="SBA-Project">SBA-Project (Project)</option>
+                          <option value="SBA-Practical">SBA-Practical (Practical)</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="ad-modal-footer">
@@ -1112,6 +1223,26 @@ export default function AcademicDashboard() {
                         <option value="">All Terms</option><option value="Term 1">Term 1</option><option value="Term 2">Term 2</option><option value="Term 3">Term 3</option>
                       </select>
                     </div>
+                    {gradeReportParams.report_type === 'summative' ? (
+                      <div className="ad-form-group">
+                        <label className="ad-label">Type of Exam <span className="ad-req">*</span></label>
+                        <select className="ad-input" value={gradeReportParams.exam_type} onChange={e => setGradeReportParams({...gradeReportParams, exam_type: e.target.value})}>
+                          <option value="Opener">Opener</option>
+                          <option value="Mid Term">Mid Term</option>
+                          <option value="End Term">End Term</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="ad-form-group">
+                        <label className="ad-label">Assessment Type</label>
+                        <select className="ad-input" value={gradeReportParams.assessement_type} onChange={e => setGradeReportParams({...gradeReportParams, assessement_type: e.target.value})}>
+                          <option value="">Select Type...</option>
+                          <option value="SBA-Written">SBA-Written (Written)</option>
+                          <option value="SBA-Project">SBA-Project (Project)</option>
+                          <option value="SBA-Practical">SBA-Practical (Practical)</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="ad-modal-footer">
@@ -1146,6 +1277,34 @@ export default function AcademicDashboard() {
                 <div className="ad-modal-footer">
                   <button className="ad-btn-cancel" onClick={handleCloseModal}>Cancel</button>
                   <button className="ad-btn-save" onClick={handleCloseModal}>Save Settings</button>
+                </div>
+              </>
+            )}
+
+            {/* ── REVIEW PERFORMANCE ── */}
+            {modalType === 'reviewPerformance' && (
+              <>
+                <div className="ad-modal-header">
+                  <div className="ad-modal-title"><span>📝</span> Review Performance — {selectedStudent?.name}</div>
+                  <button className="ad-modal-close" onClick={handleCloseModal}>✕</button>
+                </div>
+                <div className="ad-modal-body">
+                  <div className="ad-form-group">
+                    <label className="ad-label">Headteacher Comment</label>
+                    <textarea 
+                      className="ad-input" 
+                      rows={5} 
+                      placeholder="Enter overall headteacher comment..."
+                      value={headteacherComment}
+                      onChange={e => setHeadteacherComment(e.target.value)}
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="ad-modal-footer">
+                  <button className="ad-btn-cancel" onClick={() => handleOpenModal('gradeStudents')}>← Back</button>
+                  <button className="ad-btn-save" onClick={handleSaveReview} disabled={isSavingComment}>
+                    {isSavingComment ? 'Saving...' : 'Save Comment'}
+                  </button>
                 </div>
               </>
             )}

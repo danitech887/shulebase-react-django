@@ -4,6 +4,19 @@ import api from '../../../../api/api';
 import { useMessage } from '../../../../context/MessageContext';
 import './Resources.css';
 
+function extractYoutubeId(url) {
+  if (!url) return null;
+  const patterns = [
+    /(?:v=|\/|embed\/|youtu\.be\/|v\/|watch\?v=|&v=)([0-9A-Za-z_-]{11})/,
+    /^([0-9A-Za-z_-]{11})$/
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 export default function TeacherResourceManager() {
   const { showMessage } = useMessage();
   const [view, setView]         = useState('list');
@@ -14,6 +27,10 @@ export default function TeacherResourceManager() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ title:'', subject:'', grade:'', stream:'', resource_type:'video', url_or_file:'', term:'Term 1' });
   const [choices, setChoices] = useState({ grades: [], streams: [], subjects: [] });
+
+  // Video preview state
+  const [previewResource, setPreviewResource] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const fetchResources = useCallback(async () => {
     try {
@@ -51,6 +68,11 @@ export default function TeacherResourceManager() {
     catch { showMessage({ type:'error', text:'Delete failed.' }); }
   };
 
+  const handlePreviewVideo = (res) => {
+    setPreviewResource(res);
+    setShowPreview(true);
+  };
+
 
   if (loading && view==='list') return (
     <div className="t-page d-flex justify-content-center align-items-center" style={{ minHeight:'60vh' }}>
@@ -84,7 +106,19 @@ export default function TeacherResourceManager() {
                       
                       <p className="t-bold mb-1" style={{ fontSize:'0.95rem' }}>{res.title}</p>
                       <p className="t-muted" style={{ fontSize:'0.82rem', flex:1 }}>{res.subject}</p>
-                      <Stack direction="horizontal" gap={2} className="mt-2">
+
+                      {/* Video preview button */}
+                      {res.resource_type === 'video' && (
+                        <button 
+                          className="t-btn-outline-green mb-2 w-100" 
+                          style={{ fontSize:'0.8rem', padding:'0.35rem 0.5rem' }}
+                          onClick={() => handlePreviewVideo(res)}
+                        >
+                          ▶ Preview Video
+                        </button>
+                      )}
+
+                      <Stack direction="horizontal" gap={2} className="mt-auto">
                         <button className="t-btn-outline-blue" style={{ flex:1 }} onClick={() => { setActiveResource(res); setView('progress'); }}>Progress</button>
                         <button className="t-btn-outline-yellow" onClick={() => { setActiveResource(res); setIsEditing(true); setFormData(res); setShowModal(true); }}>Edit</button>
                         <button className="t-btn-danger" onClick={() => handleDelete(res.id)}>Del</button>
@@ -102,7 +136,53 @@ export default function TeacherResourceManager() {
           <ResourceProgressView resource={activeResource} onBack={() => setView('list')} />
         )}
 
-        {/* Modal */}
+        {/* Video Preview Modal */}
+        <Modal show={showPreview} onHide={() => { setShowPreview(false); setPreviewResource(null); }} size="lg" centered>
+          <Modal.Header closeButton>
+            <Modal.Title>🎬 Preview: {previewResource?.title || 'Video'}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body style={{ padding: 0 }}>
+            {previewResource && (() => {
+              const ytId = extractYoutubeId(previewResource.url_or_file);
+              if (!ytId) {
+                return (
+                  <div className="text-center p-4">
+                    <p className="text-danger fw-bold mb-2">⚠️ Invalid YouTube URL</p>
+                    <p className="t-muted">Could not extract a valid YouTube video ID from the URL provided.</p>
+                    <code className="d-block mb-3" style={{ fontSize:'0.8rem', wordBreak:'break-all', color:'#fbbf24' }}>{previewResource.url_or_file}</code>
+                  </div>
+                );
+              }
+              return (
+                <div>
+                  <div className="ratio ratio-16x9">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${ytId}?modestbranding=1&rel=0`}
+                      title={previewResource.title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                  <div className="p-3" style={{ background:'rgba(0,0,0,0.3)' }}>
+                    <p className="mb-1" style={{ fontSize:'0.85rem', color:'#a5b4fc' }}>
+                      <strong>Tip:</strong> If the video says "Video unavailable" or "Playback on other websites has been disabled", 
+                      students <strong>will not</strong> be able to watch it in the portal. Choose a different video.
+                    </p>
+                    <p className="mb-0 t-muted" style={{ fontSize:'0.75rem' }}>
+                      Video ID: <code>{ytId}</code> | URL: <code style={{ wordBreak:'break-all' }}>{previewResource.url_or_file}</code>
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => { setShowPreview(false); setPreviewResource(null); }}>Close</Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Add/Edit Resource Modal */}
         <Modal show={showModal} onHide={() => setShowModal(false)} centered>
           <Form onSubmit={handleSubmit}>
             <Modal.Header closeButton>
@@ -164,8 +244,8 @@ export default function TeacherResourceManager() {
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>URL / YouTube ID</Form.Label>
-                    <Form.Control required value={formData.url_or_file} onChange={e => setFormData({...formData,url_or_file:e.target.value})} />
+                    <Form.Label>Resource URL (Full YouTube Link)</Form.Label>
+                    <Form.Control required placeholder="https://www.youtube.com/watch?v=..." value={formData.url_or_file} onChange={e => setFormData({...formData,url_or_file:e.target.value})} />
                   </Form.Group>
                 </Col>
               </Row>
@@ -180,6 +260,7 @@ export default function TeacherResourceManager() {
     </div>
   );
 }
+
 
 function ResourceProgressView({ resource, onBack }) {
   const [loading, setLoading] = useState(true);

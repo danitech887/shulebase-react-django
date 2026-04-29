@@ -25,6 +25,36 @@
   --att-radius-xs: 6px;
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --att-bg: #f3f4f6;
+    --att-surface: #ffffff;
+    --att-surface-2: #f9fafb;
+    --att-surface-3: #f3f4f6;
+    --att-border: rgba(0,0,0,0.08);
+    --att-border-bright: rgba(0,0,0,0.15);
+    --att-text: #1f2937;
+    --att-text-muted: #4b5563;
+    --att-text-dim: #9ca3af;
+    --att-accent-soft: rgba(99,102,241,0.1);
+    --att-green-soft: rgba(16,185,129,0.1);
+  }
+}
+
+.theme-light {
+  --att-bg: #f3f4f6;
+  --att-surface: #ffffff;
+  --att-surface-2: #f9fafb;
+  --att-surface-3: #f3f4f6;
+  --att-border: rgba(0,0,0,0.08);
+  --att-border-bright: rgba(0,0,0,0.15);
+  --att-text: #1f2937;
+  --att-text-muted: #4b5563;
+  --att-text-dim: #9ca3af;
+  --att-accent-soft: rgba(99,102,241,0.1);
+  --att-green-soft: rgba(16,185,129,0.1);
+}
+
 /* ── Root ── */
 .att-root {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;

@@ -5,7 +5,10 @@ import './PersonalDetails.css';
 
 import { Card, Table, Spinner, Modal, Form, Row, Col } from 'react-bootstrap';
 
+import { useNavigate } from 'react-router-dom';
+
 export default function TeacherPersonalDetails() {
+  const navigate = useNavigate();
   const { showMessage } = useMessage();
   const [teacherList, setTeacherList]   = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -93,7 +96,17 @@ export default function TeacherPersonalDetails() {
     setShowModal(true);
   };
 
-  const handleInput = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleInput = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      if (modalMode === 'add' && name === 'first_name') {
+        updated.username = value.toLowerCase();
+        updated.password = value.toLowerCase();
+      }
+      return updated;
+    });
+  };
 
   const handleSave = async () => {
     const reqAdd  = ['first_name','surname','gender','phone','address','username','password','email'];
@@ -230,9 +243,9 @@ export default function TeacherPersonalDetails() {
                     <td className="pd-cell-muted">{t.email}</td>
                     <td>
                       <div className="pd-actions">
-                        <button className="pd-btn-view"   onClick={() => openProfile(t)}>👁️ View</button>
-                        <button className="pd-btn-edit"   onClick={() => openEdit(t)}>✏️ Edit</button>
-                        <button className="pd-btn-delete" onClick={() => handleDelete(t)}>🗑️ Delete</button>
+                        <button className="pd-btn-view"   onClick={() => openProfile(t) } title ="View Profile">👁️</button>
+                        <button className="pd-btn-edit"   onClick={() => openEdit(t)} title ="Edit">✏️</button>
+                        <button className="pd-btn-delete" onClick={() => handleDelete(t)} title ="Delete">🗑️</button>
                       </div>
                     </td>
                   </tr>

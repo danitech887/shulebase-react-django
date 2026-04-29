@@ -13,6 +13,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 import dj_database_url
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -89,7 +93,7 @@ ROOT_URLCONF = 'backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -107,7 +111,8 @@ AUTH_USER_MODEL = 'core.Users'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'URL_FORMAT_OVERRIDE': None,
 }
 
 
@@ -169,6 +174,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [
+    BASE_DIR / "backend" / "static",
+]
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Static files storage for production
 if not DEBUG:
@@ -178,6 +189,15 @@ if not DEBUG:
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'ShuleBase <noreply@shulebase.com>')
 
 from datetime import timedelta
 
@@ -192,7 +212,10 @@ JAZZMIN_SETTINGS = {
     "site_title": "ShuleBase Admin",
     "site_header": "ShuleBase",
     "site_brand": "ShuleBase",
-    "site_logo": None, # "assets/images/logo.png" if static path is correct
+    "site_logo": "images/logo.png",
+    "login_logo": "images/logo.png",
+    "login_logo_dark": "images/logo.png",
+    "site_icon": "images/logo.png",
     "welcome_sign": "Welcome to ShuleBase Management",
     "copyright": "ShuleBase Ltd",
     "search_model": ["core.Users"],
@@ -200,6 +223,7 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
         {"model": "core.Users"},
+        {"name": "Dashboard", "url": "http://localhost:5173/dashboard", "new_window": True},
     ],
     "show_sidebar": True,
     "navigation_expanded": True,
@@ -213,18 +237,52 @@ JAZZMIN_SETTINGS = {
         "students.StudentInfo": "fas fa-user-graduate",
         "core.Fee": "fas fa-money-bill-wave",
         "teachers.TeacherInfo": "fas fa-chalkboard-teacher",
+        "core.MasterSchool": "fas fa-school",
+        "core.Announcement": "fas fa-bullhorn",
+        "core.SystemNotification": "fas fa-bell",
+        "core.LearningArea": "fas fa-book",
+        "core.Strand": "fas fa-layer-group",
+        "core.SubStrand": "fas fa-stream",
     },
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
     "related_modal_active": True,
-    "custom_css": None,
-    "custom_js": None,
+    "custom_css": "css/custom_admin.css",
+    "custom_js": "js/admin_dashboard.js",
     "show_ui_builder": False,
     "changeform_format": "horizontal_tabs",
     "changeform_format_overrides": {"auth.user": "collapsible_list", "auth.group": "vertical_tabs"},
 }
 
-JAZZMIN_UI_LOGS = {
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-dark",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark navbar-indigo",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-indigo",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
     "theme": "flatly",
     "dark_mode_theme": "darkly",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
 }
+

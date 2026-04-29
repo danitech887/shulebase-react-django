@@ -127,7 +127,7 @@ class TeacherAttendance(models.Model):
     term = models.CharField(max_length=6, blank=True, null=True)
     year = models.IntegerField(blank=True, null=True, default=timezone.now().year)
     status = models.CharField(max_length=7, blank=True, null=True)
-    time_in = models.TimeField(blank=True, null=True, default=timezone.now)
+    time_in = models.TimeField(blank=True, null=True, auto_now_add=True)
 
     
 
@@ -148,17 +148,34 @@ class TeachersRole(models.Model):
     class Meta:
         db_table = 'teacher_role'
 
+class TeachingTarget(models.Model):
+    school = models.ForeignKey(MasterSchool, on_delete=models.CASCADE)
+    teacher = models.ForeignKey(TeacherInfo, on_delete=models.CASCADE)
+    grade = models.CharField(max_length=20)
+    stream = models.CharField(max_length=20)
+    subject = models.CharField(max_length=100)
+    total_topics = models.IntegerField(default=0)
+    term = models.CharField(max_length=20, default='Term 1')
+    year = models.IntegerField(default=timezone.now().year)
+
+    class Meta:
+        unique_together = ('teacher', 'grade', 'stream', 'subject', 'term', 'year')
+        db_table = 'teaching_targets'
+
 class TeachingProgress(models.Model):
     registration_no = models.ForeignKey(TeacherInfo, on_delete=models.CASCADE, db_column='registration_no')
     school = models.ForeignKey(MasterSchool, on_delete=models.CASCADE, related_name="teaching_progress")
     grade = models.CharField(max_length=20)
     stream = models.CharField(max_length=20)
     subject = models.CharField(max_length=355, blank=True, null=True)
-    no_of_topics = models.IntegerField(blank=True, null=True)
+    term = models.CharField(max_length=20, default='Term 1')
+    year = models.IntegerField(default=timezone.now().year)
+    
     topic = models.CharField(max_length=500, blank=True, null=True)
     sub_topic = models.CharField(max_length=500, blank=True, null=True)
-    status = models.CharField(max_length=9, blank=True, null=True)
-    date_of_teaching = models.DateTimeField(blank=True, null=True)
+    status = models.CharField(max_length=15, default="Ongoing") # Ongoing, Completed
+    
+    date_of_teaching = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     date_finished = models.DateField(blank=True, null=True)
 
     
@@ -276,6 +293,7 @@ def current_year_str():
 
 class StudentInfo(models.Model):
     registration_no = models.CharField(primary_key=True, max_length=20)
+    assessment_number = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="NEMIS/UPI/Assessment Code")
     school = models.ForeignKey(MasterSchool, on_delete=models.CASCADE, related_name="students")
     first_name = models.CharField(max_length=20)
     second_name = models.CharField(max_length=20)
@@ -291,6 +309,20 @@ class StudentInfo(models.Model):
     address = models.CharField(max_length=20)
 
     parent_portal_user = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True)
+    profile_image = models.ImageField(upload_to='student_images/', blank=True, null=True)
+    class_teacher = models.CharField(max_length=100, blank=True, null=True)
+
+    @property
+    def class_teacher_name(self):
+        role = TeachersRole.objects.filter(
+            school_id=self.school_id,
+            grade=self.grade,
+            stream=self.stream,
+            type_of_teacher='Class Teacher'
+        ).select_related('registration_no').first()
+        if role and role.registration_no:
+            return f"{role.registration_no.first_name} {role.registration_no.surname}"
+        return self.class_teacher or "N/A"
 
 
     @property
@@ -319,7 +351,9 @@ def manage_parent_account(sender, instance, created, **kwargs):
             defaults={
                 'role': 'Parent', 
                 'password': make_password(str(instance.phone)),
-                'school': instance.school
+                'school': instance.school,
+                'school_name': instance.school.school_name,
+                'email': instance.email
             }
         )
         
@@ -350,8 +384,8 @@ class LearningAreaMark(models.Model):
 class Fee(models.Model):
     registration_no = models.ForeignKey(StudentInfo,on_delete = models.CASCADE)
     school = models.ForeignKey(MasterSchool, on_delete=models.CASCADE, related_name="fees")
-    mode_of_payment = models.CharField(max_length=10, blank=True, null=True)
-    transaction_code = models.CharField(max_length=30, blank=True, null=True)
+    mode_of_payment = models.CharField(max_length=50, blank=True, null=True)
+    transaction_code = models.CharField(max_length=50, blank=True, null=True)
     
     amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     checkout_id = models.CharField(max_length=100, blank=True)
@@ -374,7 +408,7 @@ class StudentAttendance(models.Model):
     
     date_of_attendance = models.DateField(blank=True, null=True)
     term = models.CharField(max_length=20, blank=True, null=True)
-    time = models.TimeField(blank=True, null=True, default=timezone.now)
+    time = models.TimeField(blank=True, null=True, auto_now_add=True)
     year = models.IntegerField(blank=True, null=True, default=timezone.now().year)
     status = models.CharField(max_length=10, blank=True, null=True)
 
@@ -419,7 +453,7 @@ class SubStrandMark(models.Model):
     score = models.FloatField()
     remark = models.CharField(max_length = 300,default="Good")
     level = models.PositiveSmallIntegerField(choices=[(1,'Level 1'),(2,'Level 2'),(3,'Level 3'),(4,'Level 4')],default=1) 
-    assessement_type = models.CharField(max_length=100,default='SBA-Written') 
+    assessement_type = models.CharField(max_length=100, default='SBA-Written') # Choices: SBA-Written, SBA-Project, SBA-Practical, SBA-Oral, SBA-Observation
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     date_recorded = models.DateTimeField(auto_now_add=True)
 
@@ -447,13 +481,75 @@ class LearnerCompetency(models.Model):
     recorded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('student','term','year','competency')
+        unique_together = ('student','term','year','competency','subject')
         ordering = ['student_id','competency']
         db_table = 'learner_competency'
 
     def __str__(self):
         return f"{self.student.registration_no} - {self.competency} L{self.level}"
 
+
+class LearnerPortfolio(models.Model):
+    EVIDENCE_TYPES = [
+        ('Drawing', 'Drawing'),
+        ('Photo', 'Photo'),
+        ('Project', 'Project'),
+        ('Audio', 'Audio'),
+        ('Video', 'Video'),
+        ('Other', 'Other'),
+    ]
+    student = models.ForeignKey(StudentInfo, on_delete=models.CASCADE, related_name='portfolios')
+    sub_strand = models.ForeignKey(SubStrand, on_delete=models.CASCADE, related_name='portfolios', null=True, blank=True)
+    term = models.CharField(max_length=20)
+    year = models.IntegerField(default=timezone.now().year)
+    evidence_file = models.FileField(upload_to='portfolios/')
+    evidence_type = models.CharField(max_length=20, choices=EVIDENCE_TYPES, default='Project')
+    description = models.TextField(blank=True, null=True)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'learner_portfolio'
+
+    def __str__(self):
+        return f"{self.student.registration_no} - {self.evidence_type} ({self.created_at.date()})"
+
+class NationalAssessment(models.Model):
+    TYPE_CHOICES = [
+        ('KPSEA', 'KPSEA (Grade 6)'),
+        ('KESSA', 'KESSA (Grade 9)'),
+    ]
+    student = models.ForeignKey(StudentInfo, on_delete=models.CASCADE, related_name='national_assessments')
+    assessment_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    year = models.IntegerField(default=timezone.now().year)
+    marks = models.FloatField()
+    overall_level = models.PositiveSmallIntegerField(choices=[(1,'Level 1'),(2,'Level 2'),(3,'Level 3'),(4,'Level 4')])
+    remark = models.TextField(blank=True, null=True)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('student', 'assessment_type', 'year')
+        db_table = 'national_assessment'
+
+    def __str__(self):
+        return f"{self.student.registration_no} - {self.assessment_type} ({self.year})"
+
+
+class ReportCardComment(models.Model):
+    school = models.ForeignKey(MasterSchool, on_delete=models.CASCADE, related_name='report_comments')
+    student = models.ForeignKey(StudentInfo, on_delete=models.CASCADE, related_name='report_comments')
+    term = models.CharField(max_length=20)
+    year = models.IntegerField(default=timezone.now().year)
+    class_teacher_comment = models.TextField(blank=True, null=True)
+    headteacher_comment = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        unique_together = ('student', 'term', 'year')
+        db_table = 'report_card_comment'
+
+    def __str__(self):
+        return f"{self.student.registration_no} - {self.term} ({self.year})"
 
 class GradeStreamConfig(models.Model):
     school = models.ForeignKey(MasterSchool, on_delete=models.CASCADE, related_name="streams")
@@ -480,7 +576,20 @@ class GradeFeeConfig(models.Model):
         db_table = 'grade_fee_config'
 
     def __str__(self):
-        return self.name
+        return f"{self.grade} Fee"
+
+class FeeActivity(models.Model):
+    school = models.ForeignKey(MasterSchool, on_delete=models.CASCADE, related_name="fee_activities")
+    grade = models.CharField(max_length=50)
+    activity_name = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    class Meta:
+        db_table = 'fee_activities'
+        unique_together = ('school', 'grade', 'activity_name')
+
+    def __str__(self):
+        return f"{self.activity_name} ({self.grade})"
 
 class LeaveManagement(models.Model):
     student = models.ForeignKey(StudentInfo,on_delete = models.CASCADE)
@@ -494,7 +603,7 @@ class LeaveManagement(models.Model):
     date_of_leave = models.DateField(blank=True, null=True)
     return_date = models.DateField(blank=True, null=True)
     year = models.IntegerField(blank=True, null=True, default=timezone.now().year)
-    time = models.TimeField(blank=True, null=True, default=timezone.now)
+    time = models.TimeField(blank=True, null=True, auto_now_add=True)
 
     
     
@@ -585,4 +694,62 @@ class Reviews(models.Model):
         db_table = 'reviews'
     def __str__(self):
         return f"{self.full_name} - {self.school}"
-    
+
+class SystemNotification(models.Model):
+    PRIORITY_CHOICES = [
+        ('info', 'Information'),
+        ('warning', 'Warning'),
+        ('danger', 'Urgent/Danger'),
+        ('success', 'Success/Update'),
+    ]
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='info')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'system_notifications'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+class Pricing(models.Model):
+    PLAN_CHOICES = [
+        ('Starter', 'Starter'),
+        ('Growth', 'Growth'),
+        ('Enterprise', 'Enterprise'),
+    ]
+    BILLING_CHOICES = [
+        ('Monthly', 'Monthly'),
+        ('Annual', 'Annual'),
+    ]
+    school = models.OneToOneField(MasterSchool, on_delete=models.CASCADE, related_name="pricing")
+    plan_name = models.CharField(max_length=20, choices=PLAN_CHOICES)
+    billing_cycle = models.CharField(max_length=10, choices=BILLING_CHOICES)
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('under_review', 'Under Review'),
+        ('verified', 'Verified'),
+        ('rejected', 'Rejected'),
+    ]
+    is_paid = models.BooleanField(default=False)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    transaction_code = models.CharField(max_length=100, blank=True, null=True)
+    paid_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'pricing'
+
+    def __str__(self):
+        return f"{self.school.school_name} - {self.plan_name}"
+
+    @property
+    def remaining_trial_days(self):
+        trial_duration = timezone.timedelta(days=7)
+        expiry_date = self.school.created_at + trial_duration
+        remaining = (expiry_date - timezone.now()).days
+        return max(remaining, 0)
+

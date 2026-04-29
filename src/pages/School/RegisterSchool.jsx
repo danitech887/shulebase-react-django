@@ -6,6 +6,38 @@ import './RegisterSchool.css';
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 const publicApi = axios.create({ baseURL: API_URL });
 
+/* ── Reusable field (defined outside to prevent focus loss) ── */
+const Field = ({ id, label, name, type = 'text', placeholder, icon, as = 'input', form, handleChange, errors, logoRef, logoFile }) => {
+  const isLogo = name === 'logo_path';
+
+  return (
+    <div className={`rs-field ${errors[name] ? 'rs-field--err' : ''}`}>
+      <label className="rs-label" htmlFor={id}>
+        {icon && <span className="rs-label-icon">{icon}</span>}
+        {label}
+      </label>
+      {isLogo ? (
+        <div className="rs-file-input-wrapper">
+          <button 
+            type="button" 
+            className="rs-btn-file-trigger"
+            onClick={() => logoRef.current?.click()}
+          >
+            {logoFile ? `📎 ${logoFile.name}` : '📷 Select Logo...'}
+          </button>
+        </div>
+      ) : as === 'textarea'
+        ? <textarea id={id} name={name} className="rs-input" rows={3}
+            placeholder={placeholder} value={form[name]} onChange={handleChange} />
+        : <input id={id} name={name} type={type} className="rs-input"
+            placeholder={placeholder} value={form[name]} onChange={handleChange}
+            autoComplete={name === 'password' ? 'new-password' : 'off'} />
+      }
+      {errors[name] && <span className="rs-err-msg">{errors[name]}</span>}
+    </div>
+  );
+};
+
 /* ═══════════════════════════════════════════════════════════════
    RegisterSchool  →  POST /api/school/register/
    Now supports multipart/form-data for Logo upload
@@ -22,6 +54,8 @@ export default function RegisterSchool({ isModal = false }) {
     username: '',
     password: '',
     confirmPassword: '',
+    plan_name: 'Starter',
+    billing_cycle: 'Monthly',
   };
 
   const [form, setForm]       = useState(INIT);
@@ -62,6 +96,8 @@ export default function RegisterSchool({ isModal = false }) {
     if (!form.password)               errs.password       = 'Password is required';
     else if (form.password.length < 8) errs.password      = 'Minimum 8 characters';
     if (form.confirmPassword !== form.password) errs.confirmPassword = 'Passwords do not match';
+    if (!form.plan_name)              errs.plan_name      = 'Please select a plan';
+    if (!form.billing_cycle)          errs.billing_cycle   = 'Please select a billing cycle';
     return errs;
   };
 
@@ -102,38 +138,6 @@ export default function RegisterSchool({ isModal = false }) {
       }
       setStatus('error');
     }
-  };
-
-  /* ── Reusable field ── */
-  const Field = ({ id, label, name, type = 'text', placeholder, icon, as = 'input' }) => {
-    const isLogo = name === 'logo_path';
-
-    return (
-      <div className={`rs-field ${errors[name] ? 'rs-field--err' : ''}`}>
-        <label className="rs-label" htmlFor={id}>
-          {icon && <span className="rs-label-icon">{icon}</span>}
-          {label}
-        </label>
-        {isLogo ? (
-          <div className="rs-file-input-wrapper">
-            <button 
-              type="button" 
-              className="rs-btn-file-trigger"
-              onClick={() => logoRef.current?.click()}
-            >
-              {logoFile ? `📎 ${logoFile.name}` : '📷 Select Logo...'}
-            </button>
-          </div>
-        ) : as === 'textarea'
-          ? <textarea id={id} name={name} className="rs-input" rows={3}
-              placeholder={placeholder} value={form[name]} onChange={handleChange} />
-          : <input id={id} name={name} type={type} className="rs-input"
-              placeholder={placeholder} value={form[name]} onChange={handleChange}
-              autoComplete={name === 'password' ? 'new-password' : 'off'} />
-        }
-        {errors[name] && <span className="rs-err-msg">{errors[name]}</span>}
-      </div>
-    );
   };
 
   return (
@@ -204,16 +208,57 @@ export default function RegisterSchool({ isModal = false }) {
           </div>
 
           <div className="rs-grid-2">
-            <Field id="rs-school-name" label="School Name"      name="school_name"   placeholder="e.g. Greenfield Academy"  icon="🏷️" />
-            <Field id="rs-logo-path"   label="Logo Path"        name="logo_path"     placeholder="Select school logo"       icon="🖼️" />
-            <Field id="rs-po-box"      label="P.O. Box"         name="po_box"        placeholder="e.g. 1234-00100"          icon="📬" />
-            <Field id="rs-address"     label="Address"          name="address"       placeholder="Town / County"             icon="📍" />
-            <Field id="rs-contact"     label="Contact"          name="contact"       placeholder="+254 700 000 000"          icon="📞" />
-            <Field id="rs-email"       label="Email Address"    name="email_address" placeholder="admin@school.ac.ke"        icon="✉️" type="email" />
-            <Field id="rs-motto"       label="Motto (optional)" name="motto"         placeholder="e.g. Strive for Excellence" icon="✨" />
+            <Field id="rs-school-name" label="School Name"      name="school_name"   placeholder="e.g. Greenfield Academy"  icon="🏷️" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-logo-path"   label="Logo Path"        name="logo_path"     placeholder="Select school logo"       icon="🖼️" form={form} handleChange={handleChange} errors={errors} logoRef={logoRef} logoFile={logoFile} />
+            <Field id="rs-po-box"      label="P.O. Box"         name="po_box"        placeholder="e.g. 1234-00100"          icon="📬" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-address"     label="Address"          name="address"       placeholder="Town / County"             icon="📍" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-contact"     label="Contact"          name="contact"       placeholder="+254 700 000 000"          icon="📞" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-email"       label="Email Address"    name="email_address" placeholder="admin@school.ac.ke"        icon="✉️" type="email" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-motto"       label="Motto (optional)" name="motto"         placeholder="e.g. Strive for Excellence" icon="✨" form={form} handleChange={handleChange} errors={errors} />
           </div>
           <Field id="rs-vision" label="Vision (optional)" name="vision"
-                 as="textarea" placeholder="Describe the school's long-term vision…" icon="🎯" />
+                 as="textarea" placeholder="Describe the school's long-term vision…" icon="🎯" form={form} handleChange={handleChange} errors={errors} />
+        </fieldset>
+
+        {/* ── Section: Pricing Plan ── */}
+        <fieldset className="rs-fieldset">
+          <legend className="rs-legend">💳 Pricing Plan (7 Days Free Trial)</legend>
+          
+          <div className="rs-billing-toggle">
+            <span className={`rs-toggle-lbl ${form.billing_cycle === 'Monthly' ? 'active' : ''}`}>Monthly</span>
+            <div 
+              className={`rs-toggle-track ${form.billing_cycle === 'Annual' ? 'annual' : ''}`}
+              onClick={() => setForm(f => ({ ...f, billing_cycle: f.billing_cycle === 'Monthly' ? 'Annual' : 'Monthly' }))}
+            >
+              <div className="rs-toggle-thumb" />
+            </div>
+            <span className={`rs-toggle-lbl ${form.billing_cycle === 'Annual' ? 'active' : ''}`}>Annual (Save 20%)</span>
+          </div>
+
+          <div className="rs-pricing-grid">
+            {[
+              { id: 'Starter',    icon: '🌱', priceM: '3,500', priceA: '2,800', desc: 'Up to 300 students' },
+              { id: 'Growth',     icon: '🚀', priceM: '7,500', priceA: '6,000', desc: 'Up to 1,000 students' },
+              { id: 'Enterprise', icon: '🏢', priceM: '14,000', priceA: '11,200', desc: 'Unlimited students' },
+            ].map(plan => (
+              <div 
+                key={plan.id}
+                className={`rs-plan-card ${form.plan_name === plan.id ? 'active' : ''}`}
+                onClick={() => setForm(f => ({ ...f, plan_name: plan.id }))}
+              >
+                <div className="rs-plan-check">{form.plan_name === plan.id ? '✅' : '○'}</div>
+                <div className="rs-plan-icon">{plan.icon}</div>
+                <div className="rs-plan-name">{plan.id}</div>
+                <div className="rs-plan-price">
+                  <span className="rs-plan-curr">KES</span>
+                  <span className="rs-plan-amt">{form.billing_cycle === 'Monthly' ? plan.priceM : plan.priceA}</span>
+                  <span className="rs-plan-period">/mo</span>
+                </div>
+                <div className="rs-plan-desc">{plan.desc}</div>
+              </div>
+            ))}
+          </div>
+          <p className="rs-pricing-note">💡 Your 7-day free trial begins immediately after approval.</p>
         </fieldset>
 
         {/* ── Section: Admin Account ── */}
@@ -221,7 +266,7 @@ export default function RegisterSchool({ isModal = false }) {
           <legend className="rs-legend">👤 Admin Account</legend>
           <div className="rs-grid-2">
             <Field id="rs-username" label="Admin Username" name="username"
-                   placeholder="Choose a unique username" icon="👤" />
+                   placeholder="Choose a unique username" icon="👤" form={form} handleChange={handleChange} errors={errors} />
 
             {/* Password with show/hide */}
             <div className={`rs-field ${errors.password ? 'rs-field--err' : ''}`}>

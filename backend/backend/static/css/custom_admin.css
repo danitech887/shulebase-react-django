@@ -1,0 +1,259 @@
+/* ═══════════════════════════════════════════
+   SHULEBASE ADMIN — Custom Refined Styling
+   Overriding Jazzmin/AdminLTE defaults
+═══════════════════════════════════════════ */
+
+/* ── Login Page ── */
+body.login-page {
+    background: #0d1117 !important;
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.15) 0px, transparent 50%) !important;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-box {
+    width: 420px !important;
+}
+
+.login-logo a {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    color: #fff !important;
+    font-weight: 800 !important;
+    letter-spacing: -1px;
+    text-transform: uppercase;
+    font-size: 1.8rem !important;
+}
+
+.login-logo img {
+    max-width: 120px !important;
+    height: auto !important;
+    margin-bottom: 1rem !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+
+.login-box .card {
+    background: rgba(22, 27, 34, 0.8) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.login-box .card-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 1.5rem !important;
+}
+
+.login-box .login-card-body {
+    background: transparent !important;
+    color: #c9d1d9 !important;
+    padding: 2rem !important;
+}
+
+.login-box .input-group-text {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #8b949e !important;
+}
+
+.login-box .form-control {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+}
+
+.login-box .form-control:focus {
+    border-color: #58a6ff !important;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3) !important;
+}
+
+.login-box .btn-primary {
+    background: #238636 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    padding: 0.75rem !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s ease !important;
+}
+
+.login-box .btn-primary:hover {
+    background: #2ea043 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(46, 160, 67, 0.4);
+}
+
+/* ── Dashboard (Index) ── */
+.content-wrapper {
+    background: #0d1117 !important;
+}
+
+.main-header {
+    background: #161b22 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.main-sidebar {
+    background: #161b22 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.brand-link {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.card {
+    background: #161b22 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    color: #c9d1d9 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+    transition: transform 0.2s ease, border-color 0.2s ease !important;
+}
+
+.card:hover {
+    border-color: #6366f1 !important;
+    transform: translateY(-2px);
+}
+
+.info-box {
+    background: rgba(22, 27, 34, 0.7) !important;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    min-height: 100px !important;
+}
+
+.info-box .info-box-icon {
+    border-radius: 10px !important;
+    background: rgba(99, 102, 241, 0.15) !important;
+    color: #6366f1 !important;
+}
+
+.info-box-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.info-box-text {
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #8b949e !important;
+}
+
+.info-box-number {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+}
+
+.table {
+    color: #c9d1d9 !important;
+}
+
+.table thead th {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: #8b949e !important;
+    font-weight: 700;
+    padding: 1rem !important;
+}
+
+.table td {
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 0.8rem 1rem !important;
+    vertical-align: middle !important;
+}
+
+.table tr:hover {
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Customizing specific widgets */
+.small-box {
+    border-radius: 16px !important;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.small-box .inner {
+    padding: 1.5rem !important;
+}
+
+.small-box .inner h3 {
+    font-weight: 800 !important;
+    font-size: 2.2rem !important;
+}
+
+.small-box .inner p {
+    font-size: 0.9rem !important;
+    opacity: 0.8;
+}
+
+.small-box .icon {
+    top: 15px !important;
+    right: 15px !important;
+    font-size: 3rem !important;
+    opacity: 0.2;
+    transition: transform 0.3s ease !important;
+}
+
+.small-box:hover .icon {
+    transform: scale(1.1) rotate(-5deg) !important;
+    opacity: 0.4;
+}
+
+.small-box-footer {
+    background: rgba(0, 0, 0, 0.1) !important;
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+/* Sidebar links */
+.nav-sidebar .nav-link {
+    border-radius: 8px !important;
+    margin: 2px 8px !important;
+}
+
+.nav-sidebar .nav-link.active {
+    background: rgba(99, 102, 241, 0.2) !important;
+    color: #fff !important;
+    border-left: 3px solid #6366f1 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}

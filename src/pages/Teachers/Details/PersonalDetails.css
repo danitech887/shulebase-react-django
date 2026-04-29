@@ -28,6 +28,42 @@
   --pd-radius-xs:   6px;
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --pd-bg:          #f3f4f6;
+    --pd-surface:     #ffffff;
+    --pd-surface-2:   #f9fafb;
+    --pd-surface-3:   #f3f4f6;
+    --pd-border:      rgba(0,0,0,0.08);
+    --pd-border-bright: rgba(0,0,0,0.15);
+    --pd-text:        #1f2937;
+    --pd-text-muted:  #4b5563;
+    --pd-text-dim:    #9ca3af;
+    --pd-accent-soft: rgba(99,102,241,0.1);
+    --pd-red-soft:    rgba(239,68,68,0.1);
+    --pd-green-soft:  rgba(34,197,94,0.1);
+    --pd-yellow-soft: rgba(245,158,11,0.1);
+    --pd-blue-soft:   rgba(59,130,246,0.1);
+  }
+}
+
+.theme-light {
+  --pd-bg:          #f3f4f6;
+  --pd-surface:     #ffffff;
+  --pd-surface-2:   #f9fafb;
+  --pd-surface-3:   #f3f4f6;
+  --pd-border:      rgba(0,0,0,0.08);
+  --pd-border-bright: rgba(0,0,0,0.15);
+  --pd-text:        #1f2937;
+  --pd-text-muted:  #4b5563;
+  --pd-text-dim:    #9ca3af;
+  --pd-accent-soft: rgba(99,102,241,0.1);
+  --pd-red-soft:    rgba(239,68,68,0.1);
+  --pd-green-soft:  rgba(34,197,94,0.1);
+  --pd-yellow-soft: rgba(245,158,11,0.1);
+  --pd-blue-soft:   rgba(59,130,246,0.1);
+}
+
 /* ── Page wrapper ─────────────────────────────────────────────────────────── */
 .pd-page {
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;

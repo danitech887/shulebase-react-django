@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -23,7 +23,11 @@ from core.models import (
     TeachingProgress,
     TeacherLeave,
     LearningArea,
-    LearningAreaMark
+    LearningAreaMark,
+    TeachingTarget,
+    LearnerPortfolio,
+    NationalAssessment,
+    ReportCardComment
 )
 
 from core.serializers import (
@@ -41,9 +45,14 @@ from core.serializers import (
     AnnouncementSerializer,
     LearnerCompetencySerializer,
     TeacherLeaveSerializer,
-    LearningAreaMarkSerializer
+    LearningAreaMarkSerializer,
+    TeachingTargetSerializer,
+    LearnerPortfolioSerializer,
+    NationalAssessmentSerializer
 )
 
+
+from core.ai_utils import extract_strands_from_file, extract_teaching_progress_from_file
 
 logger = logging.getLogger(__name__)
 
@@ -107,34 +116,45 @@ class DashboardAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # optional term filter for dashboard (e.g. ?filter_term=Term 1)
+        # filters
         filter_term = request.query_params.get("filter_term", "").strip()
+        f_grade = request.query_params.get("grade", "").strip()
+        f_stream = request.query_params.get("stream", "").strip()
 
         # --- Roles and Subjects ---
         roles = TeachersRole.objects.filter(school_id=school_id, registration_no=teacher)
+        if f_grade:  roles = roles.filter(grade=f_grade)
+        if f_stream: roles = roles.filter(stream=f_stream)
+        
         class_role = roles.filter(type_of_teacher="Class Teacher").first()
+        # If the user explicitly filtered, use those. Otherwise use class teacher role if any.
+        active_grade = f_grade or (class_role.grade if class_role else None)
+        active_stream = f_stream or (class_role.stream if class_role else None)
 
         # --- Teaching Progress (Optimized) ---
-        progress_stats = TeachingProgress.objects.filter(
-            school_id=school_id, registration_no=teacher
-        ).aggregate(
+        p_qs = TeachingProgress.objects.filter(school_id=school_id, registration_no=teacher)
+        if f_grade:  p_qs = p_qs.filter(grade=f_grade)
+        if f_stream: p_qs = p_qs.filter(stream=f_stream)
+        
+        progress_stats = p_qs.aggregate(
             completed=Count('id', filter=Q(status="Completed")),
             ongoing=Count('id', filter=Q(status="Ongoing"))
         )
 
-        # --- Student Attendance (Optimized for Class Teacher) ---
+        # --- Student Attendance ---
         present_today = 0
         absent_today = 0
         attendance_rate = None
         attendance_by_term = {}
         total_students = 0
         attendance_trend = []
-        if class_role:
+        
+        if active_grade and active_stream:
             student_ids = StudentInfo.objects.filter(
-                school_id=school_id, grade=class_role.grade, stream=class_role.stream
+                school_id=school_id, grade=active_grade, stream=active_stream
             ).values_list("registration_no", flat=True)
             total_students = StudentInfo.objects.filter(
-                school_id=school_id, grade=class_role.grade, stream=class_role.stream
+                school_id=school_id, grade=active_grade, stream=active_stream
             ).count()
 
             if student_ids.exists():
@@ -149,14 +169,12 @@ class DashboardAPIView(APIView):
                 present_today = attendance_stats.get('present_today', 0)
                 absent_today = attendance_stats.get('absent_today', 0)
 
-                # --- Term-filtered attendance rate ---
                 year = str(datetime.now().year)
                 base_qs = StudentAttendance.objects.filter(
                     school_id=school_id,
                     registration_no__in=student_ids,
                     year=year,
                 )
-
                 if filter_term:
                     base_qs = base_qs.filter(term=filter_term)
 
@@ -169,55 +187,100 @@ class DashboardAPIView(APIView):
                 total = present + absent
                 attendance_rate = (present / total * 100) if total > 0 else None
 
-                # attendance by term (for quick comparison)
+                # Termly breakdown
                 for t in ["Term 1", "Term 2", "Term 3"]:
                     t_tot = StudentAttendance.objects.filter(
-                        school_id=school_id,
-                        registration_no__in=student_ids,
-                        year=year,
-                        term=t,
-                    ).aggregate(
-                        present=Count('id', filter=Q(status="Present")),
-                        absent=Count('id', filter=Q(status="Absent")),
-                    )
-                    p = t_tot.get('present', 0) or 0
-                    a = t_tot.get('absent', 0) or 0
+                        school_id=school_id, registration_no__in=student_ids,
+                        year=year, term=t,
+                    ).aggregate(present=Count('id', filter=Q(status="Present")), absent=Count('id', filter=Q(status="Absent")))
+                    p, a = t_tot.get('present', 0) or 0, t_tot.get('absent', 0) or 0
                     tt = p + a
                     attendance_by_term[t] = (p / tt * 100) if tt > 0 else None
 
-                # attendance trend for last 14 days
+                # Trend (14 days)
                 today = timezone.now().date()
-                trend_days = 14
-                dates = [today - timedelta(days=i) for i in range(trend_days-1, -1, -1)]
-                trend_rows = []
+                dates = [today - timedelta(days=i) for i in range(13, -1, -1)]
                 for d in dates:
                     row = StudentAttendance.objects.filter(
-                        school_id=school_id,
-                        registration_no__in=student_ids,
-                        date_of_attendance=d,
-                    ).aggregate(
-                        present=Count('id', filter=Q(status="Present")),
-                        absent=Count('id', filter=Q(status="Absent")),
-                    )
-                    p = row.get('present', 0) or 0
-                    a = row.get('absent', 0) or 0
+                        school_id=school_id, registration_no__in=student_ids, date_of_attendance=d,
+                    ).aggregate(present=Count('id', filter=Q(status="Present")), absent=Count('id', filter=Q(status="Absent")))
+                    p, a = row.get('present', 0) or 0, row.get('absent', 0) or 0
                     tt = p + a
                     rate = (p / tt * 100) if tt > 0 else None
-                    trend_rows.append({"date": str(d), "present": p, "absent": a, "rate": rate})
-                attendance_trend = trend_rows
+                    attendance_trend.append({"date": str(d), "present": p, "absent": a, "rate": rate})
+
+        # --- Performance Overview ---
+        performance = []
+        # Re-fetch subjects based on (potentially filtered) roles
+        assigned_subjects = _subjects_from_roles(roles)
+        
+        for sub_name in assigned_subjects:
+            # Summative average
+            s_marks_qs = LearningAreaMark.objects.filter(
+                school_id=school_id, 
+                learning_area__name__iexact=sub_name.strip()
+            )
+            if f_grade:  s_marks_qs = s_marks_qs.filter(grade=f_grade)
+            if f_stream: s_marks_qs = s_marks_qs.filter(stream=f_stream)
+            avg_summative = s_marks_qs.aggregate(avg=Avg('marks'))['avg'] or 0
+            
+            # Formative average
+            f_marks_qs = SubStrandMark.objects.filter(
+                sub_strand__strand__school_id=school_id,
+                sub_strand__strand__subject__iexact=sub_name.strip()
+            )
+            if f_grade:  f_marks_qs = f_marks_qs.filter(student__grade=f_grade)
+            if f_stream: f_marks_qs = f_marks_qs.filter(student__stream=f_stream)
+            avg_formative = f_marks_qs.aggregate(avg=Avg('score'))['avg'] or 0
+            
+            performance.append({
+                "subject": sub_name,
+                "summative_avg": round(float(avg_summative), 1),
+                "formative_avg": round(float(avg_formative), 1)
+            })
+
+        # --- Subject Progress Analytics ---
+        subject_progress = []
+        targets = TeachingTarget.objects.filter(school_id=school_id, teacher=teacher)
+        if f_grade: targets = targets.filter(grade=f_grade)
+        if f_stream: targets = targets.filter(stream=f_stream)
+        target_map = {f"{t.grade}-{t.stream}-{t.subject}-{t.term}": t.total_topics for t in targets}
+        
+        current_term = filter_term or "Term 1"
+        current_year = datetime.now().year
+
+        for role in roles:
+            if not role.subject: continue
+            subs = [s.strip() for s in role.subject.split(",") if s.strip()]
+            for sub in subs:
+                target = target_map.get(f"{role.grade}-{role.stream}-{sub}-{current_term}", 0)
+                completed = TeachingProgress.objects.filter(
+                    school_id=school_id, registration_no=teacher,
+                    grade=role.grade, stream=role.stream, subject=sub,
+                    term=current_term, year=current_year, status="Completed"
+                ).count()
+                pct = (completed / target * 100) if target > 0 else 0
+                subject_progress.append({
+                    "subject": sub, "grade": role.grade, "stream": role.stream,
+                    "completed": completed, "total": target, "percent": round(pct, 1)
+                })
 
         return Response({
             "teacher": TeacherSerializer(teacher).data,
             "is_class_teacher": class_role is not None,
-            "subjects": _subjects_from_roles(roles),
+            "subjects": assigned_subjects,
+            "performance": performance,
             "present_today": present_today,
             "absent_today": absent_today,
             "total_students": total_students,
-            "attendance_rate": attendance_rate,
+            "attendance_rate": round(attendance_rate, 1) if attendance_rate is not None else None,
             "attendance_by_term": attendance_by_term,
             "attendance_trend": attendance_trend,
             "completed": progress_stats.get('completed', 0),
             "ongoing": progress_stats.get('ongoing', 0),
+            "subject_progress": subject_progress,
+            "grades": sorted({r.grade for r in roles if r.grade}),
+            "streams": sorted({r.stream for r in roles if r.stream}),
         })
 
 
@@ -290,23 +353,20 @@ class AttendanceAPIView(APIView):
         school_id = request.user.school_id
         teacher = _get_teacher(request.user)
 
-        
         filter_date = request.query_params.get("filter_date", "")
         filter_term = request.query_params.get("filter_term", "")
+        f_grade = request.query_params.get("grade", "").strip()
+        f_stream = request.query_params.get("stream", "").strip()
 
         class_roles = TeachersRole.objects.filter(
             school_id=school_id, registration_no=teacher, type_of_teacher="Class Teacher"
         )
-        grades = list(class_roles.values_list("grade", flat=True).distinct())
-        streams = list(class_roles.values_list("stream", flat=True).distinct())
-        grade = TeachersRole.objects.filter(
-            school_id=school_id, registration_no=teacher, type_of_teacher="Class Teacher"
-        ).values_list("grade", flat=True).first()
-        stream = TeachersRole.objects.filter(
-            school_id=school_id, registration_no=teacher, type_of_teacher="Class Teacher"
-        ).values_list("stream", flat=True).first()
-
-        print(grade,stream)
+        
+        grades_list = list(class_roles.values_list("grade", flat=True).distinct())
+        streams_list = list(class_roles.values_list("stream", flat=True).distinct())
+        
+        grade = f_grade or class_roles.values_list("grade", flat=True).first()
+        stream = f_stream or class_roles.values_list("stream", flat=True).first()
 
         pupils = (
             StudentInfo.objects.filter(school_id=school_id, grade=grade, stream=stream)
@@ -335,8 +395,8 @@ class AttendanceAPIView(APIView):
             records_qs = records_qs.filter(term=filter_term)
 
         return Response({
-            "grades": grades,
-            "streams": streams,
+            "grades": grades_list,
+            "streams": streams_list,
             "grade": grade,
             "stream": stream,
             "pupils": StudentInfoSerializer(pupils, many=True).data,
@@ -401,6 +461,64 @@ class AttendanceAPIView(APIView):
         )
 
 
+class LearnerPortfolioAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        student_id = request.query_params.get('student_id')
+        sub_strand_id = request.query_params.get('sub_strand_id')
+        
+        qs = LearnerPortfolio.objects.filter(student__school_id=request.user.school_id)
+        if student_id:
+            qs = qs.filter(student_id=student_id)
+        if sub_strand_id:
+            qs = qs.filter(sub_strand_id=sub_strand_id)
+            
+        serializer = LearnerPortfolioSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = LearnerPortfolioSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(recorded_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class NationalAssessmentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        grade = request.query_params.get('grade')
+        stream = request.query_params.get('stream')
+        
+        qs = NationalAssessment.objects.filter(student__school_id=request.user.school_id)
+        if grade:
+            qs = qs.filter(student__grade=grade)
+        if stream:
+            qs = qs.filter(student__stream=stream)
+            
+        serializer = NationalAssessmentSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        if isinstance(request.data, list):
+            saved_data = []
+            for item in request.data:
+                serializer = NationalAssessmentSerializer(data=item)
+                if serializer.is_valid():
+                    serializer.save(recorded_by=request.user)
+                    saved_data.append(serializer.data)
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(saved_data, status=status.HTTP_201_CREATED)
+        else:
+            serializer = NationalAssessmentSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(recorded_by=request.user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Strands  →  /api/teacher/strands/
 # ─────────────────────────────────────────────────────────────────────────────
@@ -425,17 +543,27 @@ class StrandListAPIView(APIView):
 
         roles = TeachersRole.objects.filter(school_id=school_id, registration_no=teacher)
         grades, streams, subjects = [], [], set()
+        assigned_subjects = []
+        
         for role in roles:
             if role.grade:
                 grades.append(role.grade)
             if role.stream:
                 streams.append(role.stream)
             if role.subject:
-                subjects.update(s.strip() for s in role.subject.split(",") if s.strip())
+                subs = [s.strip() for s in role.subject.split(",") if s.strip()]
+                subjects.update(subs)
+                for s in subs:
+                    assigned_subjects.append({
+                        "subject": s,
+                        "grade": role.grade,
+                        "stream": role.stream
+                    })
 
         return Response({
             "strands": StrandSerializer(strands, many=True).data,
             "subjects": sorted(subjects),
+            "assigned_subjects": assigned_subjects,
             "grades": sorted(set(grades)),
             "streams": sorted(set(streams)),
         })
@@ -791,24 +919,165 @@ class TeachingProgressAPIView(APIView):
     def get(self, request):
         school_id = request.user.school_id
         teacher = _get_teacher(request.user)
+        
+        if not teacher:
+            return Response({"detail": "Teacher profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # filters
+        f_grade = request.query_params.get("grade", "").strip()
+        f_stream = request.query_params.get("stream", "").strip()
+        selected_term = request.query_params.get("term", "Term 1")
+        year = request.query_params.get("year", timezone.now().year)
+
         grades, streams, subjects = self._choices(request)
-        progresses = TeachingProgress.objects.filter(
-            school_id=school_id, registration_no=teacher
+        
+        # apply filters to choices for the stats loop
+        loop_grades = [f_grade] if f_grade else grades
+        loop_streams = [f_stream] if f_stream else streams
+
+        progresses_qs = TeachingProgress.objects.filter(
+            school_id=school_id, registration_no=teacher, term=selected_term, year=year
         )
+        if f_grade:  progresses_qs = progresses_qs.filter(grade=f_grade)
+        if f_stream: progresses_qs = progresses_qs.filter(stream=f_stream)
+        progresses = progresses_qs.order_by("-date_of_teaching")
+        
+        targets_qs = TeachingTarget.objects.filter(
+            school_id=school_id, teacher=teacher, term=selected_term, year=year
+        )
+        if f_grade:  targets_qs = targets_qs.filter(grade=f_grade)
+        if f_stream: targets_qs = targets_qs.filter(stream=f_stream)
+        
+        target_map = {f"{t.grade}-{t.stream}-{t.subject}": t.total_topics for t in targets_qs}
+
+        # --- Include Curriculum Strands for tracking ---
+        curriculum_strands = []
+        subject_filter = request.query_params.get("subject", "").strip()
+        if not subject_filter:
+            if progresses.exists():
+                subject_filter = progresses.first().subject
+            elif subjects:
+                subject_filter = subjects[0]
+
+        # Use f_grade if provided, otherwise fallback to first available grade
+        g_filter = f_grade if f_grade else (grades[0] if grades else None)
+
+        if subject_filter and g_filter:
+            # Fetch strands for the GRADE and SUBJECT, ignoring stream
+            curriculum_strands = Strand.objects.filter(
+                school_id=school_id, 
+                grade__iexact=g_filter, 
+                subject__icontains=subject_filter
+            ).prefetch_related('sub_strands').distinct()
+            
+        strands_data = []
+        seen_strands = set()
+        for s in curriculum_strands:
+            if s.name not in seen_strands:
+                strands_data.append({
+                    "id": s.id,
+                    "name": s.name,
+                    "sub_strands": [{"id": ss.id, "name": ss.name, "description": ss.description} for ss in s.sub_strands.all()]
+                })
+                seen_strands.add(s.name)
+        # Calculate stats per subject - Always show ALL assigned subjects for the teacher
+        subject_stats = []
+        for g in grades: # Use full grades list
+            for s in streams: # Use full streams list
+                class_roles = TeachersRole.objects.filter(
+                    school_id=school_id, registration_no=teacher, grade=g, stream=s
+                )
+                class_subjects = sorted({
+                    sub.strip()
+                    for role in class_roles if role.subject
+                    for sub in role.subject.split(",") if sub.strip()
+                })
+                
+                for sub in class_subjects:
+                    s_clean = sub.strip()
+                    # Count unique topics (SubStrands) - Super Search
+                    curriculum_total = SubStrand.objects.filter(
+                        strand__school_id=school_id,
+                        strand__grade__iexact=g.strip(),
+                        strand__subject__icontains=s_clean
+                    ).values('name').distinct().count()
+
+                    # Fallback to manual target if no curriculum uploaded
+                    total = curriculum_total if curriculum_total > 0 else target_map.get(f"{g}-{s}-{s_clean}", 0)
+                    
+                    completed = TeachingProgress.objects.filter(
+                        school_id=school_id, registration_no=teacher,
+                        grade__iexact=g.strip(), stream=s, subject__iexact=s_clean,
+                        term=selected_term, year=year, status="Completed"
+                    ).count()
+                    
+                    percent = (completed / total * 100) if total > 0 else 0
+                    subject_stats.append({
+                        "grade": g,
+                        "stream": s,
+                        "subject": sub,
+                        "total_topics": total,
+                        "completed_topics": completed,
+                        "percent": round(percent, 1),
+                        "has_curriculum": curriculum_total > 0
+                    })
+
         return Response({
             "progresses": TeachingProgressSerializer(progresses, many=True).data,
+            "curriculum_strands": strands_data,
+            "subject_stats": subject_stats,
             "grade_choices": grades,
             "stream_choices": streams,
             "subject_choices": subjects,
-        })
+            "term_choices": ["Term 1", "Term 2", "Term 3"],
+            "targets": target_map
+        }, status=status.HTTP_200_OK)
 
     def post(self, request):
         school_instance = _get_school(request.user)
         teacher = _get_teacher(request.user)
-        serializer = TeachingProgressSerializer(data=request.data)
+        
+        if not teacher:
+            return Response({"detail": "Teacher profile not found for this account."}, status=status.HTTP_404_NOT_FOUND)
+        
+        data = request.data.copy()
+        # Clean empty strings for dates/integers
+        for k, v in data.items():
+            if v == "":
+                data[k] = None
+
+        # Check if it's a target update
+        is_target = data.get("is_target", False)
+        if is_target:
+            grade = data.get("grade")
+            stream = data.get("stream")
+            subject = data.get("subject")
+            total = data.get("total_topics", 0)
+            term = data.get("term", "Term 1")
+            year = data.get("year", timezone.now().year)
+
+            if not all([grade, stream, subject]):
+                return Response({"detail": "Grade, Stream, and Subject are required for targets."}, status=status.HTTP_400_BAD_REQUEST)
+
+            target, created = TeachingTarget.objects.update_or_create(
+                school=school_instance,
+                teacher=teacher,
+                grade=grade,
+                stream=stream,
+                subject=subject,
+                term=term,
+                year=year,
+                defaults={"total_topics": int(total) if total else 0}
+            )
+            return Response({"detail": "Target updated successfully.", "id": target.id})
+
+        # Regular progress entry
+        serializer = TeachingProgressSerializer(data=data)
         if serializer.is_valid():
             serializer.save(registration_no=teacher, school=school_instance)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        logger.error("TeachingProgress validation failed: %s", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -905,9 +1174,8 @@ class ResourceListCreateAPIView(APIView):
         data = request.data.copy()
         
         
-        # If the resource is a video, clean the URL into an ID
-        if data.get('resource_type') == 'video' and data.get('url_or_file'):
-            data['url_or_file'] = self._extract_youtube_id(data['url_or_file'])
+        # User requested to keep the full link instead of extracting ID
+        # self._extract_youtube_id logic is preserved but not applied here per request
 
         serializer = ResourceSerializer(data=data)
         if serializer.is_valid():
@@ -967,7 +1235,7 @@ class ResourceProgressAPIView(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# teachers announcements
+# teachers announcements 
 
 class AnnouncementAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1054,10 +1322,10 @@ class LearnerCompetencyAPIView(APIView):
                     term=term,
                     competency=competency,
                     year=year,
+                    subject=subject,
                     defaults={
                         'grade': grade,
                         'stream': stream,
-                        'subject': subject,
                         'level': level,
                         'comment': values.get('comment', ''),
                         'recorded_by': request.user
@@ -1153,26 +1421,30 @@ class LearningAreaMarkAPIView(APIView):
             if grade_matches.exists():
                 learning_areas_qs = grade_matches
 
-        # 3. Restrict by teacher roles if available
+        # 3. Restrict by teacher roles if the user is a teacher
+        user_role = getattr(request.user, 'role', '').lower()
         teacher = _get_teacher(request.user)
-        if teacher:
-            roles = TeachersRole.objects.filter(school_id=school_id, registration_no=teacher)
-            if grade and stream:
-                # Try to find specific class roles first
-                specific_roles = roles.filter(grade__iexact=grade, stream__iexact=stream)
-                if specific_roles.exists():
-                    roles = specific_roles
-            
-            allowed_subject_names = _subjects_from_roles(roles)
-            if allowed_subject_names:
-                name_q = Q()
-                for name in allowed_subject_names:
-                    name_q |= Q(name__iexact=name.strip())
+        
+        if user_role == 'teacher':
+            if teacher:
+                roles = TeachersRole.objects.filter(school_id=school_id, registration_no=teacher)
+                if grade and stream:
+                    roles = roles.filter(grade__iexact=grade, stream__iexact=stream)
                 
-                # Only apply the name filter if it doesn't wipe out the entire list
-                # (This helps if there's a naming mismatch but the grade matches)
-                if learning_areas_qs.filter(name_q).exists():
+                allowed_subject_names = _subjects_from_roles(roles)
+                if allowed_subject_names:
+                    name_q = Q()
+                    for name in allowed_subject_names:
+                        name_q |= Q(name__iexact=name.strip())
+                    
+                    # Apply strict filtering for teachers to avoid showing unassigned subjects
                     learning_areas_qs = learning_areas_qs.filter(name_q)
+                else:
+                    # No roles/subjects assigned for this specific class
+                    learning_areas_qs = learning_areas_qs.none()
+            else:
+                # User is a teacher but not linked to a teacher profile
+                learning_areas_qs = learning_areas_qs.none()
 
         resp_data = {
             "subjects": [{"id": la.id, "name": la.name, "grade": la.grade_level} for la in learning_areas_qs],
@@ -1241,3 +1513,171 @@ class LearningAreaMarkAPIView(APIView):
         return Response({"detail": f"Successfully updated {updated_count} records."}, status=status.HTTP_200_OK)
 
 
+class RubricExtractAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file_obj = request.FILES.get('file')
+        subject = request.data.get('subject')
+        
+        if not file_obj or not subject:
+            return Response({"detail": "File and subject are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            extracted_data = extract_strands_from_file(file_obj, subject)
+            return Response({"extracted_data": extracted_data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class StrandBulkCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        school_instance = _get_school(request.user)
+        subject = request.data.get('subject')
+        grade = request.data.get('grade')
+        stream = request.data.get('stream')
+        strands_data = request.data.get('strands', [])
+
+        if not subject or not grade:
+            return Response({"detail": "Subject and grade are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        created_strands = 0
+        created_sub_strands = 0
+
+        for s_data in strands_data:
+            strand_obj = Strand.objects.create(
+                school=school_instance,
+                subject=subject,
+                grade=grade,
+                name=s_data['strand'],
+                description=s_data.get('description', ''),
+                created_by=request.user
+            )
+            created_strands += 1
+
+            for sub_data in s_data.get('sub_strands', []):
+                # Join multiple outcomes with newlines into the description field
+                outcomes = sub_data.get('expected_outcomes', [])
+                description = "\n".join([f"• {o}" for o in outcomes]) if outcomes else sub_data.get('description', '')
+                
+                SubStrand.objects.create(
+                    strand=strand_obj,
+                    name=sub_data['name'],
+                    description=description,
+                    created_by=request.user
+                )
+                created_sub_strands += 1
+
+        return Response({
+            "detail": f"Successfully created {created_strands} strands and {created_sub_strands} topics."
+        }, status=status.HTTP_201_CREATED)
+
+class ProgressExtractAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file_obj = request.FILES.get('file')
+        subject = request.data.get('subject')
+        
+        if not file_obj or not subject:
+            return Response({"detail": "File and subject are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            extracted_data = extract_teaching_progress_from_file(file_obj, subject)
+            return Response({"extracted_data": extracted_data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ProgressBulkCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        school_instance = _get_school(request.user)
+        teacher = _get_teacher(request.user)
+        subject = request.data.get('subject')
+        grade = request.data.get('grade')
+        stream = request.data.get('stream')
+        term = request.data.get('term', 'Term 1')
+        year = request.data.get('year', timezone.now().year)
+        progresses = request.data.get('progresses', [])
+
+        if not teacher:
+            return Response({"detail": "Teacher not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        created_count = 0
+        for p_data in progresses:
+            # Parse date if provided
+            teaching_date = p_data.get('date_of_teaching')
+            if not teaching_date:
+                teaching_date = timezone.now()
+
+            TeachingProgress.objects.create(
+                registration_no=teacher,
+                school=school_instance,
+                grade=grade,
+                stream=stream,
+                subject=subject,
+                term=term,
+                year=year,
+                topic=p_data.get('topic'),
+                sub_topic=p_data.get('sub_topic'),
+                status=p_data.get('status', 'Completed'),
+                date_of_teaching=teaching_date
+            )
+            created_count += 1
+
+        return Response({"detail": f"Successfully recorded {created_count} progress entries."}, status=status.HTTP_201_CREATED)
+
+class ReportCardCommentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        school_id = request.user.school_id
+        student_id = request.query_params.get('student_id')
+        term = request.query_params.get('term')
+        year = request.query_params.get('year', timezone.now().year)
+
+        if not student_id or not term:
+            return Response({"detail": "Missing parameters."}, status=400)
+
+        comment = ReportCardComment.objects.filter(
+            school_id=school_id,
+            student_id=student_id,
+            term=term,
+            year=year
+        ).first()
+
+        data = {
+            "class_teacher_comment": comment.class_teacher_comment if comment else "",
+            "headteacher_comment": comment.headteacher_comment if comment else ""
+        }
+        return Response(data)
+
+    def post(self, request):
+        school_id = request.user.school_id
+        data = request.data
+        student_id = data.get('student_id')
+        term = data.get('term')
+        year = data.get('year', timezone.now().year)
+        
+        if not student_id or not term:
+            return Response({"detail": "Missing parameters."}, status=400)
+
+        comment_obj, _ = ReportCardComment.objects.get_or_create(
+            school_id=school_id,
+            student_id=student_id,
+            term=term,
+            year=year
+        )
+
+        if request.user.role in ['SystemOwner', 'Admin', 'HeadTeacher']:
+            if 'headteacher_comment' in data:
+                comment_obj.headteacher_comment = data.get('headteacher_comment')
+        
+        if request.user.role in ['Teacher', 'Class Teacher', 'SystemOwner', 'Admin']:
+            if 'class_teacher_comment' in data:
+                comment_obj.class_teacher_comment = data.get('class_teacher_comment')
+
+        comment_obj.save()
+        return Response({"detail": "Comment saved successfully."})

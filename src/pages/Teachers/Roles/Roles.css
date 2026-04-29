@@ -342,32 +342,72 @@
 .tr-delete-warning p { margin: 0; font-size: 0.9rem; color: var(--tr-text); }
 .tr-delete-sub { font-size: 0.78rem !important; color: var(--tr-text-muted) !important; }
 
-/* Learning Area Config Modal */
-.tr-la-list {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--tr-border);
+/* Learning Area Config Modal Refinements */
+.tr-config-modal-body {
+  display: flex !important;
+  flex-direction: column;
+  gap: 1.5rem;
 }
-.tr-la-list h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  color: var(--tr-text);
+
+.tr-config-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
+
+.tr-config-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tr-la-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.tr-la-table-wrapper {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--tr-border);
+  border-radius: var(--tr-radius-sm);
+  overflow: hidden;
+}
+
 .tr-la-table {
   width: 100%;
-  margin-top: 1rem;
-  font-size: 0.8rem;
   border-collapse: collapse;
 }
-.tr-la-table th, .tr-la-table td {
-  padding: 0.6rem 0.8rem;
-  border-bottom: 1px solid var(--tr-border);
-  text-align: left;
-}
+
 .tr-la-table th {
-  font-weight: 700; color: var(--tr-text-muted); font-size: 0.7rem; text-transform: uppercase;
+  background: var(--tr-surface-2);
+  padding: 0.75rem 1rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--tr-text-muted);
 }
+
+.tr-la-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--tr-border);
+}
+
+.tr-empty-state {
+  padding: 2rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed var(--tr-border);
+  border-radius: var(--tr-radius-sm);
+}
+
+.w-100 { width: 100%; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 1rem; }
+.text-end { text-align: right; }
+.justify-content-end { justify-content: flex-end; }
+.fw-bold { font-weight: 700; }
 
 /* ── Keyframes ── */
 @keyframes trSlide { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }

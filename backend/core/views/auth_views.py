@@ -7,6 +7,11 @@ from django.contrib.auth import authenticate
 from core.models import Users, MasterSchool
 from core.models import TeachersRole
 from core.serializers import UserSerializer
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.conf import settings
 
 
 @api_view(['POST'])
@@ -62,11 +67,25 @@ def login(request):
             "id": user.id,
             "username": user.username,
             "school_id": getattr(user, 'school_id', None),
-            "school_name": getattr(user, 'school_name', None),
+            "school_name": user.school.school_name if user.school else getattr(user, 'school_name', None),
             "role": getattr(user, 'role', None),
             "email": getattr(user, 'email', None),
             "registration_no": getattr(user, 'registration_no', None),
         }
+
+        # Determine display name
+        display_name = user.username
+        from core.models import StudentInfo
+        if user_data["role"] == 'Parent':
+            student = StudentInfo.objects.filter(phone=user.username, school_id=user_data["school_id"]).first()
+            if student:
+                display_name = student.parent_name or user.username
+        elif user_data["role"] == 'Student':
+            student = StudentInfo.objects.filter(registration_no=user_data["registration_no"], school_id=user_data["school_id"]).first()
+            if student:
+                display_name = f"{student.first_name} {student.surname}"
+        
+        user_data["display_name"] = display_name
 
         # Add is_class_teacher flag for teacher roles
         if user_data["role"] == 'Teacher' and user_data["registration_no"]:
@@ -205,11 +224,24 @@ def get_current_user(request):
     user = request.user
     school = MasterSchool.objects.filter(id = user.school_id).first()
     print(school.school_name)
+    # Determine display name
+    display_name = user.username
+    from core.models import StudentInfo
+    if user.role == 'Parent':
+        student = StudentInfo.objects.filter(phone=user.username, school_id=user.school_id).first()
+        if student:
+            display_name = student.parent_name or user.username
+    elif user.role == 'Student':
+        student = StudentInfo.objects.filter(registration_no=user.registration_no, school_id=user.school_id).first()
+        if student:
+            display_name = f"{student.first_name} {student.surname}"
+
     return Response({
         "id": user.id,
         "username": user.username,
+        "display_name": display_name,
         "school_id": user.school_id,
-        "school_name": school.school_name,
+        "school_name": school.school_name if school else user.school_name,
         "role": user.role,
         "email": user.email,
         "registration_no": user.registration_no,
@@ -307,3 +339,83 @@ def get_schools(request):
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_request(request):
+    """
+    Request password reset link.
+    POST /students/auth/password-reset/
+    
+    Request:
+    {
+        "email": "user@example.com"
+    }
+    """
+    email = request.data.get('email')
+    if not email:
+        return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = Users.objects.filter(email=email).first()
+    if user:
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # In a real app, you'd send an email with this link
+        reset_link = f"http://localhost:5173/reset-password?token={token}&uid={uid}"
+        
+        subject = "Password Reset Requested"
+        message = f"Hello {user.username},\n\nYou requested a password reset. Click the link below to reset your password:\n\n{reset_link}\n\nIf you didn't request this, please ignore this email."
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else 'noreply@shulebase.com',
+                [email],
+                fail_silently=False,
+            )
+            print(f"PASSWORD RESET LINK: {reset_link}") # For debug if email fails or console backend
+        except Exception as e:
+            print(f"Error sending email: {e}")
+            # Even if email fails, we don't want to leak user existence, but for dev we can return success
+            pass
+
+    # Always return success to prevent user enumeration
+    return Response({"message": "If an account exists with this email, a reset link has been sent."}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_confirm(request):
+    """
+    Confirm password reset.
+    POST /students/auth/password-reset-confirm/
+    
+    Request:
+    {
+        "uid": "...",
+        "token": "...",
+        "new_password": "..."
+    }
+    """
+    uid = request.data.get('uid')
+    token = request.data.get('token')
+    new_password = request.data.get('new_password')
+
+    if not all([uid, token, new_password]):
+        return Response({"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user_id = force_str(urlsafe_base64_decode(uid))
+        user = Users.objects.get(pk=user_id)
+    except (TypeError, ValueError, OverflowError, Users.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+    else:
+        return Response({"error": "Invalid or expired reset link."}, status=status.HTTP_400_BAD_REQUEST)

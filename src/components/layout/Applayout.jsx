@@ -15,6 +15,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header  from './components/layout/Header';
+import SystemNotificationBar from './SystemNotificationBar';
 
 export default function AppLayout() {
   // Desktop: collapsed = icon-only rail (64 px)
@@ -54,6 +55,7 @@ export default function AppLayout() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0d0f14' }}>
+      <SystemNotificationBar />
       {/* ── Sidebar (fixed overlay) ── */}
       <Sidebar
         collapsed={!isMobile && collapsed}

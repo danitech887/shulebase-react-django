@@ -12,14 +12,14 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from core.models import (
     TeacherInfo, TeacherAttendance, TeachersRole, LearningArea,
-     TeacherLeave,MasterSchool,Users,RegConfig,LearnerCompetency,LearningLog
+    TeacherLeave, MasterSchool, Users, RegConfig, LearnerCompetency, LearningLog,
+    TeachingProgress, TeachingTarget, Strand, SubStrand
 )
 
 
-from core.serializers import RoleSerializer, TeacherSerializer, TeacherLeaveSerializer
+from core.serializers import RoleSerializer, TeacherSerializer, TeacherLeaveSerializer, TeachingProgressSerializer, TeachingTargetSerializer
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -278,7 +278,7 @@ class TeacherAttendanceRecordsView(SchoolMixin, APIView):
                 registration_no=teacher,
                 status=att_status,
                 date_of_attendance=date_str,
-                time_in=record.get('time_in') if att_status == 'Present' else None,
+                time_in=record.get('time_in') or None if att_status == 'Present' else None,
                 term=term,
             )
             created.append(att.id)
@@ -470,7 +470,6 @@ class TeacherLeaveDetailView(SchoolMixin, APIView):
         new_status = request.data.get('status')
 
         if role == 'teacher':
-            # Teachers may only cancel their own pending leaves
             if leave.teacher.registration_no != request.user.registration_no:
                 return Response({'error': 'Not authorised.'}, status=status.HTTP_403_FORBIDDEN)
             if new_status != 'Cancelled':
@@ -481,21 +480,15 @@ class TeacherLeaveDetailView(SchoolMixin, APIView):
             leave.save()
             return Response({'message': 'Leave cancelled.'})
 
-        # Admin / principal path
         if role not in ('admin', 'principal'):
             return Response({'error': 'Not authorised.'}, status=status.HTTP_403_FORBIDDEN)
 
         allowed_transitions = {'Pending': ['Approved', 'Rejected'], 'Approved': ['Rejected'], 'Rejected': ['Approved']}
         if new_status not in allowed_transitions.get(leave.status, []):
-            return Response(
-                {'error': f"Cannot move from '{leave.status}' to '{new_status}'."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({'error': f"Cannot move from '{leave.status}' to '{new_status}'."}, status=status.HTTP_400_BAD_REQUEST)
 
-        leave.status          = new_status
-        # leave.admin_note      = request.data.get('admin_note', leave.admin_note)
-        # leave.reviewed_by     = request.user.username
-        leave.reviewed_on     = timezone.now().date()
+        leave.status = new_status
+        leave.reviewed_on = timezone.now().date()
         leave.save()
         return Response({'message': f'Leave {new_status.lower()} successfully.'})
 
@@ -524,3 +517,132 @@ class TeacherLeaveStatsView(SchoolMixin, APIView):
             'rejected':  qs.filter(status='Rejected').count(),
             'cancelled': qs.filter(status='Cancelled').count(),
         })
+
+
+# ═══════════════════════════════════════════════════════════════
+#  ADMIN TEACHING PROGRESS OVERVIEW
+#  GET /teachers/teaching-progress/
+# ═══════════════════════════════════════════════════════════════
+
+class AdminTeachingProgressView(SchoolMixin, APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        term = request.query_params.get("term", "Term 1")
+        year = request.query_params.get("year", datetime.now().year)
+        
+        teachers = TeacherInfo.objects.filter(school_id=self.school_id)
+        
+        results = []
+        for teacher in teachers:
+            roles = TeachersRole.objects.filter(school_id=self.school_id, registration_no=teacher)
+            teacher_progress = {
+                "registration_no": teacher.registration_no,
+                "name": f"{teacher.first_name} {teacher.surname}",
+                "subjects": []
+            }
+            
+            subject_grade_map = []
+            for r in roles:
+                if not r.subject: continue
+                subs = [s.strip() for s in r.subject.split(",") if s.strip()]
+                for s in subs:
+                    subject_grade_map.append({
+                        "subject": s,
+                        "grade": r.grade,
+                        "stream": r.stream
+                    })
+            
+            for item in subject_grade_map:
+                g_clean = item["grade"].strip()
+                s_clean = item["subject"].strip()
+                
+                # Count actual curriculum topics (Super Search: Case Insensitive & Contains)
+                # We try exact match first, then fallback to 'icontains'
+                strands_qs = Strand.objects.filter(school_id=self.school_id, grade__iexact=g_clean)
+                
+                # Filter by subject using icontains for maximum flexibility
+                curriculum_strands = strands_qs.filter(subject__icontains=s_clean)
+                
+                curriculum_total = SubStrand.objects.filter(
+                    strand__in=curriculum_strands
+                ).values('name').distinct().count()
+
+                target = TeachingTarget.objects.filter(
+                    school_id=self.school_id, teacher=teacher,
+                    grade__iexact=g_clean, stream=item["stream"],
+                    subject__iexact=s_clean, term=term, year=year
+                ).first()
+                
+                total = curriculum_total if curriculum_total > 0 else (target.total_topics if target else 0)
+                
+                completed = TeachingProgress.objects.filter(
+                    school_id=self.school_id, registration_no=teacher,
+                    grade__iexact=g_clean, stream=item["stream"],
+                    subject__icontains=s_clean,
+                    term=term, year=year, status="Completed"
+                ).count()
+                percent = (completed / total * 100) if total > 0 else 0
+                
+                teacher_progress["subjects"].append({
+                    "subject": item["subject"],
+                    "grade": item["grade"],
+                    "stream": item["stream"],
+                    "total_topics": total,
+                    "completed_topics": completed,
+                    "percent": round(percent, 1),
+                    "has_curriculum": curriculum_total > 0
+                })
+                
+            
+            results.append(teacher_progress)
+        return Response(results)
+
+class AdminTeacherProgressDetailView(SchoolMixin, APIView):
+    """Allows admin to see the detailed strand checklist for any teacher."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reg_no = request.query_params.get("reg_no")
+        grade = request.query_params.get("grade")
+        subject = request.query_params.get("subject")
+        term = request.query_params.get("term", "Term 1")
+        year = request.query_params.get("year", datetime.now().year)
+
+        teacher = get_object_or_404(TeacherInfo, school_id=self.school_id, registration_no=reg_no)
+        
+        # Fetch curriculum (Super Search)
+        strands = Strand.objects.filter(
+            school_id=self.school_id, 
+            grade__iexact=grade.strip(), 
+            subject__icontains=subject.strip()
+        ).prefetch_related('sub_strands')
+
+        strands_data = []
+        seen_strands = set()
+        for s in strands:
+            if s.name not in seen_strands:
+                strands_data.append({
+                    "id": s.id,
+                    "name": s.name,
+                    "sub_strands": [{"id": ss.id, "name": ss.name, "description": ss.description} for ss in s.sub_strands.all()]
+                })
+                seen_strands.add(s.name)
+
+        # Fetch progress for this specific teacher
+        progresses = TeachingProgress.objects.filter(
+            school_id=self.school_id,
+            registration_no=teacher,
+            grade__iexact=grade.strip(),
+            subject__iexact=subject.strip(),
+            term=term,
+            year=year
+        )
+        
+
+        return Response({
+            "curriculum_strands": strands_data,
+            "progresses": TeachingProgressSerializer(progresses, many=True).data
+        })
+
+

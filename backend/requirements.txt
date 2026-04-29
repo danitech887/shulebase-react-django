@@ -14,6 +14,8 @@ requests==2.32.3
 sqlparse==0.5.3
 tzdata==2025.2
 whitenoise==6.9.0
+openpyxl==3.1.5
 dj-database-url==2.3.0
 gunicorn==23.0.0
 psycopg2-binary==2.9.10
+google-genai==0.3.0

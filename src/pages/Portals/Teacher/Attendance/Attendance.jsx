@@ -15,12 +15,16 @@ export default function AttendancePortal() {
   const [statuses, setStatuses]     = useState({});
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportParams, setReportParams]       = useState({ type: 'daily', date: new Date().toISOString().split('T')[0], format: 'pdf' });
+  const [filterGrade, setFilterGrade]   = useState('');
+  const [filterStream, setFilterStream] = useState('');
   const { showMessage } = useMessage();
 
   const fetchClassData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('teacher-portal/attendance/');
+      const res = await api.get('teacher-portal/attendance/', {
+        params: { grade: filterGrade, stream: filterStream }
+      });
       if (res.data) {
         setData(res.data);
         const init = {};
@@ -33,7 +37,7 @@ export default function AttendancePortal() {
     } catch (err) {
       showMessage({ type: 'error', text: 'Failed to load class attendance data.' });
     } finally { setLoading(false); }
-  }, []);
+  }, [filterGrade, filterStream, showMessage]);
 
   useEffect(() => { fetchClassData(); }, [fetchClassData]);
 
@@ -100,10 +104,24 @@ export default function AttendancePortal() {
                 </p>
               </div>
                <Stack direction="horizontal" gap={2}>
-                <div style={{ width:160 }}>
-                  <label className="t-label">Assessment Term</label>
+                <div style={{ width:120 }}>
+                  <label className="t-label">Grade</label>
+                  <select className="t-input t-select" value={filterGrade} onChange={e => setFilterGrade(e.target.value)}>
+                    <option value="">Select Grade</option>
+                    {data.grades?.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div style={{ width:120 }}>
+                  <label className="t-label">Stream</label>
+                  <select className="t-input t-select" value={filterStream} onChange={e => setFilterStream(e.target.value)}>
+                    <option value="">Select Stream</option>
+                    {data.streams?.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div style={{ width:130 }}>
+                  <label className="t-label">Term</label>
                   <select className="t-input t-select" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>
-                    {data.term_choices.map(t => <option key={t} value={t}>{t}</option>)}
+                    {data.term_choices?.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <button

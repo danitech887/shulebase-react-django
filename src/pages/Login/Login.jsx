@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Spinner } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import './Login.css';
 
@@ -199,6 +199,28 @@ export default function Login({ isModal = false }) {
                 {showPassword ? 'HIDE' : 'SHOW'}
               </button>
             </div>
+          </div>
+
+          <div className="login-forgot-wrap" style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            marginBottom: '1.2rem',
+            marginTop: '-0.3rem',
+            animation: 'lgSlideUp 0.5s cubic-bezier(0.16,1,0.3,1) 0.39s both'
+          }}>
+            <Link 
+              to="/reset-password" 
+              className="login-forgot-link"
+              style={{ 
+                fontSize: '0.78rem', 
+                color: 'var(--lg-accent-2)', 
+                textDecoration: 'none',
+                fontWeight: 600,
+                transition: 'color 0.2s'
+              }}
+            >
+              Forgot Password?
+            </Link>
           </div>
 
           <button

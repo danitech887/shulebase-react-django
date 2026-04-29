@@ -2,7 +2,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect,get_object_or_404
 from django.contrib import messages
-from django.db.models import Sum
+from django.db.models import Sum, Count
 from django.utils.timezone import now
 from datetime import datetime
 from decimal import Decimal
@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from ..serializers import StudentSerializer
 
-from core.models import StudentInfo,GradeStreamConfig,GradeFeeConfig,Fee,StudentAttendance,LeaveManagement
+from core.models import StudentInfo,GradeStreamConfig,GradeFeeConfig,Fee,StudentAttendance,LeaveManagement, SystemNotification
 from core.models import TeacherInfo,TeacherAttendance
 
 
@@ -130,25 +130,92 @@ def dashboard(request):
         (present_students * 100) / students if students else 0
     )
 
+    # --- Gender Distribution ---
+    gender_dist = list(StudentInfo.objects.filter(**student_filters)
+                       .values('gender')
+                       .annotate(count=Count('gender')))
+    gender_data = {item['gender']: item['count'] for item in gender_dist}
+
+    # --- Total Expected Fees ---
+    total_expected = 0
+    for g, count in students_per_grade.items():
+        grade_obj = GradeFeeConfig.objects.filter(school_id=school_id, grade=g).first()
+        if grade_obj:
+            total_expected += (grade_obj.expected_fee * Decimal(count))
+    
+    collection_rate = (Decimal(fee_paid) / total_expected * 100) if total_expected > 0 else 0
+
     # --- FINAL students RESPONSE ---
     
+    # --- Pricing / Trial Info ---
+    from core.models import Pricing
+    pricing = Pricing.objects.filter(school_id=school_id).first()
+    pricing_data = None
+    if pricing:
+        pricing_data = {
+            "plan_name": pricing.plan_name,
+            "is_paid": pricing.is_paid,
+            "payment_status": pricing.payment_status,
+            "transaction_code": pricing.transaction_code,
+            "remaining_trial_days": pricing.remaining_trial_days,
+            "billing_cycle": pricing.billing_cycle
+        }
+
     data = {
         "students": students,
         "students_per_grade": students_per_grade,
+        "gender_distribution": gender_data,
         "teachers": teachers,
         "present_teachers": present_teachers,
         "present_students": present_students,
         "attendance_percentage": round(attendance_percentage, 2),
         "fee_paid": float(fee_paid),
+        "fee_expected": float(total_expected),
+        "fee_collection_rate": round(float(collection_rate), 2),
         "fee_balance": float(total_balance),
         "leave_count": leave_count,
         "year": year,
         "term": term or None,
         "available_grades": available_grades,
-        "available_streams": available_streams
+        "available_streams": available_streams,
+        "pricing": pricing_data
     }
 
     return Response(data) 
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_pricing(request):
+    school_id = request.user.school_id
+    plan_name = request.data.get('plan_name')
+    billing_cycle = request.data.get('billing_cycle')
+    transaction_code = request.data.get('transaction_code')
+    
+    from core.models import Pricing
+    pricing = Pricing.objects.filter(school_id=school_id).first()
+    if not pricing:
+        return Response({"error": "Pricing record not found"}, status=404)
+    
+    if plan_name:
+        pricing.plan_name = plan_name
+    if billing_cycle:
+        pricing.billing_cycle = billing_cycle
+    if transaction_code and transaction_code.strip():
+        pricing.transaction_code = transaction_code.strip()
+        pricing.payment_status = 'under_review'
+        
+    pricing.save()
+    return Response({
+        "message": "Subscription updated and payment is under review",
+        "pricing": {
+            "plan_name": pricing.plan_name,
+            "billing_cycle": pricing.billing_cycle,
+            "is_paid": pricing.is_paid,
+            "payment_status": pricing.payment_status,
+            "transaction_code": pricing.transaction_code
+        }
+    })
 
 
 """
@@ -259,7 +326,7 @@ class AttendanceDailySummaryView(APIView):
         for offset in range(days):
             current_date = start_date + timedelta(days=offset)
             row = data_map.get(current_date)
-
+    
             present = row['present'] if row else 0
             absent  = row['absent']  if row else 0
             total   = row['total']   if row else 0
@@ -326,7 +393,7 @@ class RecentActivitiesView(APIView):
         for l in LeaveManagement.objects.filter(school_id=school_id).order_by('-date_of_leave', '-time')[:5]:
             activities.append({
                 'id': f"leave_{l.id}",
-                'action': f"Leave applied for {l.student_id.first_name}",
+                'action': f"Leave applied for {l.student_id}",
                 'timestamp': to_iso(l.date_of_leave, l.time),
                 'icon': '📋',
                 'type': 'warning'
@@ -334,3 +401,21 @@ class RecentActivitiesView(APIView):
 
         activities.sort(key=lambda x: x['timestamp'], reverse=True)
         return Response(activities[:10])
+
+class SystemNotificationListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        notifications = SystemNotification.objects.filter(is_active=True).order_by('-created_at')
+        data = [
+            {
+                "id": n.id,
+                "title": n.title,
+                "content": n.content,
+                "priority": n.priority,
+                "created_at": n.created_at
+            }
+            for n in notifications
+        ]
+        return Response(data)
+

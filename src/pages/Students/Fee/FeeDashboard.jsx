@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Row, Col, ProgressBar, Spinner } from 'react-bootstrap';
 import './FeeDashboard.css';
 import api from '../../../api/api';
+import { useMessage } from '../../../context/MessageContext';
 import { useGradesAndStreams } from '../../../hooks/useGradesAndStreams';
 
 export default function FeeDashboard() {
+  const { showMessage } = useMessage();
   const [activeTab, setActiveTab] = useState('overview');
   const [feeRecords, setFeeRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
@@ -51,15 +53,19 @@ export default function FeeDashboard() {
   const [settingsData, setSettingsData] = useState({});
   const [reportCriteria, setReportCriteria] = useState({ reportType: 'monthly-collection', grade: '', stream: '', format: 'PDF', term: 'Term 1', start_date: '', end_date: '' });
   const [mpesaSettings, setMpesaSettings] = useState({ studentsKey: '', merchantCode: '', shortCode: '' });
-  const [recordFilters, setRecordFilters] = useState({ search: '', date: '', mode: 'all', sort: 'newest' });
+  const [globalFilters, setGlobalFilters] = useState({ grade: '', stream: '', term: 'Term 1' });
+  const [recordFilters, setRecordFilters] = useState({ search: '', date: '', mode: 'all', sort: 'newest', grade: '', stream: '', term: 'Term 1' });
   const [recordReport, setRecordReport] = useState({ period: 'daily', term: 'Term 1', format: 'pdf' });
   const [feeReport, setFeeReport] = useState({ period: 'monthly', term: 'Term 1', format: 'pdf' });
   const [receiptCriteria, setReceiptCriteria] = useState({ grade: '', stream: '', term: 'Term 1' });
+  const [activitiesData, setActivitiesData] = useState([]);
+  const [selectedGradeForActivities, setSelectedGradeForActivities] = useState('');
   const { grades, streams } = useGradesAndStreams(api, 
     modalType === 'report' ? reportCriteria.grade :
     modalType === 'receipt' ? receiptCriteria.grade :
     modalType === 'reminder' ? reminderData.grade :
-    ''
+    modalType === 'records' ? recordFilters.grade :
+    globalFilters.grade
   );
 
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -68,8 +74,13 @@ export default function FeeDashboard() {
     setTimeout(() => setAnimate(true), 80);
     fetchFeeData();
     fetchStudents();
+    fetchFeeRecords();
     fetchGradesAndStreams();
   }, []);
+
+  useEffect(() => {
+    fetchFeeData();
+  }, [globalFilters.term]);
 
   const fetchGradesAndStreams = async () => {
     try {
@@ -91,12 +102,15 @@ export default function FeeDashboard() {
       setStreamsByGrade(fetchedStreams);
     } catch (err) {
       console.error('Failed to fetch grades and streams', err);
+      // showMessage({type: "error", text: "Failed to fetch grades and streams"})
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'records') fetchFeeRecords();
-  }, [activeTab]);
+    if (activeTab === 'records' || modalType === 'records' || modalType === 'confirm_payments') {
+      fetchFeeRecords();
+    }
+  }, [activeTab, modalType]);
 
   const fetchStudents = async () => {
     try {
@@ -148,12 +162,21 @@ export default function FeeDashboard() {
           const settings = {};
           grades.forEach(g => { settings[g.grade] = g.expectedFee || 0; });
           setSettingsData(settings);
-          let mpesa = 0, cash = 0;
-          grades.forEach(g => { mpesa += Number(g.mpesa || 0); cash += Number(g.cash || 0); });
-          const tot = mpesa + cash || 1;
+          let mpesa = 0, cash = 0, bank = 0;
+          let mpesaCount = 0, cashCount = 0, bankCount = 0;
+          grades.forEach(g => { 
+            mpesa      += Number(g.mpesa || 0); 
+            cash       += Number(g.cash || 0); 
+            bank       += Number(g.bank_transfer || 0);
+            mpesaCount += Number(g.mpesa_count || 0);
+            cashCount  += Number(g.cash_count || 0);
+            bankCount  += Number(g.bank_count || 0);
+          });
+          const tot = mpesa + cash + bank || 1;
           setPaymentModes([
-            { mode: 'M-Pesa', amount: mpesa, percentage: Number(((mpesa / tot) * 100).toFixed(1)), accent: '#6366f1' },
-            { mode: 'Cash', amount: cash, percentage: Number(((cash / tot) * 100).toFixed(1)), accent: '#0891b2' },
+            { mode: 'M-Pesa', amount: mpesa, count: mpesaCount, percentage: Number(((mpesa / tot) * 100).toFixed(1)), accent: '#6366f1' },
+            { mode: 'Cash', amount: cash, count: cashCount, percentage: Number(((cash / tot) * 100).toFixed(1)), accent: '#0891b2' },
+            { mode: 'Bank Transfer', amount: bank, count: bankCount, percentage: Number(((bank / tot) * 100).toFixed(1)), accent: '#f59e0b' },
           ]);
 
           // update feeStats using aggregated numbers
@@ -184,31 +207,193 @@ export default function FeeDashboard() {
 
   const getFilteredRecords = () => {
     let f = [...feeRecords];
+
+    f = f.map(r => {
+      const st = studentList.find(s => s.registration_no === r.registration_no);
+      return { ...r, grade: st?.grade || '', stream: st?.stream || '' };
+    });
+
     if (recordFilters.search) {
       const q = recordFilters.search.toLowerCase();
       f = f.filter(r => (r.student_name?.toLowerCase().includes(q)) || (r.registration_no?.toLowerCase().includes(q)));
     }
     if (recordFilters.date) f = f.filter(r => r.date_of_payment === recordFilters.date);
     if (recordFilters.mode !== 'all') f = f.filter(r => r.mode_of_payment?.toLowerCase() === recordFilters.mode.toLowerCase());
+
+    if (recordFilters.grade) f = f.filter(r => r.grade?.toLowerCase() === recordFilters.grade.toLowerCase());
+    if (recordFilters.stream) f = f.filter(r => r.stream?.toLowerCase() === recordFilters.stream.toLowerCase());
+    if (recordFilters.term) f = f.filter(r => r.term?.toLowerCase() === recordFilters.term.toLowerCase());
+
     if (recordFilters.sort === 'newest') f.sort((a, b) => new Date(b.date_of_payment) - new Date(a.date_of_payment));
     else if (recordFilters.sort === 'oldest') f.sort((a, b) => new Date(a.date_of_payment) - new Date(b.date_of_payment));
     else if (recordFilters.sort === 'amount_desc') f.sort((a, b) => b.amount - a.amount);
+    
     return f;
   };
 
-  const handleOpenModal = (type) => { setModalType(type); setShowModal(true); };
+  const getFilteredPaymentModes = () => {
+    let filteredRecords = [...feeRecords];
+    const termFiltered = globalFilters.term || 'Term 1';
+    
+    filteredRecords = filteredRecords.filter(r => 
+      r.term?.toLowerCase() === termFiltered.toLowerCase()
+    );
+
+    if (globalFilters.grade || globalFilters.stream) {
+      const matchingRegNos = new Set(
+        studentList
+          .filter(s => {
+            const matchesGrade = !globalFilters.grade || s.grade?.toLowerCase() === globalFilters.grade.toLowerCase();
+            const matchesStream = !globalFilters.stream || s.stream?.toLowerCase() === globalFilters.stream.toLowerCase();
+            return matchesGrade && matchesStream;
+          })
+          .map(s => s.registration_no)
+      );
+      filteredRecords = filteredRecords.filter(r => matchingRegNos.has(r.registration_no));
+    }
+
+    const mpesa = filteredRecords
+      .filter(r => r.mode_of_payment?.toLowerCase() === 'm-pesa')
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const mpesaCount = filteredRecords.filter(r => r.mode_of_payment?.toLowerCase() === 'm-pesa').length;
+
+    const cash = filteredRecords
+      .filter(r => r.mode_of_payment?.toLowerCase() === 'cash')
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const cashCount = filteredRecords.filter(r => r.mode_of_payment?.toLowerCase() === 'cash').length;
+
+    const bank = filteredRecords
+      .filter(r => ['bank transfer', 'bank'].includes(r.mode_of_payment?.toLowerCase()))
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const bankCount = filteredRecords.filter(r => ['bank transfer', 'bank'].includes(r.mode_of_payment?.toLowerCase())).length;
+
+    const total = mpesa + cash + bank || 1;
+
+    return [
+      { mode: 'M-Pesa', amount: mpesa, count: mpesaCount, percentage: Number(((mpesa / total) * 100).toFixed(1)), accent: '#6366f1' },
+      { mode: 'Cash', amount: cash, count: cashCount, percentage: Number(((cash / total) * 100).toFixed(1)), accent: '#0891b2' },
+      { mode: 'Bank Transfer', amount: bank, count: bankCount, percentage: Number(((bank / total) * 100).toFixed(1)), accent: '#f59e0b' },
+    ];
+  };
+
+  const getFilteredMonthlyData = () => {
+    let filteredRecords = [...feeRecords];
+    if (globalFilters.grade || globalFilters.stream) {
+      const matchingRegNos = new Set(
+        studentList
+          .filter(s => {
+            const matchesGrade = !globalFilters.grade || s.grade?.toLowerCase() === globalFilters.grade.toLowerCase();
+            const matchesStream = !globalFilters.stream || s.stream?.toLowerCase() === globalFilters.stream.toLowerCase();
+            return matchesGrade && matchesStream;
+          })
+          .map(s => s.registration_no)
+      );
+      filteredRecords = filteredRecords.filter(r => matchingRegNos.has(r.registration_no));
+    }
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentYear = new Date().getFullYear();
+    const monthlyAgg = months.map(m => ({ month: m, collected: 0, target: 0 }));
+
+    let totalExpected = 0;
+    let relevantStudents = [...studentList];
+    if (globalFilters.grade || globalFilters.stream) {
+      relevantStudents = relevantStudents.filter(s => {
+        const matchesGrade = !globalFilters.grade || s.grade?.toLowerCase() === globalFilters.grade.toLowerCase();
+        const matchesStream = !globalFilters.stream || s.stream?.toLowerCase() === globalFilters.stream.toLowerCase();
+        return matchesGrade && matchesStream;
+      });
+    }
+    relevantStudents.forEach(s => {
+      totalExpected += Number(settingsData[s.grade] || 0);
+    });
+
+    const targetPerMonth = Math.round(totalExpected / 6) || 50000;
+
+    filteredRecords.forEach(r => {
+      if (!r.date_of_payment) return;
+      const date = new Date(r.date_of_payment);
+      const monthIdx = date.getMonth();
+      if (monthIdx >= 0 && monthIdx < 12) {
+        monthlyAgg[monthIdx].collected += Number(r.amount || 0);
+      }
+    });
+
+    monthlyAgg.forEach(m => {
+      m.target = targetPerMonth;
+    });
+
+    return monthlyAgg.slice(0, 6);
+  };
+
+  const getDashboardStats = () => {
+    let filteredRecords = [...feeRecords];
+    const termFiltered = globalFilters.term || 'Term 1';
+    
+    let relevantStudents = [...studentList];
+    if (globalFilters.grade || globalFilters.stream) {
+      relevantStudents = relevantStudents.filter(s => {
+        const matchesGrade = !globalFilters.grade || s.grade?.toLowerCase() === globalFilters.grade.toLowerCase();
+        const matchesStream = !globalFilters.stream || s.stream?.toLowerCase() === globalFilters.stream.toLowerCase();
+        return matchesGrade && matchesStream;
+      });
+      
+      const matchingRegNos = new Set(relevantStudents.map(s => s.registration_no));
+      filteredRecords = filteredRecords.filter(r => matchingRegNos.has(r.registration_no));
+    }
+
+    let totalExpected = 0;
+    relevantStudents.forEach(s => {
+      totalExpected += Number(settingsData[s.grade] || 0);
+    });
+
+    const collected = filteredRecords
+      .filter(r => r.term?.toLowerCase() === termFiltered.toLowerCase())
+      .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+    const balance = totalExpected - collected;
+    const rate = totalExpected > 0 ? Math.round((collected / totalExpected) * 100) : 0;
+
+    return [
+      { title: 'Total Collected', value: `Ksh ${collected.toLocaleString()}`, icon: '💰', accent: '#059669', trend: `${rate}%` },
+      { title: 'Pending Balance', value: `Ksh ${Math.max(0, balance).toLocaleString()}`, icon: '⏳', accent: '#d97706', trend: `${100 - rate}%` },
+      { title: 'Collection Rate', value: `${rate}%`, icon: '📊', accent: '#0891b2', trend: `${rate}%` },
+      { title: 'Monthly Target', value: `Ksh ${totalExpected.toLocaleString()}`, icon: '🎯', accent: '#6366f1', trend: '0%' },
+    ];
+  };
+
+  const handleOpenModal = (type) => { 
+    setModalType(type); 
+    setShowModal(true); 
+    if (type === 'settings' && grades.length > 0) {
+      setSelectedGradeForActivities(grades[0]);
+      fetchActivities(grades[0]);
+    }
+  };
   const handleCloseModal = () => { setShowModal(false); setModalType(''); };
 
   const handlePaymentSubmit = async () => {
     if (!paymentData.registration_no || !paymentData.amount) { alert('Please fill required fields'); return; }
     try {
-      const payload = { registration_no: paymentData.registration_no, amount: paymentData.amount, mode: paymentData.mode === 'mpesa' ? 'M-Pesa' : 'Cash', transaction_code: paymentData.mode === 'mpesa' ? paymentData.transaction_code : undefined, date_of_payment: paymentData.date || null, term: paymentData.term };
+      const modeMapping = {
+        mpesa: 'M-Pesa',
+        cash: 'Cash',
+        bank: 'Bank Transfer'
+      };
+      const payload = { 
+        registration_no: paymentData.registration_no, 
+        amount: paymentData.amount, 
+        mode: modeMapping[paymentData.mode] || 'Cash', 
+        transaction_code: paymentData.transaction_code, 
+        date_of_payment: paymentData.date || null, 
+        term: paymentData.term 
+      };
       const r = await api.post('fees/record/', payload);
       setSuccessMessage(r.data.message || 'Payment recorded!');
       setPaymentData({ registration_no: '', amount: '', mode: 'mpesa', transaction_code: '', date: '', term: 'Term 1' });
       handleCloseModal(); fetchFeeData();
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) { alert("Error: " + JSON.stringify(err.response?.data || err.message, null, 2)); }
+    } catch (err) { showMessage({ type: "error: ",text: "Error" + JSON.stringify(err.response?.data || err.message, null, 2) }); }
   };
 
   const viewFeeReciept = async (fee_id) => {
@@ -216,24 +401,57 @@ export default function FeeDashboard() {
       const r = await api.get(`fees/${fee_id}/receipt/`, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
       window.open(url, '_blank');
-    } catch { alert('Failed to download receipt.'); }
+    } catch { showMessage({ type: 'error',text: 'Failed to download receipt.'}); }
   };
 
   const handleReminderSubmit = () => {
-    if (!reminderData.grade) { alert('Select a grade'); return; }
+    if (!reminderData.grade) { showMessage({ type: 'warning',text: 'Select a grade' }); return; }
     setSuccessMessage('Reminders sent!'); setReminderData({ grade: '', message: '' }); handleCloseModal();
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
+  const fetchActivities = async (grade) => {
+    try {
+      const r = await api.get(`fees/activities/?grade=${grade}`);
+      setActivitiesData(r.data || []);
+    } catch (err) {
+      console.error('Failed to fetch activities', err);
+    }
+  };
+
+  const handleAddActivity = () => {
+    setActivitiesData([...activitiesData, { activity_name: '', amount: '' }]);
+  };
+
+  const handleActivityChange = (index, field, value) => {
+    const newActivities = [...activitiesData];
+    newActivities[index][field] = value;
+    setActivitiesData(newActivities);
+  };
+
+  const handleRemoveActivity = (index) => {
+    setActivitiesData(activitiesData.filter((_, i) => i !== index));
+  };
+
   const handleSettingsSubmit = async () => {
     try {
+      // Save Grade Fee Config
       await api.post('fees/by-grade/', settingsData);
+      
+      // Save Activities for selected grade
+      if (selectedGradeForActivities) {
+        await api.post('fees/activities/', {
+          grade: selectedGradeForActivities,
+          activities: activitiesData
+        });
+      }
+
       setSuccessMessage('Fee settings updated!');
       handleCloseModal();
-      fetchFeeData(); // Refresh the data to reflect changes
+      fetchFeeData(); 
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      alert('Failed to update fee settings. Make sure your backend endpoint supports this.');
+      showMessage({ type: 'error',text: 'Failed to update fee settings.' });
       console.error(err);
     }
   };
@@ -252,7 +470,7 @@ export default function FeeDashboard() {
       fetchFeeData();
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      alert('Failed to update payment status');
+      showMessage({ type: 'error', text:'Failed to update payment status'});
     }
   };
 
@@ -272,7 +490,7 @@ export default function FeeDashboard() {
       const url = URL.createObjectURL(new Blob([r.data], { type: r.headers['content-type'] }));
       const a = Object.assign(document.createElement('a'), { href: url, download: `fee_records_${recordReport.period}_${new Date().toISOString().slice(0,10)}.${recordReport.format.toLowerCase()}`, style: 'display:none' });
       document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); document.body.removeChild(a);
-    } catch (err) { alert(`Failed: ${err.message}`); }
+    } catch (err) { showMessage({ type: 'error', text: `Failed: ${err.message}`}); }
     finally { setIsGeneratingReport(false); }
   };
 
@@ -301,13 +519,13 @@ export default function FeeDashboard() {
       const a = Object.assign(document.createElement('a'), { href: url, download: `fee_report_${reportCriteria.reportType}_${new Date().toISOString().slice(0,10)}.${fileExt}`, style: 'display:none' });
       document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); document.body.removeChild(a);
       handleCloseModal();
-    } catch (err) { alert(`Failed: ${err.message}`); }
+    } catch (err) { showMessage({ type: 'error',text: `Failed: ${err.message}`}); }
     finally { setIsGeneratingReport(false); }
   };
 
   const handleGenerateAllReceipts = async () => {
     if (!receiptCriteria.grade || !receiptCriteria.stream) {
-      alert('Please select grade and stream');
+      showMessage({ type: 'warning',text: 'Please select grade and stream'});
       return;
     }
     setIsGeneratingReport(true);
@@ -328,7 +546,7 @@ export default function FeeDashboard() {
       window.open(url, '_blank');
       handleCloseModal();
     } catch (err) {
-      alert('Failed to generate receipts. Check if the endpoint exists.');
+      showMessage({ type: 'error',text: 'Failed to generate receipts. Check if the endpoint exists.' });
     } finally {
       setIsGeneratingReport(false);
     }
@@ -338,6 +556,7 @@ export default function FeeDashboard() {
   const maxTarget = Math.max(...monthlyData.map(d => d.target), 1);
   const mpesaTotal = paymentModes[0]?.amount || 0;
   const cashTotal = paymentModes[1]?.amount || 0;
+  const bankTotal = paymentModes[2]?.amount || 0;
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: '📊' },
@@ -389,6 +608,64 @@ export default function FeeDashboard() {
         </div>
       </header>
 
+      {/* ── GLOBAL FILTERS ── */}
+      <div className="fd-global-filters" style={{
+        display: 'flex',
+        gap: '1.5rem',
+        alignItems: 'center',
+        marginBottom: '1.5rem',
+        background: 'var(--fd-surface)',
+        padding: '1rem 1.5rem',
+        borderRadius: 'var(--fd-radius)',
+        border: '1px solid var(--fd-border)',
+        position: 'relative',
+        zIndex: 5,
+        flexWrap: 'wrap'
+      }}>
+        <span className="fd-label" style={{ margin: 0, fontSize: '0.8rem', color: 'var(--fd-text)' }}>Global Filters:</span>
+        
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span className="fd-muted" style={{ fontSize: '0.8rem' }}>Grade:</span>
+          <select 
+            className="fd-input" 
+            style={{ width: 'auto', minWidth: '130px', padding: '0.4rem 0.75rem' }} 
+            value={globalFilters.grade} 
+            onChange={e => setGlobalFilters({ ...globalFilters, grade: e.target.value, stream: '' })}
+          >
+            <option value="">All Grades</option>
+            {grades.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span className="fd-muted" style={{ fontSize: '0.8rem' }}>Stream:</span>
+          <select 
+            className="fd-input" 
+            style={{ width: 'auto', minWidth: '130px', padding: '0.4rem 0.75rem' }} 
+            value={globalFilters.stream} 
+            onChange={e => setGlobalFilters({ ...globalFilters, stream: e.target.value })}
+            disabled={!globalFilters.grade}
+          >
+            <option value="">All Streams</option>
+            {streams.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span className="fd-muted" style={{ fontSize: '0.8rem' }}>Term:</span>
+          <select 
+            className="fd-input" 
+            style={{ width: 'auto', minWidth: '130px', padding: '0.4rem 0.75rem' }} 
+            value={globalFilters.term} 
+            onChange={e => setGlobalFilters({ ...globalFilters, term: e.target.value })}
+          >
+            <option value="Term 1">Term 1</option>
+            <option value="Term 2">Term 2</option>
+            <option value="Term 3">Term 3</option>
+          </select>
+        </div>
+      </div>
+
       {/* ── STATS ── */}
       <div className="fd-stats-grid">
         {loading
@@ -397,7 +674,7 @@ export default function FeeDashboard() {
                 <div className="sk-line sk-short" /><div className="sk-line sk-long" />
               </div>
             ))
-          : feeStats.map((s, i) => (
+          : getDashboardStats().map((s, i) => (
               <div key={i} className="fd-stat" style={{ '--acc': s.accent, '--delay': `${i * 0.1}s` }}>
                 <div className="fd-stat-top">
                   <span className="fd-stat-label">{s.title}</span>
@@ -440,18 +717,88 @@ export default function FeeDashboard() {
                 </div>
                 <span className="fd-card-badge">📈</span>
               </div>
-              <div className="fd-chart-area">
-                <div className="fd-bars">
-                  {monthlyData.map((d, i) => (
-                    <div key={i} className="fd-bar-group" style={{ '--bi': i }}>
-                      <div className="fd-bar-track">
-                        <div className="fd-bar-target" style={{ height: `${(d.target / maxTarget) * 100}%` }} title={`Target: Ksh ${d.target}`} />
-                        <div className="fd-bar-collected" style={{ height: `${(d.collected / maxTarget) * 100}%`, '--delay': `${i * 0.08}s` }} title={`Collected: Ksh ${d.collected}`} />
-                      </div>
-                      <span className="fd-bar-label">{d.month}</span>
+            <div className="fd-chart-area" style={{ padding: '2rem 1.5rem 1rem' }}>
+              {(() => {
+                const dynamicMonthly = getFilteredMonthlyData();
+                const maxVal = Math.max(...dynamicMonthly.map(d => Math.max(d.collected, d.target)), 1000);
+                const width = 600;
+                const height = 200;
+                const padding = 40; 
+                
+                const pointsCollected = dynamicMonthly.map((d, i) => {
+                  const x = padding + (i * (width - padding * 2) / (dynamicMonthly.length - 1));
+                  const y = height - padding - ((d.collected / maxVal) * (height - padding * 2));
+                  return `${x},${y}`;
+                }).join(' ');
+
+                const pointsTarget = dynamicMonthly.map((d, i) => {
+                  const x = padding + (i * (width - padding * 2) / (dynamicMonthly.length - 1));
+                  const y = height - padding - ((d.target / maxVal) * (height - padding * 2));
+                  return `${x},${y}`;
+                }).join(' ');
+
+                return (
+                  <div style={{ position: 'relative', height: '230px', marginBottom: '1rem' }}>
+                    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+                      <defs>
+                        <linearGradient id="collectedGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
+                          <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+
+                      {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
+                        const y = padding + pct * (height - padding * 2);
+                        return (
+                          <line key={idx} x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
+                        );
+                      })}
+
+                      <text x={12} y={height / 2} transform={`rotate(-90, 12, ${height / 2})`} style={{ fontSize: '0.65rem', fill: 'var(--fd-text-muted)', textAnchor: 'middle', letterSpacing: '1px' }}>AMOUNT (KSH)</text>
+
+                      <path
+                        d={`M ${padding},${height - padding} L ${pointsCollected} L ${width - padding},${height - padding} Z`}
+                        fill="url(#collectedGrad)"
+                      />
+
+                      <polyline
+                        fill="none"
+                        stroke="rgba(255, 255, 255, 0.2)"
+                        strokeWidth="2"
+                        strokeDasharray="5 5"
+                        points={pointsTarget}
+                      />
+
+                      <polyline
+                        fill="none"
+                        stroke="#6366f1"
+                        strokeWidth="3.5"
+                        points={pointsCollected}
+                      />
+
+                      {dynamicMonthly.map((d, i) => {
+                        const x = padding + (i * (width - padding * 2) / (dynamicMonthly.length - 1));
+                        const y = height - padding - ((d.collected / maxVal) * (height - padding * 2));
+                        return (
+                          <circle key={i} cx={x} cy={y} r="4.5" fill="#6366f1" stroke="#ffffff" strokeWidth="1.5">
+                            <title>{`Month: ${d.month}\nCollected: Ksh ${d.collected.toLocaleString()}\nTarget: Ksh ${d.target.toLocaleString()}`}</title>
+                          </circle>
+                        );
+                      })}
+                    </svg>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: `0 ${padding}px`, marginTop: '15px' }}>
+                      {dynamicMonthly.map((d, i) => (
+                        <span key={i} style={{ fontSize: '0.75rem', color: 'var(--fd-text-muted)', fontWeight: 600 }}>{d.month}</span>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    
+                    <div style={{ textAlign: 'center', fontSize: '0.65rem', color: 'var(--fd-text-muted)', letterSpacing: '1px', marginTop: '10px' }}>
+                      TIMELINE (MONTHS)
+                    </div>
+                  </div>
+                );
+              })()}
                 <div className="fd-chart-legend">
                   <div className="fd-legend-item"><span className="fd-legend-dot fd-dot-collected" />Collected</div>
                   <div className="fd-legend-item"><span className="fd-legend-dot fd-dot-target" />Target</div>
@@ -469,10 +816,12 @@ export default function FeeDashboard() {
                 <span className="fd-card-badge">💳</span>
               </div>
               <div className="fd-dist-body">
-                {paymentModes.map((m, i) => (
+                {getFilteredPaymentModes().map((m, i) => (
                   <div key={i} className="fd-dist-item" style={{ '--acc': m.accent }}>
                     <div className="fd-dist-top">
-                      <div className="fd-dist-icon">{i === 0 ? '📱' : '💵'}</div>
+                      <div className="fd-dist-icon">
+                        {m.mode === 'M-Pesa' ? '📱' : m.mode === 'Cash' ? '💵' : '🏦'}
+                      </div>
                       <div className="fd-dist-info">
                         <span className="fd-dist-mode">{m.mode}</span>
                         <span className="fd-dist-amount">Ksh {m.amount.toLocaleString()}</span>
@@ -486,7 +835,7 @@ export default function FeeDashboard() {
                 ))}
                 <div className="fd-dist-total">
                   <span>Total Collected</span>
-                  <strong>Ksh {(mpesaTotal + cashTotal).toLocaleString()}</strong>
+                  <strong>Ksh {getFilteredPaymentModes().reduce((sum, m) => sum + m.amount, 0).toLocaleString()}</strong>
                 </div>
               </div>
             </div>
@@ -509,7 +858,7 @@ export default function FeeDashboard() {
                   <tr>
                     <th>Grade</th><th>Streams</th><th>Students</th>
                     <th>Total Fee</th><th>Collected</th><th>Balance</th>
-                    <th>Progress</th><th>M-Pesa</th><th>Cash</th>
+                    <th>Progress</th><th>M-Pesa</th><th>Cash</th><th>Bank</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -531,6 +880,7 @@ export default function FeeDashboard() {
                         </td>
                         <td className="fd-num fd-indigo">Ksh {g.mpesa.toLocaleString()}</td>
                         <td className="fd-num fd-cyan">Ksh {g.cash.toLocaleString()}</td>
+                        <td className="fd-num fd-amber">Ksh {(g.bank_transfer || 0).toLocaleString()}</td>
                       </tr>
                     );
                   })}
@@ -541,7 +891,8 @@ export default function FeeDashboard() {
                     <td className="fd-bold fd-amber">Ksh {gradeData.reduce((s, g) => s + g.balance, 0).toLocaleString()}</td>
                     <td className="fd-bold">{((gradeData.reduce((s, g) => s + g.collected, 0) / gradeData.reduce((s, g) => s + g.totalFee, 0)) * 100).toFixed(1)}%</td>
                     <td className="fd-bold fd-indigo">Ksh {gradeData.reduce((s, g) => s + g.mpesa, 0).toLocaleString()}</td>
-                    <td className="fd-bold fd-cyan">Ksh {gradeData.reduce((s, g) => s + g.cash, 0).toLocaleString()}</td>
+                    <td className="fd-bold fd-cyan">Ksh {gradeData.reduce((s, g) => s + (g.cash || 0), 0).toLocaleString()}</td>
+                    <td className="fd-bold fd-amber">Ksh {gradeData.reduce((s, g) => s + (g.bank_transfer || 0), 0).toLocaleString()}</td>
                   </tr>
                 </tbody>
               </table>
@@ -564,8 +915,8 @@ export default function FeeDashboard() {
                 <div className="fd-payment-rows">
                   {[
                     ['Total Amount', `Ksh ${m.amount.toLocaleString()}`],
-                    ['Transactions', Math.floor(m.amount / 500)],
-                    ['Avg. Transaction', `Ksh ${Math.floor(m.amount / Math.max(Math.floor(m.amount / 500), 1))}`],
+                    ['Transactions', m.count],
+                    ['Avg. Transaction', `Ksh ${Math.floor(m.amount / Math.max(m.count, 1)).toLocaleString()}`],
                     ['Collection Rate', `${m.percentage}%`],
                   ].map(([label, val], j) => (
                     <div key={j} className="fd-detail-row">
@@ -620,9 +971,9 @@ export default function FeeDashboard() {
                           <tr><th>Date</th><th>Student</th><th>Amount</th><th>Transaction Code</th><th>Action</th></tr>
                         </thead>
                         <tbody>
-                          {feeRecords.filter(r => r.status === 'Pending' && r.mode_of_payment === 'M-Pesa').length === 0
+                          {feeRecords.filter(r => r.status === 'Pending' && (r.mode_of_payment === 'M-Pesa' || r.mode_of_payment === 'Bank Transfer')).length === 0
                             ? <tr><td colSpan="5" className="fd-empty-cell">No pending payments to confirm.</td></tr>
-                            : feeRecords.filter(r => r.status === 'Pending' && r.mode_of_payment === 'M-Pesa').map(r => (
+                            : feeRecords.filter(r => r.status === 'Pending' && (r.mode_of_payment === 'M-Pesa' || r.mode_of_payment === 'Bank Transfer')).map(r => (
                               <tr key={r.id} className="fd-tr">
                                 <td className="fd-mono">{r.date_of_payment}</td>
                                 <td>{r.student_name} <span className="fd-muted">({r.registration_no})</span></td>
@@ -676,7 +1027,9 @@ export default function FeeDashboard() {
                     <div className="fd-form-group">
                       <label className="fd-label">Payment Mode <span className="fd-req">*</span></label>
                       <select className="fd-input" value={paymentData.mode} onChange={e => setPaymentData({ ...paymentData, mode: e.target.value })}>
-                        <option value="mpesa">M-Pesa</option><option value="cash">Cash</option>
+                        <option value="mpesa">M-Pesa</option>
+                        <option value="cash">Cash</option>
+                        <option value="bank">Bank Transfer</option>
                       </select>
                     </div>
                     <div className="fd-form-group">
@@ -709,9 +1062,24 @@ export default function FeeDashboard() {
                       <span>🔍</span>
                       <input className="fd-input fd-search" type="text" placeholder="Search student..." value={recordFilters.search} onChange={e => setRecordFilters({ ...recordFilters, search: e.target.value })} />
                     </div>
+                    <select className="fd-input" value={recordFilters.grade} onChange={e => setRecordFilters({ ...recordFilters, grade: e.target.value, stream: '' })}>
+                      <option value="">All Grades</option>
+                      {grades.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                    <select className="fd-input" value={recordFilters.stream} onChange={e => setRecordFilters({ ...recordFilters, stream: e.target.value })} disabled={!recordFilters.grade}>
+                      <option value="">All Streams</option>
+                      {streams.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <select className="fd-input" value={recordFilters.term} onChange={e => setRecordFilters({ ...recordFilters, term: e.target.value })}>
+                      <option value="">All Terms</option>
+                      <option>Term 1</option><option>Term 2</option><option>Term 3</option>
+                    </select>
                     <input className="fd-input" type="date" value={recordFilters.date} onChange={e => setRecordFilters({ ...recordFilters, date: e.target.value })} />
                     <select className="fd-input" value={recordFilters.mode} onChange={e => setRecordFilters({ ...recordFilters, mode: e.target.value })}>
-                      <option value="all">All Modes</option><option value="MPesa">M-Pesa</option><option value="Cash">Cash</option>
+                      <option value="all">All Modes</option>
+                      <option value="MPesa">M-Pesa</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
                     </select>
                     <select className="fd-input" value={recordFilters.sort} onChange={e => setRecordFilters({ ...recordFilters, sort: e.target.value })}>
                       <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="amount_desc">Highest Amount</option>
@@ -741,6 +1109,66 @@ export default function FeeDashboard() {
                       </table>
                     </div>
                   )}
+
+                  {/* Total Paid & Fee Balance Summary */}
+                  <div className="fd-records-summary" style={{
+                      marginTop: '1.5rem',
+                      marginBottom: '1.5rem',
+                      padding: '1rem',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#ffffff'
+                  }}>
+                    <div>
+                      <span className="fd-muted" style={{ marginRight: '0.5rem', opacity: 0.7 }}>Total Paid (Filtered):</span>
+                      <strong style={{ color: '#10b981', fontSize: '1.1rem' }}>
+                        Ksh {getFilteredRecords().reduce((sum, r) => sum + Number(r.amount || 0), 0).toLocaleString()}
+                      </strong>
+                    </div>
+                    {(() => {
+                      const filtered = getFilteredRecords();
+                      const uniqueRegNos = [...new Set(filtered.map(r => r.registration_no))];
+                      
+                      let totalExpected = 0;
+                      let totalPaidForFiltered = 0;
+
+                      uniqueRegNos.forEach(regNo => {
+                        const studentObj = studentList.find(s => s.registration_no === regNo);
+                        if (studentObj) {
+                          const expected = settingsData[studentObj.grade] || 0;
+                          totalExpected += Number(expected);
+                        }
+                        
+                        const termFiltered = recordFilters.term || 'Term 1';
+                        const paid = feeRecords
+                          .filter(r => r.registration_no === regNo && r.term === termFiltered)
+                          .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+                        totalPaidForFiltered += paid;
+                      });
+
+                      const balance = totalExpected - totalPaidForFiltered;
+                      return (
+                        <div>
+                          {totalExpected > 0 && (
+                            <>
+                              <span className="fd-muted" style={{ marginRight: '0.5rem', opacity: 0.7 }}>Expected Fee:</span>
+                              <strong style={{ marginRight: '1.5rem' }}>Ksh {totalExpected.toLocaleString()}</strong>
+                            </>
+                          )}
+                          
+                          <span className="fd-muted" style={{ marginRight: '0.5rem', opacity: 0.7 }}>Fee Balance:</span>
+                          <strong style={{ color: balance <= 0 ? '#10b981' : '#f59e0b', fontSize: '1.1rem' }}>
+                            Ksh {balance.toLocaleString()}
+                          </strong>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
                   <div className="fd-report-section">
                     <span className="fd-report-label">Generate Report</span>
                     <div className="fd-report-row">
@@ -839,20 +1267,66 @@ export default function FeeDashboard() {
                   <button className="fd-modal-close" onClick={handleCloseModal}>✕</button>
                 </div>
                 <div className="fd-modal-body">
-                  <div className="fd-form-grid">
-                    {Object.keys(settingsData).length > 0
-                      ? Object.keys(settingsData).map(g => (
-                        <div key={g} className="fd-form-group">
-                          <label className="fd-label">{g} Fee</label>
-                          <input className="fd-input" type="number" value={settingsData[g]} onChange={e => setSettingsData({ ...settingsData, [g]: e.target.value })} />
-                        </div>
-                      ))
-                      : <div className="fd-form-group fd-span-2"><p className="fd-muted">No grades found. Configure streams first.</p></div>}
+                  <div className="fd-settings-grid">
+                    <section className="fd-settings-section">
+                      <h3 className="fd-section-title">Grade Expected Fees</h3>
+                      <div className="fd-form-grid">
+                        {Object.keys(settingsData).length > 0
+                          ? Object.keys(settingsData).map(g => (
+                            <div key={g} className="fd-form-group">
+                              <label className="fd-label">{g} Fee</label>
+                              <input className="fd-input" type="number" value={settingsData[g]} onChange={e => setSettingsData({ ...settingsData, [g]: e.target.value })} />
+                            </div>
+                          ))
+                          : <div className="fd-form-group fd-span-2"><p className="fd-muted">No grades found. Configure streams first.</p></div>}
+                      </div>
+                    </section>
+
+                    <div className="fd-divider" />
+
+                    <section className="fd-settings-section">
+                      <div className="fd-section-header">
+                        <h3 className="fd-section-title">Fee Activity Breakdown</h3>
+                        <select 
+                          className="fd-input fd-grade-select" 
+                          value={selectedGradeForActivities} 
+                          onChange={(e) => {
+                            setSelectedGradeForActivities(e.target.value);
+                            fetchActivities(e.target.value);
+                          }}
+                        >
+                          {grades.map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                      </div>
+                      
+                      <div className="fd-activities-list">
+                        {activitiesData.map((act, idx) => (
+                          <div key={idx} className="fd-activity-row">
+                            <input 
+                              className="fd-input" 
+                              placeholder="Activity Name (e.g. Tuition)" 
+                              value={act.activity_name} 
+                              onChange={(e) => handleActivityChange(idx, 'activity_name', e.target.value)}
+                            />
+                            <input 
+                              className="fd-input" 
+                              type="number" 
+                              placeholder="Amount" 
+                              value={act.amount} 
+                              onChange={(e) => handleActivityChange(idx, 'amount', e.target.value)}
+                            />
+                            <button className="fd-btn-remove" onClick={() => handleRemoveActivity(idx)}>✕</button>
+                          </div>
+                        ))}
+                        <button className="fd-btn-add" onClick={handleAddActivity}>+ Add Activity</button>
+                      </div>
+                      <p className="fd-hint">Define how the total fee for {selectedGradeForActivities} is distributed across activities for the receipt breakdown.</p>
+                    </section>
                   </div>
                 </div>
                 <div className="fd-modal-footer">
                   <button className="fd-btn-cancel" onClick={handleCloseModal}>Cancel</button>
-                  <button className="fd-btn-save" onClick={handleSettingsSubmit}>Save Settings</button>
+                  <button className="fd-btn-save" onClick={handleSettingsSubmit}>Save All Settings</button>
                 </div>
               </>
             )}

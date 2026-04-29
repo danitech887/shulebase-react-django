@@ -1,0 +1,535 @@
+/* ═══════════════════════════════════════════════════════
+   TeachingProgress.css  (Admin variant)
+   Aesthetic: Slate-green command center · Cabinet Grotesk
+   ═══════════════════════════════════════════════════════ */
+/* @import '../theme.css'; */
+@import '../../Portals/Teacher/theme.css';
+@import url('https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Azeret+Mono:wght@400;500&display=swap');
+
+/* ── Design tokens ─────────────────────────────────── */
+:root {
+  --am-ink:         #090d14;
+  --am-surface:     #0d1219;
+  --am-s2:          #121922;
+  --am-s3:          #18212e;
+  --am-s4:          #1e2a3a;
+  --am-s5:          #243145;
+
+  --am-green:       #22c55e;
+  --am-green-dim:   #16a34a;
+  --am-green-soft:  rgba(34,197,94,0.10);
+  --am-green-glow:  rgba(34,197,94,0.20);
+
+  --am-sky:         #38bdf8;
+  --am-sky-soft:    rgba(56,189,248,0.10);
+
+  --am-amber:       #fbbf24;
+  --am-amber-soft:  rgba(251,191,36,0.10);
+
+  --am-rose:        #f43f5e;
+  --am-rose-soft:   rgba(244,63,94,0.10);
+
+  --am-slate:       #64748b;
+
+  --am-text:        #e2eaf7;
+  --am-text-2:      #8fa3bd;
+  --am-text-3:      #4e6280;
+
+  --am-border:      rgba(255,255,255,0.06);
+  --am-border-2:    rgba(255,255,255,0.10);
+  --am-border-3:    rgba(255,255,255,0.16);
+
+  --am-radius:      15px;
+  --am-radius-sm:   9px;
+  --am-radius-xs:   5px;
+
+  --am-ease:        cubic-bezier(0.4,0,0.2,1);
+  --am-shadow:      0 2px 16px rgba(0,0,0,0.45);
+  --am-shadow-lg:   0 8px 40px rgba(0,0,0,0.6);
+}
+
+/* ── Page shell ────────────────────────────────────── */
+.t-page.tp-admin-page {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  color: var(--am-text);
+  min-height: 100vh;
+  padding: 2rem 0;
+}
+
+/* ════════════════════════════════════════════════════
+   ADMIN HEADER
+   ════════════════════════════════════════════════════ */
+.tp-admin-header {
+  background: var(--am-surface);
+  border: 1px solid var(--am-border-2);
+  border-radius: var(--am-radius);
+  padding: 1.6rem 2rem;
+  box-shadow: var(--am-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Green left bar */
+.tp-admin-header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--am-green), var(--am-green-dim));
+}
+
+/* Grid texture on right */
+.tp-admin-header::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 260px; height: 100%;
+  background-image:
+    linear-gradient(var(--am-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--am-border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.tp-admin-title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  color: var(--am-text);
+  margin: 0;
+  -webkit-text-fill-color: initial;
+  background: none;
+}
+
+.tp-admin-title .tp-title-accent {
+  color: var(--am-green);
+}
+
+.tp-admin-subtitle {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 0.78rem;
+  color: var(--am-text-3);
+  margin: 0.3rem 0 0;
+  font-weight: 400;
+}
+
+/* ── Search & term select ──────────────────────────── */
+.tp-admin-search {
+  font-family: 'Cabinet Grotesk', sans-serif !important;
+  background: var(--am-s3) !important;
+  border: 1px solid var(--am-border-2) !important;
+  color: var(--am-text) !important;
+  border-radius: var(--am-radius-sm) !important;
+  padding: 0.45rem 0.85rem !important;
+  font-size: 0.83rem !important;
+  font-weight: 500 !important;
+  max-width: 240px;
+  transition: max-width 0.3s var(--am-ease), border-color 0.18s, box-shadow 0.18s !important;
+}
+
+.tp-admin-search::placeholder { color: var(--am-text-3) !important; }
+
+.tp-admin-search:focus {
+  max-width: 320px;
+  background: var(--am-s3) !important;
+  border-color: var(--am-green) !important;
+  box-shadow: 0 0 0 3px var(--am-green-soft) !important;
+  color: var(--am-text) !important;
+  outline: none !important;
+}
+
+.tp-admin-term-select {
+  font-family: 'Cabinet Grotesk', sans-serif !important;
+  background: var(--am-s3) !important;
+  border: 1px solid var(--am-border-2) !important;
+  color: var(--am-text) !important;
+  border-radius: var(--am-radius-sm) !important;
+  padding: 0.45rem 0.85rem !important;
+  font-size: 0.83rem !important;
+  font-weight: 600 !important;
+  min-width: 135px;
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s !important;
+}
+.tp-admin-term-select:focus {
+  border-color: var(--am-green) !important;
+  box-shadow: 0 0 0 3px var(--am-green-soft) !important;
+  outline: none !important;
+}
+.tp-admin-term-select option { background: var(--am-s2); }
+
+/* ════════════════════════════════════════════════════
+   TEACHER CARDS
+   ════════════════════════════════════════════════════ */
+.tp-teacher-card {
+  background: var(--am-surface);
+  border: 1px solid var(--am-border-2);
+  border-radius: var(--am-radius);
+  overflow: hidden;
+  transition: border-color 0.2s var(--am-ease), transform 0.2s var(--am-ease), box-shadow 0.2s var(--am-ease);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: am-card-in 0.38s var(--am-ease) backwards;
+}
+
+@keyframes am-card-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tp-teacher-card:hover {
+  border-color: rgba(34,197,94,0.28);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(34,197,94,0.07);
+}
+
+/* Card top strip */
+.tp-teacher-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--am-s2);
+  border-bottom: 1px solid var(--am-border);
+  flex-shrink: 0;
+}
+
+/* Avatar */
+.tp-teacher-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 900;
+  font-size: 1.2rem;
+  color: #fff;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Each avatar gets a unique gradient via nth-child on parent */
+.tp-teacher-card:nth-child(6n+1) .tp-teacher-avatar { background: linear-gradient(135deg,#16a34a,#22c55e); }
+.tp-teacher-card:nth-child(6n+2) .tp-teacher-avatar { background: linear-gradient(135deg,#0e7490,#38bdf8); }
+.tp-teacher-card:nth-child(6n+3) .tp-teacher-avatar { background: linear-gradient(135deg,#b45309,#fbbf24); }
+.tp-teacher-card:nth-child(6n+4) .tp-teacher-avatar { background: linear-gradient(135deg,#7c3aed,#a78bfa); }
+.tp-teacher-card:nth-child(6n+5) .tp-teacher-avatar { background: linear-gradient(135deg,#be185d,#fb7185); }
+.tp-teacher-card:nth-child(6n+0) .tp-teacher-avatar { background: linear-gradient(135deg,#0369a1,#7dd3fc); }
+
+.tp-teacher-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.tp-teacher-details h4 {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--am-text);
+  margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tp-teacher-name { /* alias */ }
+
+.tp-reg-no {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.67rem;
+  color: #94a3b8;
+  display: block;
+  margin-top: 1px;
+}
+
+/* Subject badge */
+.tp-badge-subjects {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.22rem 0.65rem !important;
+  background: rgba(34,197,94,0.15) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(74,222,128,0.3) !important;
+  border-radius: 100px !important;
+  font-family: 'Cabinet Grotesk', sans-serif !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  white-space: nowrap;
+  margin-top: 6px;
+}
+
+/* ── Subject list ───────────────────────────────── */
+.tp-subject-list {
+  padding: 0.65rem 0;
+  flex: 1;
+}
+
+.tp-subject-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 1.25rem;
+  transition: background 0.15s var(--am-ease);
+  border-bottom: 1px solid var(--am-border);
+}
+
+.tp-subject-row:last-child { border-bottom: none; }
+.tp-subject-row:hover { background: rgba(255,255,255,0.015); }
+
+.tp-sub-meta {
+  display: flex;
+  flex-direction: column;
+  width: 130px;
+  flex-shrink: 0;
+}
+
+.tp-sub-meta strong {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--am-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tp-sub-meta small {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--am-text-3);
+  margin-top: 1px;
+}
+
+.tp-sub-progress {
+  flex: 1;
+}
+
+.tp-sub-progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.tp-sub-topics {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.67rem;
+  color: var(--am-text-3);
+}
+
+.tp-sub-percent {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+/* Progress bar */
+.tp-progress-wrap {
+  height: 5px;
+  background: var(--am-s4);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.tp-progress-bar {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 1s cubic-bezier(0.4,0,0.2,1);
+}
+
+.tp-bar-high   { background: var(--am-green);                               }
+.tp-bar-mid    { background: linear-gradient(90deg,#0d9488,var(--am-sky));  }
+.tp-bar-low    { background: var(--am-amber);                               }
+.tp-bar-danger { background: var(--am-rose);                               }
+
+/* No-subjects fallback */
+.tp-no-subjects {
+  font-size: 0.78rem;
+  color: var(--am-text-3);
+  text-align: center;
+  padding: 1.5rem;
+}
+
+/* ════════════════════════════════════════════════════
+   EMPTY STATE
+   ════════════════════════════════════════════════════ */
+.tp-empty-monitor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 1rem;
+  text-align: center;
+  color: var(--am-text-3);
+}
+
+.tp-empty-monitor .tp-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.25;
+  display: block;
+}
+
+.tp-empty-monitor h3 {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--am-text-2);
+  margin-bottom: 0.35rem;
+}
+
+.tp-empty-monitor p {
+  font-size: 0.82rem;
+  max-width: 320px;
+}
+
+/* ════════════════════════════════════════════════════
+   LOADER
+   ════════════════════════════════════════════════════ */
+.tp-loader-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tp-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--am-border-2);
+  border-top-color: var(--am-green);
+  border-radius: 50%;
+  animation: am-spin 0.7s linear infinite;
+}
+
+@keyframes am-spin { to { transform: rotate(360deg); } }
+
+/* ── Summary bar ────────────────────────────────── */
+.tp-summary-bar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tp-summary-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.3rem 0.8rem;
+  background: var(--am-s3);
+  border: 1px solid var(--am-border-2);
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--am-text-2);
+}
+
+.tp-summary-chip .chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* stagger card animations */
+.tp-teacher-card:nth-child(1)  { animation-delay: 0.04s; }
+.tp-teacher-card:nth-child(2)  { animation-delay: 0.08s; }
+.tp-teacher-card:nth-child(3)  { animation-delay: 0.12s; }
+.tp-teacher-card:nth-child(4)  { animation-delay: 0.16s; }
+.tp-teacher-card:nth-child(5)  { animation-delay: 0.20s; }
+.tp-teacher-card:nth-child(n+6){ animation-delay: 0.24s; }
+
+/* ── Responsive ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .tp-admin-header { padding: 1.1rem 1.25rem; }
+  .tp-admin-title { font-size: 1.25rem; }
+  .tp-admin-search { max-width: 100%; }
+  .tp-subject-row { flex-wrap: wrap; gap: 0.5rem; }
+  .tp-sub-meta { width: 100%; }
+  .tp-sub-progress { width: 100%; }
+}
+
+/* ── Inspect Button ──────────────────────────────── */
+.tp-sub-action {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.tp-inspect-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--am-radius-sm);
+  background: var(--am-s4);
+  border: 1px solid var(--am-border-3);
+  color: var(--am-text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s var(--am-ease);
+}
+
+.tp-inspect-btn:hover {
+  background: var(--am-green-soft);
+  border-color: var(--am-green);
+  color: var(--am-green);
+  transform: scale(1.08);
+}
+
+/* ── Curriculum Tracker Modal ────────────────────── */
+.tp-tracker-modal .modal-content {
+  background: #111827;
+  border: 1px solid var(--am-border-3);
+  color: #f3f4f6;
+  border-radius: var(--am-radius);
+  box-shadow: var(--am-shadow-lg);
+}
+
+.tp-tracker-modal .modal-header {
+  border-bottom: 1px solid var(--am-border-2) !important;
+  background: rgba(255,255,255,0.02);
+}
+
+.tp-tracker-modal .btn-close {
+  filter: invert(1) grayscale(1) brightness(2);
+  opacity: 0.8;
+}
+
+.text-teal { color: #2dd4bf !important; }
+
+.tp-curriculum-checklist.admin-view .tp-status-indicator.done {
+  background: var(--am-green-soft);
+  color: var(--am-green);
+  border-color: var(--am-green);
+}
+
+.tp-curriculum-checklist.admin-view .tp-status-indicator.pending {
+  background: var(--am-s3);
+  color: var(--am-text-3);
+  border-color: var(--am-border-2);
+}
+
+.tp-curriculum-checklist.admin-view .tp-status-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+.tp-curriculum-checklist.admin-view .text-muted {
+  color: #9ca3af !important; /* Lighter gray for visibility */
+}

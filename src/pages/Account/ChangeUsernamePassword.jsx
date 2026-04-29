@@ -1,20 +1,11 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
-// import apiClient from '../../services/apiClient'; // Assuming you have an axios instance configured
-import axios from 'axios'; // Using axios directly for this example
+import students from '../../api/api'; 
 
 import '../Account/ChangeUsernamePassword.css'
 
 const ChangeUsernamePassword = () => {
-    const { user, setUser, tokens } = useContext(AuthContext);
-
-    // Create an axios instance with Authorization header
-    const apiClient = axios.create({
-        baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000', // Your backend URL
-        headers: {
-            Authorization: `Bearer ${tokens?.access}`
-        }
-    });
+    const { user, setUser } = useContext(AuthContext);
 
     // State for password change
     const [oldPassword, setOldPassword] = useState('');
@@ -41,7 +32,7 @@ const ChangeUsernamePassword = () => {
         }
 
         try {
-            const response = await apiClient.post('/students/auth/change-password/', {
+            const response = await students.post('auth/change-password/', {
                 old_password: oldPassword,
                 new_password: newPassword,
                 confirm_password: confirmPassword,
@@ -64,7 +55,7 @@ const ChangeUsernamePassword = () => {
         setUsernameMessage({ text: '', type: '' });
 
         try {
-            const response = await apiClient.post('/students/auth/change-username/', {
+            const response = await students.post('auth/change-username/', {
                 new_username: newUsername,
                 password: currentPassword,
             });

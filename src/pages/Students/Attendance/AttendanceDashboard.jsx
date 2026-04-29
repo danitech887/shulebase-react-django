@@ -275,6 +275,50 @@ export default function AttendanceDashboard() {
         </div>
       </header>
 
+      {/* ── GLOBAL FILTERS ── */}
+      <div className="att-global-filters" style={{
+        display: 'flex',
+        gap: '1.5rem',
+        alignItems: 'center',
+        marginBottom: '1.5rem',
+        background: 'var(--att-surface, #131720)',
+        padding: '1rem 1.5rem',
+        borderRadius: 'var(--att-radius, 16px)',
+        border: '1px solid var(--att-border, rgba(255,255,255,0.07))',
+        position: 'relative',
+        zIndex: 5,
+        flexWrap: 'wrap'
+      }}>
+        <span className="att-label" style={{ margin: 0, fontSize: '0.8rem', color: 'var(--att-text, #e8eaf0)' }}>Global Filters:</span>
+        
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span className="att-muted" style={{ fontSize: '0.8rem' }}>Grade:</span>
+          <select 
+            className="att-input" 
+            style={{ width: 'auto', minWidth: '130px', padding: '0.4rem 0.75rem' }} 
+            value={filters.grade} 
+            onChange={e => setFilters({ ...filters, grade: e.target.value, stream: '' })}
+          >
+            <option value="">All Grades</option>
+            {grades.map((g, i) => <option key={i} value={g}>{g}</option>)}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span className="att-muted" style={{ fontSize: '0.8rem' }}>Stream:</span>
+          <select 
+            className="att-input" 
+            style={{ width: 'auto', minWidth: '130px', padding: '0.4rem 0.75rem' }} 
+            value={filters.stream} 
+            onChange={e => setFilters({ ...filters, stream: e.target.value })}
+            disabled={!filters.grade}
+          >
+            <option value="">All Streams</option>
+            {streams.map((s, i) => <option key={i} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+
       {/* ── STATS ── */}
       <div className="att-stats-grid">
         {loading
@@ -307,27 +351,78 @@ export default function AttendanceDashboard() {
       {/* ── OVERVIEW ── */}
       {activeTab === 'overview' && (
         <div className="att-overview-grid">
-          {/* Bar chart */}
+          {/* Line chart */}
           <div className="att-card">
             <div className="att-card-header">
               <div><span className="att-card-title">Monthly Attendance Trend</span><span className="att-card-sub">Attendance rate %</span></div>
               <span className="att-card-badge">📈</span>
             </div>
-            <div className="att-chart-area">
-              <div className="att-bars">
-                {monthlyAttendanceData.map((d, i) => {
-                  const raw = Number(d?.rate);
-                  const h = Number.isFinite(raw) ? Math.max(4, Math.min(100, (raw / maxRate) * 100)) : 4;
-                  return (
-                    <div key={i} className="att-bar-group" style={{ '--bi': i }}>
-                      <div className="att-bar-track">
-                        <div className="att-bar" style={{ height: `${h}%`, '--delay': `${i * 0.08}s` }} title={`${d?.rate ?? '-'}%`} />
-                      </div>
-                      <span className="att-bar-label">{d.month}</span>
+            <div className="att-chart-area" style={{ padding: '2rem 1.5rem 1rem' }}>
+              {(() => {
+                const width = 600;
+                const height = 200;
+                const padding = 40;
+                
+                const pointsRate = monthlyAttendanceData.map((d, i) => {
+                  const x = padding + (i * (width - padding * 2) / (monthlyAttendanceData.length - 1));
+                  const y = height - padding - (((Number(d?.rate) || 0) / 100) * (height - padding * 2));
+                  return `${x},${y}`;
+                }).join(' ');
+
+                return (
+                  <div style={{ position: 'relative', height: '220px', marginBottom: '1rem' }}>
+                    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+                      <defs>
+                        <linearGradient id="attGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#0891b2" stopOpacity="0.35" />
+                          <stop offset="100%" stopColor="#0891b2" stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+
+                      {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
+                        const y = padding + pct * (height - padding * 2);
+                        return (
+                          <line key={idx} x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
+                        );
+                      })}
+
+                      <text x={12} y={height / 2} transform={`rotate(-90, 12, ${height / 2})`} style={{ fontSize: '0.65rem', fill: 'var(--att-text-muted, rgba(255,255,255,0.4))', textAnchor: 'middle', letterSpacing: '1px' }}>RATE (%)</text>
+
+                      <path
+                        d={`M ${padding},${height - padding} L ${pointsRate} L ${width - padding},${height - padding} Z`}
+                        fill="url(#attGrad)"
+                      />
+
+                      <polyline
+                        fill="none"
+                        stroke="#0891b2"
+                        strokeWidth="3.5"
+                        points={pointsRate}
+                      />
+
+                      {monthlyAttendanceData.map((d, i) => {
+                        const x = padding + (i * (width - padding * 2) / (monthlyAttendanceData.length - 1));
+                        const y = height - padding - (((Number(d?.rate) || 0) / 100) * (height - padding * 2));
+                        return (
+                          <circle key={i} cx={x} cy={y} r="4.5" fill="#0891b2" stroke="#ffffff" strokeWidth="1.5">
+                            <title>{`Month: ${d.month}\nAttendance Rate: ${d.rate}%`}</title>
+                          </circle>
+                        );
+                      })}
+                    </svg>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: `0 ${padding}px`, marginTop: '15px' }}>
+                      {monthlyAttendanceData.map((d, i) => (
+                        <span key={i} style={{ fontSize: '0.75rem', color: 'var(--att-text-muted)', fontWeight: 600 }}>{d.month}</span>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
+                    
+                    <div style={{ textAlign: 'center', fontSize: '0.65rem', color: 'var(--att-text-muted)', letterSpacing: '1px', marginTop: '10px' }}>
+                      TIMELINE (MONTHS)
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="att-legend">
                 <div className="att-legend-item"><span className="att-legend-dot" />Attendance Rate %</div>
               </div>

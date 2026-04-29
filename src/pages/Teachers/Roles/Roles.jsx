@@ -175,7 +175,6 @@ export default function TeacherRoles() {
     setFormData(prev => {
       const next = { ...prev, [name]: value };
       if (name === 'grade') { next.subjects = []; next.stream = ''; }
-      if (name === 'type_of_teacher' && value === 'Class Teacher') next.subjects = [];
       return next;
     });
     // When a teacher is selected, clear the search to collapse the listbox
@@ -185,6 +184,19 @@ export default function TeacherRoles() {
   };
 
   const handleSave = async () => {
+    // Validation: A teacher can only be a 'Class Teacher' for one class at a time
+    if (formData.type_of_teacher === 'Class Teacher') {
+      const isAlreadyClassTeacher = roles.some(r => 
+        r.registration_no === formData.registration_no && 
+        r.type_of_teacher === 'Class Teacher' && 
+        r.id !== selectedRole?.id
+      );
+      if (isAlreadyClassTeacher) {
+        showMessage({ type: 'error', text: 'This teacher is already assigned as a Class Teacher to another class.' });
+        return;
+      }
+    }
+
     try {
       const payload = { ...formData, subject: formData.subjects.join(', ') };
       if (modalMode === 'add') {
@@ -230,7 +242,8 @@ export default function TeacherRoles() {
   const isSubjectAssigned = (grade, stream, subject) => {
     if (!stream) return false;
     return roles.some(r =>
-      r.type_of_teacher === 'Subject Teacher' && r.grade === grade && r.stream === stream &&
+      (r.type_of_teacher === 'Subject Teacher' || r.type_of_teacher === 'Class Teacher') && 
+      r.grade === grade && r.stream === stream &&
       r.subject && r.subject.split(',').map(s => s.trim()).includes(subject) && r.id !== selectedRole?.id
     );
   };
@@ -442,8 +455,8 @@ export default function TeacherRoles() {
                 </select>
               </div>
 
-              {/* Subjects (Subject Teacher only) */}
-              {formData.type_of_teacher === 'Subject Teacher' || formData.type_of_teacher == 'Class Teacher' && formData.grade && (
+              {/* Subjects (Always show if grade selected) */}
+              {formData.grade && (
                 <div className="tr-form-group tr-span-2">
                   <label className="tr-label">Subjects for {formData.grade}</label>
                   <div className="tr-subjects-grid">
@@ -526,76 +539,97 @@ export default function TeacherRoles() {
               </div>
               <button className="tr-modal-close" onClick={() => setShowConfigModal(false)}>✕</button>
             </div>
-            <div className="tr-modal-body">
-              <div className="tr-form-section"> {/* Grouping form inputs for consistency */}
-                <div className="tr-form-group">
-                  <label className="tr-label">Name</label>
-                  <input
-                    className="tr-input"
-                    name="name" 
-                    type="text"
-                    value={learningAreaData.name}
-                    onChange={handleConfigInput}
-                  />
+            
+            <div className="tr-modal-body tr-config-modal-body">
+              <div className="tr-form-section tr-span-2">
+                <div className="tr-config-form-grid">
+                  <div className="tr-form-group tr-span-2">
+                    <label className="tr-label">Name</label>
+                    <input
+                      className="tr-input"
+                      name="name" 
+                      type="text"
+                      value={learningAreaData.name}
+                      onChange={handleConfigInput}
+                      placeholder="e.g. Environmental Activities"
+                    />
+                  </div>
+                  <div className="tr-form-group">
+                    <label className="tr-label">Grade Level</label>
+                    <select className="tr-input" name="grade_level" value={learningAreaData.grade_level} onChange={handleConfigInput}>
+                      <option value="Lower Primary">Lower Primary</option>
+                      <option value="Upper Primary">Upper Primary</option>
+                      <option value="Junior Secondary">Junior Secondary</option>
+                    </select>
+                  </div>
+                  <div className="tr-form-group">
+                    <label className="tr-label">Category</label>
+                    <select className="tr-input" name="category" value={learningAreaData.category} onChange={handleConfigInput}>
+                      <option value="Languages">Languages</option>
+                      <option value="STEM">STEM</option>
+                      <option value="Humanities">Humanities</option>
+                      <option value="Creative Arts">Creative Arts</option>
+                      <option value="Life Skills">Life Skills</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="tr-form-group">
-                  <label className="tr-label">Grade Level</label>
-                  <select className="tr-input" name="grade_level" value={learningAreaData.grade_level} onChange={handleConfigInput}>
-                    <option value="Lower Primary">Lower Primary</option>
-                    <option value="Upper Primary">Upper Primary</option>
-                    <option value="Junior Secondary">Junior Secondary</option>
-                  </select>
-                </div>
-                <div className="tr-form-group">
-                  <label className="tr-label">Category</label>
-                  <select className="tr-input" name="category" value={learningAreaData.category} onChange={handleConfigInput}>
-                    <option value="Languages">Languages</option>
-                    <option value="STEM">STEM</option>
-                    <option value="Humanities">Humanities</option>
-                    <option value="Creative Arts">Creative Arts</option>
-                    <option value="Life Skills">Life Skills</option>
-                  </select>
+
+                <div className="tr-config-actions mt-3">
+                  <button className="tr-btn-save w-100" onClick={handleConfigSave}>
+                    {editingLA ? 'Update Learning Area' : 'Add Learning Area'}
+                  </button>
+                  {editingLA && (
+                    <button className="tr-btn-cancel w-100 mt-2" onClick={() => { setEditingLA(null); setLearningAreaData({ name: '', grade_level: 'Lower Primary', category: 'Languages' }); }}>
+                      Cancel Edit
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Learning area list - moved inside tr-modal-body for better alignment */}
-              <div className="tr-la-list tr-form-section"> {/* Added tr-form-section for consistent spacing */}
-                <h3>Existing Learning Areas</h3>
+              <div className="tr-la-list tr-span-2">
+                <div className="tr-la-list-header">
+                  <h3>Existing Learning Areas</h3>
+                  <span className="tr-count">{learningAreas.length}</span>
+                </div>
+                
                 {learningAreas.length === 0 ? (
-                  <p className="tr-muted">No learning areas configured yet.</p>
+                  <div className="tr-empty-state">
+                    <p className="tr-muted">No learning areas configured yet.</p>
+                  </div>
                 ) : (
-                  <table className="tr-la-table">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Grade Level</th>
-                        <th>Category</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {learningAreas.map(la => (
-                        <tr key={la.id}>
-                          <td>{la.name}</td>
-                          <td>{la.grade_level}</td>
-                          <td>{la.category}</td>
-                          <td>
-                            <button className="tr-btn-edit" onClick={() => handleEditLA(la)} title="Edit">✏️</button>
-                            <button className="tr-btn-delete" onClick={() => handleDeleteLA(la.id)} title="Delete">🗑️</button>
-                          </td>
+                  <div className="tr-la-table-wrapper">
+                    <table className="tr-la-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Grade Level</th>
+                          <th>Category</th>
+                          <th className="text-end">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {learningAreas.map(la => (
+                          <tr key={la.id}>
+                            <td className="fw-bold">{la.name}</td>
+                            <td><span className="tr-grade-chip">{la.grade_level}</span></td>
+                            <td><span className="tr-role-chip" style={{ fontSize: '0.65rem' }}>{la.category}</span></td>
+                            <td>
+                              <div className="tr-actions justify-content-end">
+                                <button className="tr-btn-edit" onClick={() => handleEditLA(la)} title="Edit">✏️</button>
+                                <button className="tr-btn-delete" onClick={() => handleDeleteLA(la.id)} title="Delete">🗑️</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-
             </div>
+
             <div className="tr-modal-footer">
-              <button className="tr-btn-cancel" onClick={() => setShowConfigModal(false)}>Cancel</button>
-              <button className="tr-btn-save" onClick={handleConfigSave}>
-                {editingLA ? 'Update Learning Area' : 'Add Learning Area'}
-              </button>
+              <button className="tr-btn-cancel" onClick={() => setShowConfigModal(false)}>Close</button>
             </div>
           </div>
         </div>

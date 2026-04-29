@@ -61,7 +61,7 @@ export default function StudentPortalLeave() {
       <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
         <div>
           <h2 className="sp-title">Leave Management</h2>
-          <p className="sp-subtitle">Apply for leave and track your applications</p>
+          <p className="sp-subtitle">Track your leave applications and history</p>
         </div>
         <div className="d-flex gap-2 align-items-end flex-wrap">
           <div>
@@ -70,52 +70,8 @@ export default function StudentPortalLeave() {
               {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
-          <button className="sp-btn-primary" onClick={() => setShowForm(f => !f)}>
-            {showForm ? '✕ Close' : '+ Apply for Leave'}
-          </button>
         </div>
       </div>
-
-      {/* Apply form */}
-      {showForm && (
-        <div className="leave-form-card">
-          <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--sp-text-muted)', marginBottom: '1rem' }}>
-            New Leave Application
-          </p>
-          <form onSubmit={handleSubmit}>
-            <div className="d-flex flex-wrap gap-3">
-              <div style={{ flex: '1 1 200px' }}>
-                <label className="sp-label">Date of Leave</label>
-                <input
-                  className="sp-input"
-                  type="date"
-                  value={form.date_of_leave}
-                  onChange={e => setForm({ ...form, date_of_leave: e.target.value })}
-                  required
-                />
-              </div>
-              <div style={{ flex: '2 1 300px' }}>
-                <label className="sp-label">Reason</label>
-                <textarea
-                  className="sp-input"
-                  rows={2}
-                  placeholder="Briefly describe the reason for leave…"
-                  value={form.reason}
-                  onChange={e => setForm({ ...form, reason: e.target.value })}
-                  required
-                  style={{ resize: 'vertical' }}
-                />
-              </div>
-            </div>
-            <div className="d-flex gap-2 mt-3">
-              <button type="submit" className="sp-btn-primary" disabled={saving}>
-                {saving ? <Spinner size="sm" animation="border" /> : 'Submit Application'}
-              </button>
-              <button type="button" className="sp-btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* Stat cards */}
       <div className="d-flex flex-wrap gap-3 mb-4">

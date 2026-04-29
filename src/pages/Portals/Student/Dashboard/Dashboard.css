@@ -33,3 +33,24 @@
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
 }
+
+.sp-header-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid var(--sp-accent);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+}
+
+.sp-header-avatar-placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: var(--sp-surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  border: 1px dashed var(--sp-border);
+}

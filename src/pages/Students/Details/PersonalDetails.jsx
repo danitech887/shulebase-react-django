@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Card, Badge, Row, Col, Spinner } from 'react-bootstrap';
+import { Table, Button, Modal, Form, Card, Badge, Row, Col, Spinner, Stack } from 'react-bootstrap';
 import './PersonalDetails.css';
 import api from '../../../api/api';
 import { useMessage } from '../../../context/MessageContext';
 import { useGradesAndStreams } from '../../../hooks/useGradesAndStreams';
 
+import { useNavigate } from 'react-router-dom';
+
 export default function PersonalDetails() {
+  const navigate = useNavigate();
   const [studentList, setStudentList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('add');
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { showMessage } = useMessage();
@@ -44,8 +48,9 @@ export default function PersonalDetails() {
   const [newGsStream, setNewGsStream] = useState('');
 
   const [formData, setFormData] = useState({
-    registration_no: '', first_name: '', second_name: '', surname: '',
-    gender: '', phone: '', address: '', grade: '', stream: '', date_of_birth: '',
+    registration_no: '', assessment_number: '', first_name: '', second_name: '', surname: '',
+    gender: '', phone: '', email: '', address: '', grade: '', stream: '', date_of_birth: '',
+    parent_name: '', class_teacher: '',
   });
 
   const [filterStream, setFilterStream] = useState('all');
@@ -124,9 +129,14 @@ export default function PersonalDetails() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files[0]);
+  };
+
   const handleAddStudent = () => {
     setModalMode('add');
-    setFormData({ registration_no: '', first_name: '', second_name: '', surname: '', gender: '', phone: '', address: '', grade: '', stream: '', date_of_birth: '' });
+    setFormData({ registration_no: '', assessment_number: '', first_name: '', second_name: '', surname: '', gender: '', phone: '', email: '', address: '', grade: '', stream: '', date_of_birth: '', parent_name: '', class_teacher: '' });
+    setSelectedFile(null);
     setShowModal(true);
     fetchNextRegNo(); // Generate next reg no when adding a new student
   };
@@ -137,26 +147,44 @@ export default function PersonalDetails() {
     setFormData({
       first_name: student.first_name, second_name: student.second_name || '',
       registration_no: student.registration_no, // Keep existing reg_no for edit
-      surname: student.surname, gender: student.gender, phone: student.phone,
+      assessment_number: student.assessment_number || '',
+      surname: student.surname, gender: student.gender, phone: student.phone, email: student.email || '',
       address: student.address || '', grade: student.grade, stream: student.stream,
       date_of_birth: student.date_of_birth || '',
+      parent_name: student.parent_name || '',
+      class_teacher: student.class_teacher || '',
+      profile_image: student.profile_image || null,
     });
+    setSelectedFile(null);
     setShowModal(true);
   };
 
   const handleSaveStudent = async () => {
-    const required = ['first_name','second_name','surname','gender','date_of_birth','grade','stream','phone','address'];
+    const required = ['first_name','second_name','surname','gender','date_of_birth','grade','stream','phone','email','address','parent_name'];
     const missing = required.filter(f => !formData[f]);
     if (missing.length > 0) { alert(`Please fill in: ${missing.join(', ')}`); return; }
+
+    const data = new FormData();
+    Object.keys(formData).forEach(key => {
+      if (key === 'profile_image') return; // Skip existing URL
+      if (formData[key] !== null && formData[key] !== undefined) {
+        data.append(key, formData[key]);
+      }
+    });
+    if (selectedFile) {
+      data.append('profile_image', selectedFile);
+    }
+
     try {
       if (modalMode === 'add') {
-        await api.post('students/', formData);
+        await api.post('students/', data, { headers: { 'Content-Type': 'multipart/form-data' } });
         showMessage({ type: 'success', text: 'Student added successfully!' });
       } else {
-        await api.put(`students/${selectedStudent.registration_no}/`, formData);
+        await api.patch(`students/${selectedStudent.registration_no}/`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
         showMessage({ type: 'success', text: 'Student updated successfully!' });
       }
       setShowModal(false);
+      setSelectedFile(null);
       fetchStudents();
     } catch (err) {
       showMessage({ type: 'error', text: 'Failed to save student: ' + (err.response?.data?.error || err.message) });
@@ -211,7 +239,7 @@ export default function PersonalDetails() {
     try {
       // Parallel requests; endpoints may vary so handle gracefully
       const calls = [
-        api.get(`students/?registration_no=${registration_no}`),
+        api.get(`students/${registration_no}/`),
         api.get(`fees/?registration_no=${registration_no}`),
         api.get(`leaves/?registration_no=${registration_no}`),
         api.get(`attendance/all/`, { params: { search: registration_no, limit: 200 } }),
@@ -219,22 +247,25 @@ export default function PersonalDetails() {
       ];
       const settled = await Promise.allSettled(calls);
       if (settled[0].status === 'fulfilled') {
-        const d = settled[0].value.data;
-        results.fees = Array.isArray(d) ? d : (d.fees || d.records || []);
+        results.personal = settled[0].value.data;
       }
       if (settled[1].status === 'fulfilled') {
         const d = settled[1].value.data;
-        results.leaves = Array.isArray(d) ? d : (d.leaves || d.records || []);
+        results.fees = Array.isArray(d) ? d : (d.fees || d.records || []);
       }
       if (settled[2].status === 'fulfilled') {
         const d = settled[2].value.data;
+        results.leaves = Array.isArray(d) ? d : (d.leaves || d.records || []);
+      }
+      if (settled[3].status === 'fulfilled') {
+        const d = settled[3].value.data;
         results.attendance = Array.isArray(d) ? d : (d.records || d.attendance || []);
       }
-      if (settled[3].status === 'fulfilled' && settled[3].value) {
-        results.academics.strands = settled[3].value.data || [];
+      if (settled[4].status === 'fulfilled' && settled[4].value) {
+        results.academics.strands = settled[4].value.data?.marks || [];
         try {
           const comp = await api.get(`academics/cbc/student/${registration_no}/competencies/`);
-          results.academics.competencies = comp.data || [];
+          results.academics.competencies = comp.data?.overall_competencies || [];
         } catch { results.academics.competencies = [] }
       }
     } catch (err) {
@@ -263,18 +294,6 @@ export default function PersonalDetails() {
     } catch { showMessage({ type: 'error', text: 'Failed to print leave pass' }); }
   };
 
-  const handlePrintIndividualReportForm = async (term) => {
-    if (!profileData.personal?.registration_no) return;
-    try {
-      showMessage({ type: 'success', text: `Generating ${term} report form...` });
-      const p = new URLSearchParams({ registration_no: profileData.personal.registration_no, term });
-      const r = await api.get(`academics/generate-report-forms/?${p.toString()}`, { responseType: 'blob' });
-      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
-      const a = Object.assign(document.createElement('a'), { href: url, download: `report_${profileData.personal.registration_no}.pdf`, style: 'display:none' });
-      document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); document.body.removeChild(a);
-    } catch { showMessage({ type: 'error', text: 'Failed to print report form' }); }
-  };
-
   const handlePrintIndividualAttendance = async (term) => {
     if (!profileData.personal?.registration_no) return;
     try {
@@ -285,6 +304,40 @@ export default function PersonalDetails() {
       const a = Object.assign(document.createElement('a'), { href: url, download: `attendance_${profileData.personal.registration_no}.pdf`, style: 'display:none' });
       document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); document.body.removeChild(a);
     } catch { showMessage({ type: 'error', text: 'Failed to print attendance sheet' }); }
+  };
+
+  const handleResetPassword = async () => {
+    if (!profileData.personal?.registration_no) return;
+    if (!window.confirm(`Are you sure you want to reset the password for ${profileData.personal.first_name}? The password will be set back to their registration number.`)) return;
+    try {
+      setProfileLoading(true);
+      await api.post(`students/${profileData.personal.registration_no}/reset_password/`);
+      showMessage({ type: 'success', text: 'Password reset successful!' });
+    } catch (err) {
+      showMessage({ type: 'error', text: 'Failed to reset password: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handlePrintIndividualReportForm = async (term) => {
+    if (!profileData.personal?.registration_no) return;
+    try {
+      showMessage({ type: 'success', text: `Generating ${term} report form...` });
+      const p = new URLSearchParams({ 
+        registration_no: profileData.personal.registration_no, 
+        term,
+        year: new Date().getFullYear()
+      });
+      const r = await api.get(`reports/student-report-form/?${p.toString()}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      const a = Object.assign(document.createElement('a'), { 
+        href: url, 
+        download: `report_form_${profileData.personal.registration_no}_${term}.pdf`, 
+        style: 'display:none' 
+      });
+      document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); document.body.removeChild(a);
+    } catch { showMessage({ type: 'error', text: 'Failed to print report form' }); }
   };
 
   const stats = [
@@ -322,6 +375,10 @@ export default function PersonalDetails() {
           }} title="Grade / Stream Config" disabled={loading}>
             <span className="pd-config-icon">🧭</span>
             <span>Grade Config</span>
+          </button>
+          <button className="pd-add-btn" onClick={() => navigate('/students/import')} disabled={loading} style={{ background: '#059669' }}>
+            <span className="pd-add-icon">📥</span>
+            <span>Import Students</span>
           </button>
           <button className="pd-add-btn" onClick={handleAddStudent} disabled={loading}>
             <span className="pd-add-icon">+</span>
@@ -399,7 +456,7 @@ export default function PersonalDetails() {
             <table className="pd-table">
               <thead>
                 <tr>
-                  <th>Reg No.</th>
+                  <th>IDs</th>
                   <th>Student</th>
                   <th>Phone</th>
                   <th>Address</th>
@@ -412,11 +469,18 @@ export default function PersonalDetails() {
                 {filteredStudents.length > 0 ? filteredStudents.map((student, i) => (
                   <tr key={student.registration_no} className="pd-row" style={{ '--ri': i }}>
                     <td>
-                      <span className="pd-reg-badge">{student.registration_no}</span>
+                      <Stack gap={1}>
+                        <span className="pd-reg-badge" title="Registration No.">{student.registration_no}</span>
+                        {student.assessment_number && <span className="pd-grade-tag" style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.05)' }} title="Assessment No.">{student.assessment_number}</span>}
+                      </Stack>
                     </td>
                     <td>
                       <div className="pd-student-cell">
-                        <div className="pd-avatar">{getInitials(student.first_name, student.surname)}</div>
+                        {student.profile_image ? (
+                          <img src={student.profile_image} alt="" className="pd-avatar" style={{ objectFit: 'cover' }} />
+                        ) : (
+                          <div className="pd-avatar">{getInitials(student.first_name, student.surname)}</div>
+                        )}
                         <span className="pd-student-name">{student.first_name} {student.surname}</span>
                       </div>
                     </td>
@@ -459,10 +523,15 @@ export default function PersonalDetails() {
             </div>
             <div className="pd-modal-body">
               <div className="pd-form-grid">
-                <div className="pd-form-group pd-span-2">
+                <div className="pd-form-group">
                   <label className="pd-label">Registration Number</label>
                   <input className="pd-input pd-input-disabled" type="text"
                     value={formData.registration_no || selectedStudent?.registration_no || ''} disabled />
+                </div>
+                <div className="pd-form-group">
+                  <label className="pd-label">Assessment Number (NEMIS/UPI)</label>
+                  <input className="pd-input" type="text" name="assessment_number" value={formData.assessment_number}
+                    onChange={handleInputChange} placeholder="e.g. ABC123XYZ" />
                 </div>
                 <div className="pd-form-group">
                   <label className="pd-label">First Name <span className="pd-req">*</span></label>
@@ -497,6 +566,16 @@ export default function PersonalDetails() {
                   <input className="pd-input" type="tel" name="phone" value={formData.phone}
                     onChange={handleInputChange} placeholder="Phone number" />
                 </div>
+                <div className="pd-form-group">
+                  <label className="pd-label">Email Address <span className="pd-req">*</span></label>
+                  <input className="pd-input" type="email" name="email" value={formData.email}
+                    onChange={handleInputChange} placeholder="email@example.com" />
+                </div>
+                <div className="pd-form-group">
+                  <label className="pd-label">Parent/Guardian Name <span className="pd-req">*</span></label>
+                  <input className="pd-input" type="text" name="parent_name" value={formData.parent_name}
+                    onChange={handleInputChange} placeholder="Parent/Guardian Name" />
+                </div>
                 <div className="pd-form-group pd-span-2">
                   <label className="pd-label">Address <span className="pd-req">*</span></label>
                   <input className="pd-input" type="text" name="address" value={formData.address}
@@ -516,6 +595,28 @@ export default function PersonalDetails() {
                     {streams.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
+                <div className="pd-form-group pd-span-2">
+                  <label className="pd-label">Profile Image</label>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div className="pd-modal-thumb-preview">
+                      {selectedFile ? (
+                        <img src={URL.createObjectURL(selectedFile)} alt="Preview" className="pd-thumb-img" />
+                      ) : formData.profile_image ? (
+                        <img src={formData.profile_image} alt="Current" className="pd-thumb-img" />
+                      ) : (
+                        <div className="pd-thumb-placeholder">👤</div>
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <input className="pd-input" type="file" accept="image/*" onChange={handleFileChange} />
+                      {selectedFile ? (
+                        <div className="pd-help-text" style={{ color: 'var(--pd-green)' }}>Selected: {selectedFile.name}</div>
+                      ) : formData.profile_image ? (
+                        <div className="pd-help-text">Existing image loaded. Upload new to replace.</div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="pd-modal-footer">
@@ -533,30 +634,40 @@ export default function PersonalDetails() {
           <div className="pd-modal pd-modal-lg" onClick={e => e.stopPropagation()}>
             <div className="pd-modal-header">
               <div className="pd-modal-title">
-                <span className="pd-modal-icon">👤</span>
+                {profileData.personal?.profile_image ? (
+                  <img src={profileData.personal.profile_image} className="pd-modal-thumb" alt="" />
+                ) : (
+                  <span className="pd-modal-icon">👤</span>
+                )}
                 <div>
                   <div className="pd-modal-main">{profileData.personal?.first_name} {profileData.personal?.surname}</div>
-                  <div className="pd-modal-sub">{profileData.personal?.registration_no} • {profileData.personal?.grade} {profileData.personal?.stream}</div>
+                  <div className="pd-modal-sub">{profileData.personal?.registration_no} {profileData.personal?.assessment_number && `• ${profileData.personal.assessment_number}`} • {profileData.personal?.grade} {profileData.personal?.stream}</div>
                 </div>
               </div>
               <button className="pd-modal-close" onClick={closeProfileModal}>✕</button>
             </div>
             <div className="pd-modal-body">
               <div className="pd-profile-tabs">
-                {['personal','fees','attendance','leaves','academics'].map(tab => (
+                {['personal','fees','attendance','leaves','academics','account'].map(tab => (
                   <button key={tab} className={`pd-tab ${profileTab===tab? 'active':''}`} onClick={() => setProfileTab(tab)}>{tab.charAt(0).toUpperCase()+tab.slice(1)}</button>
                 ))}
               </div>
               <div className="pd-profile-content">
                 {profileLoading ? (
-                  <div className="pd-loading"><Spinner animation="border" size="sm" /> Loading profile…</div>
+                  <div className="pd-loading"><div className="pd-spinner" /> Loading profile…</div>
                 ) : (
                   <>
                     {profileTab === 'personal' && (
                       <div className="pd-profile-section">
                         <Row>
                           <Col md={4} className="pd-profile-pane">
-                            <div className="pd-avatar-large">{getInitials(profileData.personal?.first_name, profileData.personal?.surname)}</div>
+                            <div className="pd-avatar-large">
+                              {profileData.personal?.profile_image ? (
+                                <img src={profileData.personal.profile_image} alt="Profile" className="pd-profile-img" />
+                              ) : (
+                                getInitials(profileData.personal?.first_name, profileData.personal?.surname)
+                              )}
+                            </div>
                             <h4>{profileData.personal?.first_name} {profileData.personal?.surname}</h4>
                             <p className="pd-muted">Reg No: {profileData.personal?.registration_no}</p>
                             <p className="pd-muted">Grade: {profileData.personal?.grade} • {profileData.personal?.stream}</p>
@@ -569,8 +680,10 @@ export default function PersonalDetails() {
                               <div><strong>First name</strong><div>{profileData.personal?.first_name}</div></div>
                               <div><strong>Second name</strong><div>{profileData.personal?.second_name}</div></div>
                               <div><strong>Surname</strong><div>{profileData.personal?.surname}</div></div>
+                              <div><strong>Assessment Number</strong><div style={{ color: 'var(--amber)' }}>{profileData.personal?.assessment_number || 'N/A'}</div></div>
                               <div><strong>Gender</strong><div>{profileData.personal?.gender}</div></div>
                               <div><strong>Date of birth</strong><div>{profileData.personal?.date_of_birth}</div></div>
+                              <div><strong>Class Teacher</strong><div>{profileData.personal?.class_teacher_name || 'N/A'}</div></div>
                             </div>
                           </Col>
                         </Row>
@@ -656,23 +769,50 @@ export default function PersonalDetails() {
                           </div>
                         </div>
                         {(!profileData.academics || (Array.isArray(profileData.academics.strands) && profileData.academics.strands.length===0)) ? (
-                          <p className="pd-muted">No academic data available.</p>
+                          <p className="pd-muted" style={{marginTop:'1rem'}}>No academic data available for this student.</p>
                         ) : (
-                          <div>
-                            <h6>Strands</h6>
+                          <div style={{marginTop:'1.5rem'}}>
+                            <h6>Recent Strands</h6>
                             <ul className="pd-list">
-                              {(profileData.academics.strands || []).map((s, i) => <li key={i}>{s.name || s.title || JSON.stringify(s)}</li>)}
+                              {(profileData.academics.strands || []).slice(0,10).map((s, i) => (
+                                <li key={i} style={{display:'flex',justifyContent:'space-between'}}>
+                                  <span>{s.sub_strand} ({s.subject})</span>
+                                  <span style={{color:'var(--amber)'}}>{s.level_name}</span>
+                                </li>
+                              ))}
                             </ul>
-                            {profileData.academics.competencies && (
-                              <>
-                                <h6>Competencies</h6>
+                            {profileData.academics.competencies && profileData.academics.competencies.length > 0 && (
+                              <div style={{marginTop:'1.5rem'}}>
+                                <h6>Core Competencies</h6>
                                 <ul className="pd-list small">
-                                  {(profileData.academics.competencies || []).map((c, i) => <li key={i}>{c.name || c.title || JSON.stringify(c)}</li>)}
+                                  {(profileData.academics.competencies || []).map((c, i) => (
+                                    <li key={i} style={{display:'flex',justifyContent:'space-between'}}>
+                                      <span>{c.competency}</span>
+                                      <span style={{color:'#6ee7b7'}}>{c.level_name}</span>
+                                    </li>
+                                  ))}
                                 </ul>
-                              </>
+                              </div>
                             )}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {profileTab === 'account' && (
+                      <div className="pd-profile-section">
+                        <h5>Account Settings</h5>
+                        <div className="pd-kv-grid">
+                          <div><strong>Username</strong><div>{profileData.personal?.registration_no}</div></div>
+                          <div><strong>Email (Parent)</strong><div>{profileData.personal?.email || 'N/A'}</div></div>
+                          <div><strong>Status</strong><div>Active</div></div>
+                          <div><strong>Default Password</strong><div>{profileData.personal?.registration_no}</div></div>
+                        </div>
+                        <div style={{marginTop: '2rem', padding: '1.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px'}}>
+                          <h6>Security Actions</h6>
+                          <p className="pd-muted">Resetting the password will set it back to the student's registration number.</p>
+                          <button className="pd-btn-danger" onClick={handleResetPassword}>Reset Password to Default</button>
+                        </div>
                       </div>
                     )}
                   </>

@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Row, Col, Card, Button, Badge, ProgressBar, Form } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import AttendanceChart from '../../components/charts/AttendanceChart';
 import FeesChart from '../../components/charts/FeesChart';
 import './Dashboard.css';
 
 import students from '../../api/api';
+import { SubscriptionContext } from '../../context/SubscriptionContext';
 
 export default function AdminDashboard() {
   const [animate, setAnimate] = useState(false);
@@ -14,6 +16,7 @@ export default function AdminDashboard() {
     { title: 'Attendance Rate', value: '0%', icon: '📊', color: 'info', trend: '+5%' },
     { title: 'Fees Collected', value: 'Ksh 0', icon: '💰', color: 'warning', trend: '+18%' },
   ]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [gradesData, setGradesData] = useState({});
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -48,18 +51,19 @@ export default function AdminDashboard() {
 
     students.get(`dashboard/?${params}`)
       .then((res) => {
-        const data = res.data;
+        const d = res.data;
+        setData(d);
         setStats([
-          { title: "Total Students", value: data.students ?? 0, icon: "🎓", color: "primary", trend: '+12%' },
-          { title: "Total Teachers", value: data.teachers ?? 0, icon: "👩‍🏫", color: "success", trend: '+3%' },
-          { title: "Attendance Rate", value: (data.attendance_percentage ?? 0) + "%", icon: "📊", color: "info", trend: '+5%' },
-          { title: "Fees Collected", value: data.fee_paid ? 'Ksh ' + data.fee_paid.toLocaleString() : 'Ksh 0', icon: "💰", color: "warning", trend: '+18%' },
+          { title: "Total Students", value: d.students ?? 0, icon: "🎓", color: "primary", trend: '+12%' },
+          { title: "Total Teachers", value: d.teachers ?? 0, icon: "👩‍🏫", color: "success", trend: '+3%' },
+          { title: "Attendance Rate", value: (d.attendance_percentage ?? 0) + "%", icon: "📊", color: "info", trend: '+5%' },
+          { title: "Fees Collected", value: d.fee_paid ? 'Ksh ' + d.fee_paid.toLocaleString() : 'Ksh 0', icon: "💰", color: "warning", trend: '+18%' },
         ]);
-        if (data.students_per_grade) setGradesData(data.students_per_grade);
+        if (d.students_per_grade) setGradesData(d.students_per_grade);
         
         // Load grades and streams automatically from backend
-        if (data.available_grades) setAvailableGrades(data.available_grades);
-        if (data.available_streams) setAvailableStreams(data.available_streams);
+        if (d.available_grades) setAvailableGrades(d.available_grades);
+        if (d.available_streams) setAvailableStreams(d.available_streams);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -100,6 +104,8 @@ export default function AdminDashboard() {
 
   const formatTime = (date) => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const formatDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const { pricing, setShowPricingModal } = useContext(SubscriptionContext);
 
   return (
     <div className={`db-root ${animate ? 'db-ready' : ''}`}>
@@ -175,6 +181,64 @@ export default function AdminDashboard() {
           <span className="db-live-label">Live</span>
         </div>
       </header>
+      
+      {pricing && !pricing.is_paid && (
+        <section className="db-section mb-4" style={{ position: 'relative', zIndex: 10 }}>
+          <div className={`trial-banner trial-banner--${pricing.payment_status === 'under_review' ? 'info' : (pricing.remaining_trial_days <= 2 ? 'danger' : 'info')}`}>
+            <div className="trial-banner-glow" />
+            <div className="trial-banner-content">
+              <div className="trial-banner-icon-wrap">
+                <span className="trial-banner-icon">
+                  {pricing.payment_status === 'under_review' ? '🔍' : (pricing.remaining_trial_days <= 0 ? '⚠️' : '⏳')}
+                </span>
+              </div>
+              <div className="trial-banner-body">
+                <h4 className="trial-banner-title">
+                  {pricing.payment_status === 'under_review' ? (
+                    "Payment Under Review"
+                  ) : (
+                    pricing.remaining_trial_days <= 0 ? "Your Free Trial has Expired" : `${pricing.remaining_trial_days} Days Remaining in Free Trial`
+                  )}
+                </h4>
+                <p className="trial-banner-text">
+                  {pricing.payment_status === 'under_review' ? (
+                    <>We've received your transaction code (<strong>{pricing.transaction_code}</strong>). Our team is currently verifying the payment. Thank you for your patience.</>
+                  ) : (
+                    <>
+                      Your school is currently on the <strong>{pricing.plan_name} Plan</strong>. 
+                      {pricing.remaining_trial_days <= 0 ? 
+                        " Upgrade now to restore full access and ensure your data remains safe." : 
+                        " Complete your subscription payment to avoid service interruption."
+                      }
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+            
+            {pricing.payment_status === 'under_review' ? (
+              <div className="d-flex align-items-center gap-3">
+                <div className="trial-banner-review-badge">Processing</div>
+                <button 
+                  className="trial-banner-btn trial-banner-btn--secondary"
+                  onClick={() => setShowPricingModal(true)}
+                  style={{ border: 'none', cursor: 'pointer', padding: '0.6rem 1.2rem', fontSize: '0.8rem' }}
+                >
+                  Edit Submission
+                </button>
+              </div>
+            ) : (
+              <button 
+                className="trial-banner-btn"
+                onClick={() => setShowPricingModal(true)}
+                style={{ border: 'none', cursor: 'pointer' }}
+              >
+                {pricing.remaining_trial_days <= 0 ? "Reactivate Account" : "Upgrade & Pay Now"}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── FILTERS ── */}
       <section className="db-section mb-4" style={{ position: 'relative', zIndex: 10 }}>
@@ -256,7 +320,7 @@ export default function AdminDashboard() {
         </div>
         <div className="db-actions-grid">
           {quickActions.map((action, i) => (
-            <a key={i} href={action.href} className="db-action-card" style={{ '--delay': `${i * 0.1}s`, '--accent': colorMap[action.color] }}>
+            <Link key={i} to={action.href} className="db-action-card" style={{ '--delay': `${i * 0.1}s`, '--accent': colorMap[action.color] }}>
               <div className="db-action-icon-wrap">
                 <span className="db-action-icon">{action.icon}</span>
               </div>
@@ -266,8 +330,56 @@ export default function AdminDashboard() {
               </div>
               <span className="db-action-arrow">→</span>
               <div className="db-action-shine" />
-            </a>
+            </Link>
           ))}
+        </div>
+      </section>
+
+      {/* ── ANALYZED FINANCIAL DATA ── */}
+      <section className="db-section">
+        <div className="db-section-label">
+          <span className="db-section-pill">Financial Insights</span>
+          <div className="db-section-line" />
+        </div>
+        <div className="db-financial-grid">
+          <div className="db-finance-card">
+             <div className="db-finance-main">
+                <div className="db-finance-info">
+                   <span className="db-finance-label">Collection Rate</span>
+                   <h3 className="db-finance-value">{data?.fee_collection_rate || 0}%</h3>
+                </div>
+                <div className="db-finance-chart">
+                   <svg width="60" height="60" viewBox="0 0 36 36">
+                      <path className="db-circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="db-circle-fill" strokeDasharray={`${data?.fee_collection_rate || 0}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                   </svg>
+                </div>
+             </div>
+             <div className="db-finance-footer">
+                <span>Expected: Ksh {data?.fee_expected?.toLocaleString() || 0}</span>
+             </div>
+          </div>
+
+          <div className="db-finance-card">
+             <div className="db-finance-main">
+                <div className="db-finance-info">
+                   <span className="db-finance-label">Gender Diversity</span>
+                   <div className="d-flex gap-3 mt-1">
+                      <div className="db-gender-stat">
+                         <span className="db-gender-icon" style={{color:'#6366f1'}}>♂</span>
+                         <span className="db-gender-count">{data?.gender_distribution?.Male || 0}</span>
+                      </div>
+                      <div className="db-gender-stat">
+                         <span className="db-gender-icon" style={{color:'#ec4899'}}>♀</span>
+                         <span className="db-gender-count">{data?.gender_distribution?.Female || 0}</span>
+                      </div>
+                   </div>
+                </div>
+             </div>
+             <div className="db-finance-footer">
+                <ProgressBar now={50} variant="indigo" style={{height:4, background:'rgba(255,255,255,0.05)'}} />
+             </div>
+          </div>
         </div>
       </section>
 

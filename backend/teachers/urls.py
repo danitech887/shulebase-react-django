@@ -1,15 +1,20 @@
 
 
 from django.urls import path
-from .views.teachers_views import*
+from .views.teachers_views import*  
 
 from .views.teacher_portal_views import *
-from core.views.pdf_views import print_subject_aggregated_report, print_attendance_report
+from core.views.pdf_views import print_subject_aggregated_report, print_attendance_report, print_learning_area_subject_report, print_substrand_report
 
 urlpatterns = [
     # ── Automated Reports ─────────────────────────────────────────────────────
     path("teacher-portal/reports/subject-aggregated/",                         print_subject_aggregated_report,         name="api-report-subject-aggregated"),
+    path("teacher-portal/reports/learning-area-marks/",                        print_learning_area_subject_report,      name="api-report-learning-area-marks"),
+    path("teacher-portal/reports/substrand/",                                  print_substrand_report,                  name="api-report-substrand"),
     path("teacher-portal/reports/attendance/",                                 print_attendance_report,                 name="api-report-attendance"),
+
+
+
 
     path('teachers/',
          TeacherListView.as_view(),
@@ -62,7 +67,15 @@ urlpatterns = [
          TeacherLeaveDetailView.as_view(),
          name='teacher-leave-detail'),
  
-    # ── Detail (keep last — catches <str:reg_no>) ───────────────────
+    path('teachers/teaching-progress/',
+         AdminTeachingProgressView.as_view(),
+         name='admin-teaching-progress'),
+
+    path('teachers/teaching-progress/detail/',
+         AdminTeacherProgressDetailView.as_view(),
+         name='admin-teaching-progress-detail'),
+ 
+     # ── Detail (keep last — catches <str:reg_no>) ───────────────────
     path('teachers/<str:reg_no>/',
          TeacherDetailView.as_view(),
          name='teacher-detail'),
@@ -85,11 +98,15 @@ urlpatterns = [
     path("teacher-portal/teaching-progress/<int:pk>/",                         TeachingProgressDetailAPIView.as_view(), name="api-teaching-progress-detail"),
     path("teacher-portal/learner-competencies/",                               LearnerCompetencyAPIView.as_view(),      name="api-learner-competencies"),
     path("teacher-portal/resources/",                                          ResourceListCreateAPIView.as_view(),     name="api-resources"),
+    path("teacher-portal/resources/<int:pk>/",                                 ResourceDetailAPIView.as_view(),         name="api-resource-detail"),
     path("teacher-portal/resources/<int:pk>/progress/",                        ResourceProgressAPIView.as_view(),       name="api-resource-progress"),
     path("teacher-portal/learning-area-marks/",                                LearningAreaMarkAPIView.as_view(),       name="api-learning-area-marks"),
-
-    # ── Automated Reports ─────────────────────────────────────────────────────
-    path("teacher-portal/reports/subject-aggregated/",                         print_subject_aggregated_report,         name="api-report-subject-aggregated"),
-    path("teacher-portal/reports/attendance/",                                 print_attendance_report,                 name="api-report-attendance"),
+    path("teacher-portal/learner-portfolio/",                                  LearnerPortfolioAPIView.as_view(),       name="api-learner-portfolio"),
+    path("teacher-portal/national-assessments/",                               NationalAssessmentAPIView.as_view(),     name="api-national-assessments"),
+    path("teacher-portal/report-comments/",                                    ReportCardCommentAPIView.as_view(),      name="api-report-comments"),
+    path("teacher-portal/strands/extract-rubric/",                             RubricExtractAPIView.as_view(),          name="api-strand-extract-rubric"),
+    path("teacher-portal/strands/bulk-create/",                                StrandBulkCreateAPIView.as_view(),       name="api-strand-bulk-create"),
+    path("teacher-portal/teaching-progress/bulk-create/",                      ProgressBulkCreateAPIView.as_view(),     name="api-teaching-progress-bulk-create"),
+    path("teacher-portal/teaching-progress/extract-progress/",                 ProgressExtractAPIView.as_view(),        name="api-teaching-progress-extract"),
 
 ]
