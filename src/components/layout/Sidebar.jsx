@@ -266,10 +266,10 @@ export default function Sidebar({ collapsed = false, mobileOpen = false, onToggl
           })}
         </nav>
 
-        {/* ── Footer ── */}
+        {/* ── Footer ──
         <div className="sb-footer">
           <span className="sb-version">{collapsed ? 'v1' : 'v1.0.0'}</span>
-        </div>
+        </div> */}
       </aside>
     </>
   );

@@ -46,6 +46,7 @@ export default function StudentPortalAcademics() {
   const [loading, setLoading]   = useState(true);
   const [selectedTerm, setSelectedTerm]   = useState('Term 1');
   const [selectedYear, setSelectedYear]   = useState(String(new Date().getFullYear()));
+  const [selectedSystem, setSelectedSystem] = useState('CBA'); // 'CBA' | 'Summative'
   const [activeTab, setActiveTab]         = useState('subjects');
   const [resourcesList, setResourcesList] = useState([]);
   const [downloadingReport, setDownloadingReport] = useState(false);
@@ -76,12 +77,12 @@ export default function StudentPortalAcademics() {
     (async () => {
       try {
         setLoading(true);
-        const res = await api.get(`student-portal/academics/?term=${selectedTerm}&year=${selectedYear}`);
+        const res = await api.get(`student-portal/academics/?term=${selectedTerm}&year=${selectedYear}&system=${selectedSystem}`);
         setData(res.data);
       } catch { showMessage({ type: 'error', text: 'Failed to load academic records.' }); }
       finally { setLoading(false); }
     })();
-  }, [selectedTerm, selectedYear]);
+  }, [selectedTerm, selectedYear, selectedSystem]);
 
   // ── Fetch resources separately ──
   useEffect(() => {
@@ -469,6 +470,13 @@ export default function StudentPortalAcademics() {
             </select>
           </div>
           <div>
+            <label className="sp-label">System</label>
+            <select className="sp-select" style={{ width: 130 }} value={selectedSystem} onChange={e => setSelectedSystem(e.target.value)}>
+              <option value="CBA">CBC (CBA)</option>
+              <option value="Summative">Summative</option>
+            </select>
+          </div>
+          <div>
             <label className="sp-label">Year</label>
             <select className="sp-select" style={{ width: 110 }} value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
               {(year_choices.length ? year_choices : [selectedYear]).map(y => (
@@ -608,13 +616,17 @@ export default function StudentPortalAcademics() {
                       <div className="subj-name">{s.subject}</div>
                       <div className="subj-teacher">👤 {s.teacher || 'N/A'}</div>
                       <div className="d-flex align-items-center justify-content-between mb-1">
-                        <span className="subj-score" style={{ color:info.color }}>L{Number(s.level || 0).toFixed(1)}</span>
-                        <CbcBadge rating={s.rating} />
+                        {selectedSystem === 'Summative' ? (
+                          <span className="subj-score" style={{ color: '#a5b4fc', fontSize: '1.2rem' }}>{s.grade || '—'}</span>
+                        ) : (
+                          <span className="subj-score" style={{ color:info.color }}>L{Number(s.level || 0).toFixed(1)}</span>
+                        )}
+                        {selectedSystem !== 'Summative' && <CbcBadge rating={s.rating} />}
                       </div>
                       <div className="sp-progress-track" style={{ height:4 }}>
-                        <div className="sp-progress-fill" style={{ width:`${Math.min(100,(Number(s.level || 0)/4)*100)}%`, background:info.color }} />
+                        <div className="sp-progress-fill" style={{ width:`${Math.min(100,(Number(selectedSystem === 'Summative' ? s.score : s.level || 0)/(selectedSystem === 'Summative' ? 100 : 4))*100)}%`, background: selectedSystem === 'Summative' ? '#a5b4fc' : info.color }} />
                       </div>
-                      <div style={{ fontSize:'0.67rem', color:'var(--sp-text-dim)', marginTop:'0.25rem', marginBottom:'0.25rem' }}>{info.label}</div>
+                      <div style={{ fontSize:'0.67rem', color:'var(--sp-text-dim)', marginTop:'0.25rem', marginBottom:'0.25rem' }}>{selectedSystem === 'Summative' ? 'Summative Grade' : info.label}</div>
                       <div style={{ fontSize:'0.67rem', color:'var(--sp-text-muted)', marginBottom:'0.85rem' }}>Percentage: <strong>{Number(s.score || 0).toFixed(1)}%</strong></div>
                       <div className="d-flex gap-2">
                         <button className="sp-btn-secondary" style={{ flex:1, fontSize:'0.75rem', padding:'0.35rem 0.5rem' }} onClick={() => openSubjectModal(s,'strands')}>

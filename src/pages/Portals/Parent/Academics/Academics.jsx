@@ -18,8 +18,9 @@ export default function ParentPortalAcademics() {
   const [performance, setPerformance]   = useState([]);
   const [term, setTerm]                 = useState('Term 1');
   const [year, setYear]                 = useState(new Date().getFullYear());
-  const [showModal, setShowModal]       = useState(false);
-  const [viewSubject, setViewSubject]   = useState(null);
+  const [selectedSystem, setSelectedSystem] = useState('CBA');
+  const [downloadingReport, setDownloadingReport] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [classTeacherComment, setClassTeacherComment] = useState('');
   const [headteacherComment, setHeadteacherComment] = useState('');
 
@@ -28,10 +29,10 @@ export default function ParentPortalAcademics() {
     fetchAll();
   }, []);
 
-  const fetchAll = async (studentId = null, t = term, y = year) => {
+  const fetchAll = async (studentId = null, t = term, y = year, sys = selectedSystem) => {
     try {
       setLoading(true);
-      const params = { ...(studentId ? { student_id: studentId } : {}), term: t, year: y };
+      const params = { ...(studentId ? { student_id: studentId } : {}), term: t, year: y, system: sys };
       const dash = await api.get('parent-portal/dashboard/', { params: studentId ? { student_id: studentId } : {} });
       setChildren(dash.data.children || []);
       setSelected(dash.data.selected_child || null);
@@ -44,9 +45,34 @@ export default function ParentPortalAcademics() {
     finally { setLoading(false); }
   };
 
-  const handleSelectChild = (child) => { setSelected(child); fetchAll(child.registration_no, term, year); };
+  const handleSelectChild = (child) => { setSelected(child); fetchAll(child.registration_no, term, year, selectedSystem); };
 
-  const handleFilter = () => fetchAll(selected?.registration_no, term, year);
+  const handleFilter = () => fetchAll(selected?.registration_no, term, year, selectedSystem);
+
+  async function handleDownloadReport(type = 'cba') {
+    if (!selected) return;
+    setDownloadingReport(true);
+    setShowReportModal(false);
+    try {
+      const endpoint = type === 'summative' 
+        ? `academics/summative-individual-report/`
+        : `student-portal/academics/report-form/`;
+        
+      const response = await api.get(
+        `${endpoint}?registration_no=${encodeURIComponent(selected.registration_no)}&term=${encodeURIComponent(term)}&year=${encodeURIComponent(year)}`,
+        { responseType: 'blob' }
+      );
+      const url  = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href  = url;
+      link.setAttribute('download', `${type === 'summative' ? 'Summative' : 'CBA'}-Report-${selected.first_name}-${term.replace(' ','-')}-${year}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) { console.error('Report download error:', err); }
+    finally { setDownloadingReport(false); }
+  }
 
   const avgScore = performance.length > 0
     ? (performance.reduce((s, p) => s + (p.score || 0), 0) / performance.length).toFixed(1)
@@ -92,8 +118,15 @@ export default function ParentPortalAcademics() {
         <select className="pp-input" style={{ width: 'auto' }} value={year} onChange={e => setYear(e.target.value)}>
           {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
         </select>
+        <select className="pp-input" style={{ width: 'auto' }} value={selectedSystem} onChange={e => setSelectedSystem(e.target.value)}>
+          <option value="CBA">CBC (CBA)</option>
+          <option value="Summative">Summative</option>
+        </select>
         <button className="pp-btn-primary" style={{ padding: '0.55rem 1.1rem' }} onClick={handleFilter}>
           🔍 Load Results
+        </button>
+        <button className="pp-btn-primary" style={{ padding: '0.55rem 1.1rem', background: '#a5b4fc', color: '#1e1b4b' }} disabled={downloadingReport} onClick={() => setShowReportModal(true)}>
+          {downloadingReport ? '⏳ Generating...' : '📄 Report Form'}
         </button>
       </div>
 
@@ -171,12 +204,12 @@ export default function ParentPortalAcademics() {
                   key={i}
                   className="pp-subject-card"
                   style={{ '--delay': `${i * 0.07}s`, cursor: 'pointer' }}
-                  onClick={() => { setViewSubject(p); setShowModal(true); }}
+                  onClick={() => { setViewSubject(p); setShowSubjectModal(true); }}
                 >
                   <div className="pp-subject-name">{p.subject}</div>
                   <div className="pp-subject-score">{p.score}</div>
                   <div className="pp-subject-rating-row">
-                    <span className="pp-cbc-level">{p.rating || 'N/A'}</span>
+                    <span className="pp-cbc-level" style={{ color: selectedSystem === 'Summative' ? '#a5b4fc' : undefined }}>{p.rating || 'N/A'}</span>
                     <span className="pp-cbc-remark">{p.remark}</span>
                   </div>
                   <div className="pp-subject-bar">
@@ -233,12 +266,12 @@ export default function ParentPortalAcademics() {
       )}
 
       {/* Subject detail modal */}
-      {showModal && viewSubject && (
-        <div className="pp-overlay" onClick={() => setShowModal(false)}>
+      {showSubjectModal && viewSubject && (
+        <div className="pp-overlay" onClick={() => setShowSubjectModal(false)}>
           <div className="pp-modal" onClick={e => e.stopPropagation()}>
             <div className="pp-modal-header">
               <div className="pp-modal-title"><span>📚</span> {viewSubject.subject}</div>
-              <button className="pp-modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <button className="pp-modal-close" onClick={() => setShowSubjectModal(false)}>✕</button>
             </div>
             <div className="pp-modal-body">
               <div className="pp-statement">
@@ -268,7 +301,31 @@ export default function ParentPortalAcademics() {
               </div>
             </div>
             <div className="pp-modal-footer">
-              <button className="pp-btn-cancel" onClick={() => setShowModal(false)}>Close</button>
+              <button className="pp-btn-cancel" onClick={() => setShowSubjectModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Form type selection modal */}
+      {showReportModal && (
+        <div className="pp-overlay" onClick={() => setShowReportModal(false)}>
+          <div className="pp-modal" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+            <div className="pp-modal-header">
+              <div className="pp-modal-title"><span>📄</span> Download Report Form</div>
+              <button className="pp-modal-close" onClick={() => setShowReportModal(false)}>✕</button>
+            </div>
+            <div className="pp-modal-body" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem' }}>
+              <p style={{ color: 'var(--pp-text-dim)', fontSize: '0.95rem' }}>Which report form would you like to generate for <strong>{selected?.first_name}</strong>?</p>
+              <button className="pp-btn-primary" style={{ padding: '0.75rem' }} onClick={() => handleDownloadReport('cba')}>
+                📋 Download CBC (CBA) Report
+              </button>
+              <button className="pp-btn-primary" style={{ padding: '0.75rem', background: '#818cf8' }} onClick={() => handleDownloadReport('summative')}>
+                📊 Download Summative Report
+              </button>
+            </div>
+            <div className="pp-modal-footer">
+              <button className="pp-btn-cancel" onClick={() => setShowReportModal(false)}>Cancel</button>
             </div>
           </div>
         </div>

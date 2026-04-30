@@ -241,23 +241,41 @@ class ParentPortalAcademicsAPIView(ParentBaseView):
         _, _, student = self.get_parent_context(request)
         term = request.query_params.get('term', 'Term 1')
         year = request.query_params.get('year', datetime.now().year)
-
-        # Aggregating Subject Performance
-        marks = SubStrandMark.objects.filter(student=student, term=term, year=year)
-        subjects = marks.values('sub_strand__strand__subject').annotate(
-            avg_score=Avg('score'),
-            avg_level=Avg('level')
-        )
+        system = request.query_params.get('system', 'CBA').strip()
 
         performance = []
-        for s in subjects:
-            level_data = self.get_cbc_rating(s['avg_level'])
-            performance.append({
-                "subject": s['sub_strand__strand__subject'],
-                "score": round(s['avg_score'], 2),
-                "rating": level_data['level'],
-                "remark": level_data['remark']
-            })
+        
+        if system == 'Summative':
+            marks = LearningAreaMark.objects.filter(student=student, term=term, year=year)
+            subjects = marks.values('learning_area__name').annotate(avg_score=Avg('marks'))
+            for s in subjects:
+                score = s['avg_score'] or 0
+                if score >= 80: grade = 'A'
+                elif score >= 70: grade = 'B'
+                elif score >= 60: grade = 'C'
+                elif score >= 50: grade = 'D'
+                else: grade = 'E'
+
+                performance.append({
+                    "subject": s['learning_area__name'],
+                    "score": round(score, 2),
+                    "rating": grade,
+                    "remark": f"Grade {grade}"
+                })
+        else:
+            marks = SubStrandMark.objects.filter(student=student, term=term, year=year)
+            subjects = marks.values('sub_strand__strand__subject').annotate(
+                avg_score=Avg('score'),
+                avg_level=Avg('level')
+            )
+            for s in subjects:
+                level_data = self.get_cbc_rating(s['avg_level'])
+                performance.append({
+                    "subject": s['sub_strand__strand__subject'],
+                    "score": round(s['avg_score'], 2),
+                    "rating": level_data['level'],
+                    "remark": level_data['remark']
+                })
 
         rc_comment = ReportCardComment.objects.filter(student=student, term=term, year=year).first()
 

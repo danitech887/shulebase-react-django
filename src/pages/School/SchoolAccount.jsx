@@ -19,7 +19,7 @@ const InfoRow = ({ label, name, value, as = 'input', icon, editMode, form, handl
   return (
     <div className={`sa-field ${errors[name] ? 'sa-field--err' : ''}`}>
       <label className="sa-label" htmlFor={`sa-${name}`}>
-        {icon && <span className="sa-label-icon">{icon}</span>}
+        {icon && <span className="sa-label-icon"></span>}
         {label}
       </label>
       {editMode
@@ -202,10 +202,10 @@ export default function SchoolAccount() {
           >
             {logoSrc
               ? <img src={logoSrc} alt="School logo" className="sa-logo-img" />
-              : <div className="sa-logo-placeholder">🏫</div>
+              : <div className="sa-logo-placeholder"></div>
             }
             {editMode && (
-              <div className="sa-logo-overlay"><span>📷 Change</span></div>
+              <div className="sa-logo-overlay"><span>Change</span></div>
             )}
             <input ref={logoRef} id="sa-logo-input" type="file" accept="image/*"
               style={{ display: 'none' }} onChange={handleLogoChange} />
@@ -221,6 +221,7 @@ export default function SchoolAccount() {
             <p className="sa-registered-on">
               Registered on&nbsp;
               {new Date(school.created_at).toLocaleDateString('en-KE', { dateStyle: 'long' })}
+           
             </p>
           </div>
 
@@ -236,15 +237,15 @@ export default function SchoolAccount() {
         <fieldset className="sa-fieldset">
           <legend className="sa-legend">🏫 School Details</legend>
           <div className="sa-grid-2">
-            <InfoRow label="School Name"   name="school_name"   value={school.school_name}   icon="🏷️" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
-            <InfoRow label="Logo Path"     name="logo_path"     value={school.logo_path || '—'} icon="🖼️" editMode={editMode} form={form} handleChange={handleChange} errors={errors} logoRef={logoRef} logoFile={logoFile} />
-            <InfoRow label="P.O. Box"      name="po_box"        value={school.po_box}        icon="📬" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
-            <InfoRow label="Address"       name="address"       value={school.address}       icon="📍" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
-            <InfoRow label="Contact"       name="contact"       value={school.contact}       icon="📞" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
-            <InfoRow label="Email"         name="email_address" value={school.email_address} icon="✉️" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
-            <InfoRow label="Motto"         name="motto"         value={school.motto}         icon="✨" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="School Name"   name="school_name"   value={school.school_name}    editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Logo Path"     name="logo_path"     value={school.logo_path || '—'}  editMode={editMode} form={form} handleChange={handleChange} errors={errors} logoRef={logoRef} logoFile={logoFile} />
+            <InfoRow label="P.O. Box"      name="po_box"        value={school.po_box}        editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Address"       name="address"       value={school.address}        editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Contact"       name="contact"       value={school.contact}        editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Email"         name="email_address" value={school.email_address}  editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+            <InfoRow label="Motto"         name="motto"         value={school.motto}          editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
           </div>
-          <InfoRow label="Vision" name="vision" value={school.vision} as="textarea" icon="🎯" editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
+          <InfoRow label="Vision" name="vision" value={school.vision} as="textarea"  editMode={editMode} form={form} handleChange={handleChange} errors={errors} />
         </fieldset>
 
         {/* Feedback */}

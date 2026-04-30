@@ -162,40 +162,65 @@ class StudentPortalAcademicsAPIView(APIView):
         student = _get_student(request)
         term = request.query_params.get('term', 'Term 1')
         year = request.query_params.get('year', str(datetime.now().year))
+        system = request.query_params.get('system', 'CBA').strip()
 
-        base_marks = SubStrandMark.objects.filter(student=student, term=term, year=year)
-
-        # Learning Area Performance
         subject_summaries = []
-        summary_qs = base_marks.values('sub_strand__strand__subject').annotate(
-            avg_score=Avg('score'), avg_level=Avg('level')
-        )
+        level_avg = 0
+        score_avg = 0
+        rating_info = {'level': 'N/A', 'remark': 'No Data'}
 
-        for item in summary_qs:
-            subj = item['sub_strand__strand__subject']
-            t_role = TeachersRole.objects.filter(grade=student.grade, subject__icontains=subj).first()
-            
-            subject_summaries.append({
-                'subject': subj,
-                'score': item['avg_score'],
-                'level': item['avg_level'],
-                'rating': get_cbc_level_and_remark(item['avg_level'])['level'],
-                'teacher': f"{t_role.registration_no.first_name}" if t_role else "N/A"
-            })
+        if system == 'Summative':
+            base_marks = LearningAreaMark.objects.filter(student=student, term=term, year=year)
+            summary_qs = base_marks.values('learning_area__name').annotate(avg_score=Avg('marks'))
 
-        # Competencies
+            for item in summary_qs:
+                subj = item['learning_area__name']
+                t_role = TeachersRole.objects.filter(grade=student.grade, subject__icontains=subj).first()
+                score = item['avg_score'] or 0
+
+                if score >= 80: grade = 'A'
+                elif score >= 70: grade = 'B'
+                elif score >= 60: grade = 'C'
+                elif score >= 50: grade = 'D'
+                else: grade = 'E'
+
+                subject_summaries.append({
+                    'subject': subj,
+                    'score': score,
+                    'level': None,
+                    'rating': 'N/A',
+                    'grade': grade,
+                    'teacher': f"{t_role.registration_no.first_name}" if t_role else "N/A"
+                })
+            score_avg = base_marks.aggregate(Avg('marks'))['marks__avg'] or 0
+        else:
+            base_marks = SubStrandMark.objects.filter(student=student, term=term, year=year)
+            summary_qs = base_marks.values('sub_strand__strand__subject').annotate(
+                avg_score=Avg('score'), avg_level=Avg('level')
+            )
+
+            for item in summary_qs:
+                subj = item['sub_strand__strand__subject']
+                t_role = TeachersRole.objects.filter(grade=student.grade, subject__icontains=subj).first()
+                
+                subject_summaries.append({
+                    'subject': subj,
+                    'score': item['avg_score'],
+                    'level': item['avg_level'],
+                    'rating': get_cbc_level_and_remark(item['avg_level'])['level'],
+                    'teacher': f"{t_role.registration_no.first_name}" if t_role else "N/A"
+                })
+            level_avg = base_marks.aggregate(Avg('level'))['level__avg'] or 0
+            score_avg = base_marks.aggregate(Avg('score'))['score__avg'] or 0
+            rating_info = get_cbc_level_and_remark(level_avg)
+
         competencies = LearnerCompetency.objects.filter(student=student, term=term, year=year)
-        
-        # Educational Resources
         resources = Resource.objects.filter(grade=student.grade, stream=student.stream, term=term)
-        
-
-        # Distribution & Aggregates
-        level_avg = base_marks.aggregate(Avg('level'))['level__avg'] or 0
-        score_avg = base_marks.aggregate(Avg('score'))['score__avg'] or 0
-        rating_info = get_cbc_level_and_remark(level_avg)
-
         rc_comment = ReportCardComment.objects.filter(student=student, term=term, year=year).first()
+
+        y_cba = list(SubStrandMark.objects.filter(student=student).values_list('year', flat=True).distinct())
+        y_sum = list(LearningAreaMark.objects.filter(student=student).values_list('year', flat=True).distinct())
+        year_choices = sorted(list(set(y_cba + y_sum)))
 
         return Response({
             'overall_mean_score': round(score_avg, 2),
@@ -214,7 +239,7 @@ class StudentPortalAcademicsAPIView(APIView):
                 } for c in competencies
             ],
             'resources': [{'id': r.id, 'title': r.title, 'type': r.resource_type, 'url_or_file': r.url_or_file} for r in resources],
-            'year_choices': list(SubStrandMark.objects.filter(student=student).values_list('year', flat=True).distinct())
+            'year_choices': year_choices
         })
 
 class StudentPortalLeaveAPIView(APIView):

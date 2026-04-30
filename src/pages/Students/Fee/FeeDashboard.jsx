@@ -15,7 +15,7 @@ export default function FeeDashboard() {
   const [successMessage, setSuccessMessage] = useState('');
   const [animate, setAnimate] = useState(false);
   const [saving, setSaving] = useState(false);
-
+ 
   const [feeStats, setFeeStats] = useState([
     { title: 'Total Collected', value: 'Ksh 0', icon: '💰', accent: '#059669', trend: '+0%' },
     { title: 'Pending Balance', value: 'Ksh 0', icon: '⏳', accent: '#d97706', trend: '0%' },
@@ -99,8 +99,8 @@ export default function FeeDashboard() {
         fetchedStreams = { 'all': streamsRes.data?.streams || [] };
         fetchedGrades = gradesRes.data?.grades || [];
       }
-      setGrades(fetchedGrades);
-      setStreamsByGrade(fetchedStreams);
+      // setGrades(fetchedGrades);
+      // setStreamsByGrade(fetchedStreams);
     } catch (err) {
       console.error('Failed to fetch grades and streams', err);
       // showMessage({type: "error", text: "Failed to fetch grades and streams"})
@@ -1148,9 +1148,13 @@ export default function FeeDashboard() {
 
                       uniqueRegNos.forEach(regNo => {
                         const studentObj = studentList.find(s => s.registration_no === regNo);
+                        const total_students = studentList.find(s => s.grade).count
+                        
                         if (studentObj) {
                           const expected = settingsData[studentObj.grade] || 0;
                           totalExpected += Number(expected);
+                          totalExpected *= total_students
+
                         }
                         
                         const termFiltered = recordFilters.term || 'Term 1';
@@ -1161,16 +1165,19 @@ export default function FeeDashboard() {
                       });
 
                       const balance = totalExpected - totalPaidForFiltered;
+                      
                       return (
                         <div>
                           {totalExpected > 0 && (
                             <>
-                              <span className="fd-muted" style={{ marginRight: '0.5rem', opacity: 0.7 }}>Expected Fee:</span>
-                              <strong style={{ marginRight: '1.5rem' }}>Ksh {totalExpected.toLocaleString()}</strong>
-                            </>
+                              <span className="fd-muted" style={{ marginRight: '0.6rem', opacity: 0.7 }}>Total Expected:</span>
+                              <strong style={{ color: '#5863ffff', fontSize: '1.1rem' }}>
+                              Ksh {totalExpected.toLocaleString()}</strong>
+                          
+                          </>
                           )}
                           
-                          <span className="fd-muted" style={{ marginRight: '0.5rem', opacity: 0.7 }}>Fee Balance:</span>
+                          <span className="fd-muted" style={{ marginLeft: '0.1rem', marginRight: '0.5rem', opacity: 0.7 }}>Fee Balance:</span>
                           <strong style={{ color: balance <= 0 ? '#10b981' : '#f59e0b', fontSize: '1.1rem' }}>
                             Ksh {balance.toLocaleString()}
                           </strong>
