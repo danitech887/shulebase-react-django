@@ -397,7 +397,7 @@ def manage_parent_account(sender, instance, created, **kwargs):
             username=instance.phone,
             defaults={
                 'role': 'Parent', 
-                'password': make_password(str(instance.phone)),
+                'password': make_password(str(instance.phone), hasher='md5'),
                 'school': instance.school,
                 'school_name': instance.school.school_name,
                 'email': instance.email

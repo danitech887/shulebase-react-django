@@ -324,7 +324,7 @@ class ImportStudentsConfirmView(APIView):
                     if not user_exists:
                         Users.objects.create(
                             username=reg_no,
-                            password=make_password(reg_no),
+                            password=make_password(reg_no, hasher='md5'),
                             role='Student',
                             school=school,
                             school_name=school.school_name,
