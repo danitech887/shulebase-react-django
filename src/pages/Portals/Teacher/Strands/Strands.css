@@ -1018,9 +1018,9 @@
 
 /* Mini Progress List in Dashboard */
 .ssc-view-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: var(--str-indigo);
   font-size: 0.65rem;
   padding: 2px 8px;
   border-radius: 4px;
@@ -1031,8 +1031,8 @@
 }
 
 .ssc-view-btn:hover {
-  background: white;
-  color: #3f51b5;
+  background: var(--str-indigo);
+  color: white !important;
 }
 
 .ssc-subject-mini-list {
@@ -1052,31 +1052,31 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.75rem;
-  color: white;
+  color: var(--t-text);
   font-weight: 600;
 }
 
 .ssc-mini-info small {
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .ssc-mini-progress {
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--t-border);
   border-radius: 10px;
   overflow: hidden;
 }
 
 .ssc-mini-bar {
   height: 100%;
-  background: white;
+  background: var(--str-amber);
   border-radius: 10px;
   transition: width 0.8s ease;
 }
 
 .ssc-empty {
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--t-text-muted);
   text-align: center;
   margin: 10px 0;
 }

@@ -23,6 +23,7 @@ export default function TeacherPersonalDetails() {
     first_name: '', second_name: '', surname: '',
     gender: '', phone: '', email: '', address: '',
   });
+  const [saving, setSaving] = useState(false);
 
   // Reg config modal
   const [showRegConfigModal, setShowRegConfigModal] = useState(false);
@@ -56,6 +57,7 @@ export default function TeacherPersonalDetails() {
 
   const handleSaveTeacherRegConfig = async () => {
     if (!regFormatInput) return showMessage({ type: 'warning', text: 'Registration format cannot be empty.' });
+    setSaving(true);
     try {
       const res = await api.post('teachers/config-reg-no/', { reg_format: regFormatInput });
       setCurrentRegFormat(res.data?.current_format || regFormatInput);
@@ -63,6 +65,7 @@ export default function TeacherPersonalDetails() {
       setShowRegConfigModal(false);
       fetchNextTeacherRegNo();
     } catch { showMessage({ type: 'error', text: 'Failed to save registration format.' }); }
+    finally { setSaving(false); }
   };
 
   const fetchTeachers = async () => {
@@ -114,6 +117,7 @@ export default function TeacherPersonalDetails() {
     const required = modalMode === 'add' ? reqAdd : reqEdit;
     const missing = required.filter(f => !String(formData[f] || '').trim());
     if (missing.length > 0) return showMessage({ type: 'warning', text: 'Please fill: ' + missing.join(', ') });
+    setSaving(true);
     try {
       if (modalMode === 'add') {
         await api.post('teachers/', formData);
@@ -126,6 +130,8 @@ export default function TeacherPersonalDetails() {
       fetchTeachers();
     } catch (err) {
       showMessage({ type: 'error', text: 'Save failed: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -353,8 +359,8 @@ export default function TeacherPersonalDetails() {
         </Modal.Body>
         <Modal.Footer>
           <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-          <button className="btn btn-primary"   onClick={handleSave}>
-            {modalMode === 'add' ? 'Add Teacher' : 'Save Changes'}
+          <button className="btn btn-primary"   onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : (modalMode === 'add' ? 'Add Teacher' : 'Save Changes')}
           </button>
         </Modal.Footer>
       </Modal>
@@ -389,7 +395,9 @@ export default function TeacherPersonalDetails() {
         </Modal.Body>
         <Modal.Footer>
           <button className="btn btn-secondary" onClick={() => setShowRegConfigModal(false)}>Cancel</button>
-          <button className="btn btn-primary"   onClick={handleSaveTeacherRegConfig}>Save Format</button>
+          <button className="btn btn-primary"   onClick={handleSaveTeacherRegConfig} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Format'}
+          </button>
         </Modal.Footer>
       </Modal>
 

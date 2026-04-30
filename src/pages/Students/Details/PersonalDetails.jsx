@@ -30,6 +30,7 @@ export default function PersonalDetails() {
   const [showRegConfigModal, setShowRegConfigModal] = useState(false);
   const [regFormatInput, setRegFormatInput] = useState('');
   const [currentRegFormat, setCurrentRegFormat] = useState('');
+  const [saving, setSaving] = useState(false);
   // Grade/Stream config modal
   const [showGradeStreamModal, setShowGradeStreamModal] = useState(false);
   const [gsRows, setGsRows] = useState([]);
@@ -164,6 +165,7 @@ export default function PersonalDetails() {
     const missing = required.filter(f => !formData[f]);
     if (missing.length > 0) { alert(`Please fill in: ${missing.join(', ')}`); return; }
 
+    setSaving(true);
     const data = new FormData();
     Object.keys(formData).forEach(key => {
       if (key === 'profile_image') return; // Skip existing URL
@@ -188,12 +190,15 @@ export default function PersonalDetails() {
       fetchStudents();
     } catch (err) {
       showMessage({ type: 'error', text: 'Failed to save student: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDeleteClick = (student) => { setDeleteTarget(student); setShowDeleteConfirm(true); };
 
   const handleConfirmDelete = async () => {
+    setSaving(true);
     try {
       await api.delete(`students/${deleteTarget.registration_no}/`);
       setShowDeleteConfirm(false); setDeleteTarget(null);
@@ -202,6 +207,8 @@ export default function PersonalDetails() {
     } catch (err) {
       alert("Failed to delete: " + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
       setShowDeleteConfirm(false); setDeleteTarget(null);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -210,6 +217,7 @@ export default function PersonalDetails() {
       alert('Registration format cannot be empty.');
       return;
     }
+    setSaving(true);
     try {
       const response = await api.post('students/config-reg-no/', { reg_format: regFormatInput });
       setCurrentRegFormat(response.data.current_format);
@@ -218,6 +226,8 @@ export default function PersonalDetails() {
       fetchNextRegNo(); // Update the next registration number based on new format
     } catch (err) {
       showMessage({ type: 'error', text: 'Failed to save registration format: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -621,8 +631,8 @@ export default function PersonalDetails() {
             </div>
             <div className="pd-modal-footer">
               <button className="pd-btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="pd-btn-save" onClick={handleSaveStudent}>
-                {modalMode === 'add' ? 'Add Student' : 'Update Student'}
+              <button className="pd-btn-save" onClick={handleSaveStudent} disabled={saving}>
+                {saving ? 'Saving...' : (modalMode === 'add' ? 'Add Student' : 'Update Student')}
               </button>
             </div>
           </div>
@@ -845,7 +855,9 @@ export default function PersonalDetails() {
             </div>
             <div className="pd-modal-footer">
               <button className="pd-btn-cancel" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
-              <button className="pd-btn-danger" onClick={handleConfirmDelete}>Delete Student</button>
+              <button className="pd-btn-danger" onClick={handleConfirmDelete} disabled={saving}>
+                {saving ? 'Deleting...' : 'Delete Student'}
+              </button>
             </div>
           </div>
         </div>
@@ -880,7 +892,9 @@ export default function PersonalDetails() {
             </div>
             <div className="pd-modal-footer">
               <button className="pd-btn-cancel" onClick={() => setShowRegConfigModal(false)}>Cancel</button>
-              <button className="pd-btn-save" onClick={handleSaveRegConfig}>Save Format</button>
+              <button className="pd-btn-save" onClick={handleSaveRegConfig} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Format'}
+              </button>
             </div>
           </div>
         </div>

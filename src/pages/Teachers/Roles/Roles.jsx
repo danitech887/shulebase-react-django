@@ -22,6 +22,8 @@ export default function TeacherRoles() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [learningAreas, setLearningAreas] = useState([]);
   const [editingLA, setEditingLA] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [learningAreaData, setLearningAreaData] = useState({
     name: '',
@@ -119,6 +121,7 @@ export default function TeacherRoles() {
   };
 
   const handleConfigSave = async () => {
+    setSaving(true);
     try {
       const payload = { ...learningAreaData, is_learning_area: true };
       if (editingLA) {
@@ -130,9 +133,11 @@ export default function TeacherRoles() {
       }
       setEditingLA(null);
       setLearningAreaData({ name: '', grade_level: 'Lower Primary', category: 'Languages' });
-      fetchData(); // Refresh data to instantly show newly added subjects
+      fetchData(); 
     } catch (err) {
       showMessage({ type: 'error', text: 'Failed to configure Learning Area: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -184,7 +189,6 @@ export default function TeacherRoles() {
   };
 
   const handleSave = async () => {
-    // Validation: A teacher can only be a 'Class Teacher' for one class at a time
     if (formData.type_of_teacher === 'Class Teacher') {
       const isAlreadyClassTeacher = roles.some(r => 
         r.registration_no === formData.registration_no && 
@@ -197,6 +201,7 @@ export default function TeacherRoles() {
       }
     }
 
+    setSaving(true);
     try {
       const payload = { ...formData, subject: formData.subjects.join(', ') };
       if (modalMode === 'add') {
@@ -210,12 +215,15 @@ export default function TeacherRoles() {
       fetchData();
     } catch (err) {
       showMessage({ type: 'error', text: 'Save failed: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setSaving(false);
     }
   };
 
   const confirmDelete = (role) => { setDeleteTarget(role); setShowDeleteModal(true); };
 
   const handleDelete = async () => {
+    setDeleting(true);
     try {
       await api.delete(`teachers/roles/${deleteTarget.id}/`);
       showMessage({ type: 'success', text: 'Teacher role removed.' });
@@ -223,6 +231,8 @@ export default function TeacherRoles() {
       fetchData();
     } catch {
       showMessage({ type: 'error', text: 'Delete failed.' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -497,8 +507,8 @@ export default function TeacherRoles() {
 
             <div className="tr-modal-footer">
               <button className="tr-btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="tr-btn-save" onClick={handleSave}>
-                {modalMode === 'add' ? 'Assign Role' : 'Update Role'}
+              <button className="tr-btn-save" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : (modalMode === 'add' ? 'Assign Role' : 'Update Role')}
               </button>
             </div>
           </div>
@@ -522,7 +532,7 @@ export default function TeacherRoles() {
             </div>
             <div className="tr-modal-footer">
               <button className="tr-btn-cancel" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-              <button className="tr-btn-danger" onClick={handleDelete}>Remove Role</button>
+              <button className="tr-btn-danger" onClick={handleDelete} disabled={deleting}>{deleting ? 'Removing...' : 'Remove Role'}</button>
             </div>
           </div>
         </div>
@@ -575,8 +585,8 @@ export default function TeacherRoles() {
                 </div>
 
                 <div className="tr-config-actions mt-3">
-                  <button className="tr-btn-save w-100" onClick={handleConfigSave}>
-                    {editingLA ? 'Update Learning Area' : 'Add Learning Area'}
+                  <button className="tr-btn-save w-100" onClick={handleConfigSave} disabled={saving}>
+                    {saving ? 'Saving...' : (editingLA ? 'Update Learning Area' : 'Add Learning Area')}
                   </button>
                   {editingLA && (
                     <button className="tr-btn-cancel w-100 mt-2" onClick={() => { setEditingLA(null); setLearningAreaData({ name: '', grade_level: 'Lower Primary', category: 'Languages' }); }}>

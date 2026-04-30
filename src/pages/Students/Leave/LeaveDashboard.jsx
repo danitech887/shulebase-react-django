@@ -1077,10 +1077,6 @@ export default function LeaveDashboard() {
                       <textarea className="ld-input ld-textarea" rows={4} placeholder="Enter message for parents..." />
                     </div>
                     <div className="ld-form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
-                      <input type="checkbox" style={{ accentColor: 'var(--ld-accent)', width: 16, height: 16 }} />
-                      <label className="ld-label" style={{ margin: 0 }}>Send via SMS</label>
-                    </div>
-                    <div className="ld-form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
                       <input type="checkbox" defaultChecked style={{ accentColor: 'var(--ld-accent)', width: 16, height: 16 }} />
                       <label className="ld-label" style={{ margin: 0 }}>Send via Email</label>
                     </div>

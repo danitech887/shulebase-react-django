@@ -2,6 +2,43 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
 from django.conf import settings
+from django.core.files.uploadedfile import UploadedFile, InMemoryUploadedFile
+from io import BytesIO
+from PIL import Image
+import sys
+
+def compress_image(image_field):
+    if not image_field:
+        return
+        
+    # Only compress if it's a newly uploaded file
+    if not isinstance(image_field.file, UploadedFile):
+        return
+
+    try:
+        img = Image.open(image_field)
+        if img.mode in ('RGBA', 'P', 'LA'):
+            img = img.convert('RGB')
+            
+        # Limit dimensions proportionally
+        img.thumbnail((500, 500), Image.Resampling.LANCZOS)
+        
+        output = BytesIO()
+        img.save(output, format='JPEG', quality=70, optimize=True)
+        output.seek(0)
+        
+        file_name = image_field.name.split('/')[-1].split('.')[0] + '.jpg'
+        image_field.file = InMemoryUploadedFile(
+            output,
+            'ImageField',
+            file_name,
+            'image/jpeg',
+            sys.getsizeof(output),
+            None
+        )
+    except Exception as e:
+        print(f"Error compressing image: {e}")
+
 # ---------------- Master School ----------------
 class MasterSchool(models.Model):
     school_name = models.CharField(max_length=100)
@@ -23,6 +60,11 @@ class MasterSchool(models.Model):
         db_table = 'school_info'
         
         
+
+    def save(self, *args, **kwargs):
+        if self.logo_path:
+            compress_image(self.logo_path)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.school_name
@@ -332,6 +374,11 @@ class StudentInfo(models.Model):
         today = timezone.now().date()
         return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
 
+
+    def save(self, *args, **kwargs):
+        if self.profile_image:
+            compress_image(self.profile_image)
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Student Information"

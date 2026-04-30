@@ -371,8 +371,8 @@ export default function ImportStudents() {
           </div>
           <div className="im-action-bar">
             <button className="im-btn im-btn-outline" onClick={() => setStep(1)}>← Back to Edit</button>
-            <button className="im-btn im-btn-success" onClick={handleImport}>
-              🚀 Import {students.length} Students
+            <button className="im-btn im-btn-success" onClick={handleImport} disabled={loading}>
+              {loading ? 'Importing...' : `🚀 Import ${students.length} Students`}
             </button>
           </div>
         </>

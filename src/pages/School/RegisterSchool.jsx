@@ -23,7 +23,7 @@ const Field = ({ id, label, name, type = 'text', placeholder, icon, as = 'input'
             className="rs-btn-file-trigger"
             onClick={() => logoRef.current?.click()}
           >
-            {logoFile ? `📎 ${logoFile.name}` : '📷 Select Logo...'}
+            {logoFile ? `${logoFile.name}` : 'Select Logo...'}
           </button>
         </div>
       ) : as === 'textarea'
@@ -147,7 +147,7 @@ export default function RegisterSchool({ isModal = false }) {
           <div className="rs-blob rs-blob-1" />
           <div className="rs-blob rs-blob-2" />
           <header className="rs-page-header">
-            <div className="rs-page-icon">🏫</div>
+            <div className="rs-page-icon"></div>
             <div>
               <h1 className="rs-page-title">Register a School</h1>
               <p className="rs-page-sub">Create a new school account and its admin user in one step.</p>
@@ -161,7 +161,7 @@ export default function RegisterSchool({ isModal = false }) {
         {/* Success banner */}
         {status === 'success' && (
           <div className="rs-banner rs-banner--ok">
-            <span className="rs-banner-icon">✅</span>
+            <span className="rs-banner-icon"></span>
             <div>
               <p className="rs-banner-title">Registration Successful!</p>
               <p className="rs-banner-body">{apiMsg}</p>
@@ -172,14 +172,14 @@ export default function RegisterSchool({ isModal = false }) {
         {/* Error banner */}
         {status === 'error' && apiMsg && (
           <div className="rs-banner rs-banner--err">
-            <span className="rs-banner-icon">⚠️</span>
+            <span className="rs-banner-icon"></span>
             <p className="rs-banner-body">{apiMsg}</p>
           </div>
         )}
 
         {/* ── Section: School Info ── */}
         <fieldset className="rs-fieldset">
-          <legend className="rs-legend">🏫 School Information</legend>
+          <legend className="rs-legend">School Information</legend>
           
           {/* Logo Upload Section */}
           <div className="rs-logo-section">
@@ -190,7 +190,7 @@ export default function RegisterSchool({ isModal = false }) {
             >
               {logoPreview 
                 ? <img src={logoPreview} alt="Logo preview" className="rs-logo-img" />
-                : <div className="rs-logo-placeholder"><span>📷</span></div>
+                : <div className="rs-logo-placeholder"><span></span></div>
               }
               <div className="rs-logo-overlay">Change Logo</div>
               <input 
@@ -208,21 +208,21 @@ export default function RegisterSchool({ isModal = false }) {
           </div>
 
           <div className="rs-grid-2">
-            <Field id="rs-school-name" label="School Name"      name="school_name"   placeholder="e.g. Greenfield Academy"  icon="🏷️" form={form} handleChange={handleChange} errors={errors} />
-            <Field id="rs-logo-path"   label="Logo Path"        name="logo_path"     placeholder="Select school logo"       icon="🖼️" form={form} handleChange={handleChange} errors={errors} logoRef={logoRef} logoFile={logoFile} />
-            <Field id="rs-po-box"      label="P.O. Box"         name="po_box"        placeholder="e.g. 1234-00100"          icon="📬" form={form} handleChange={handleChange} errors={errors} />
-            <Field id="rs-address"     label="Address"          name="address"       placeholder="Town / County"             icon="📍" form={form} handleChange={handleChange} errors={errors} />
-            <Field id="rs-contact"     label="Contact"          name="contact"       placeholder="+254 700 000 000"          icon="📞" form={form} handleChange={handleChange} errors={errors} />
-            <Field id="rs-email"       label="Email Address"    name="email_address" placeholder="admin@school.ac.ke"        icon="✉️" type="email" form={form} handleChange={handleChange} errors={errors} />
-            <Field id="rs-motto"       label="Motto (optional)" name="motto"         placeholder="e.g. Strive for Excellence" icon="✨" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-school-name" label="School Name"      name="school_name"   placeholder="e.g. Greenfield Academy"  icon="" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-logo-path"   label="Logo Path"        name="logo_path"     placeholder="Select school logo"       icon="" form={form} handleChange={handleChange} errors={errors} logoRef={logoRef} logoFile={logoFile} />
+            <Field id="rs-po-box"      label="P.O. Box"         name="po_box"        placeholder="e.g. 1234-00100"          icon="" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-address"     label="Address"          name="address"       placeholder="Town / County"             icon="" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-contact"     label="Contact"          name="contact"       placeholder="+254 700 000 000"          icon="" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-email"       label="Email Address"    name="email_address" placeholder="admin@school.ac.ke"        icon="" type="email" form={form} handleChange={handleChange} errors={errors} />
+            <Field id="rs-motto"       label="Motto (optional)" name="motto"         placeholder="e.g. Strive for Excellence" icon="" form={form} handleChange={handleChange} errors={errors} />
           </div>
           <Field id="rs-vision" label="Vision (optional)" name="vision"
-                 as="textarea" placeholder="Describe the school's long-term vision…" icon="🎯" form={form} handleChange={handleChange} errors={errors} />
+                 as="textarea" placeholder="Describe the school's long-term vision…" icon="" form={form} handleChange={handleChange} errors={errors} />
         </fieldset>
 
         {/* ── Section: Pricing Plan ── */}
         <fieldset className="rs-fieldset">
-          <legend className="rs-legend">💳 Pricing Plan (7 Days Free Trial)</legend>
+          <legend className="rs-legend">Pricing Plan (7 Days Free Trial)</legend>
           
           <div className="rs-billing-toggle">
             <span className={`rs-toggle-lbl ${form.billing_cycle === 'Monthly' ? 'active' : ''}`}>Monthly</span>
@@ -237,17 +237,14 @@ export default function RegisterSchool({ isModal = false }) {
 
           <div className="rs-pricing-grid">
             {[
-              { id: 'Starter',    icon: '🌱', priceM: '3,500', priceA: '2,800', desc: 'Up to 300 students' },
-              { id: 'Growth',     icon: '🚀', priceM: '7,500', priceA: '6,000', desc: 'Up to 1,000 students' },
-              { id: 'Enterprise', icon: '🏢', priceM: '14,000', priceA: '11,200', desc: 'Unlimited students' },
+              { id: 'Starter', icon: '', priceM: '5,000', priceA: '4,000', desc: 'Complete digital management' },
             ].map(plan => (
               <div 
                 key={plan.id}
                 className={`rs-plan-card ${form.plan_name === plan.id ? 'active' : ''}`}
                 onClick={() => setForm(f => ({ ...f, plan_name: plan.id }))}
               >
-                <div className="rs-plan-check">{form.plan_name === plan.id ? '✅' : '○'}</div>
-                <div className="rs-plan-icon">{plan.icon}</div>
+                <div className="rs-plan-check">{form.plan_name === plan.id ? '✓' : '○'}</div>
                 <div className="rs-plan-name">{plan.id}</div>
                 <div className="rs-plan-price">
                   <span className="rs-plan-curr">KES</span>
@@ -258,20 +255,20 @@ export default function RegisterSchool({ isModal = false }) {
               </div>
             ))}
           </div>
-          <p className="rs-pricing-note">💡 Your 7-day free trial begins immediately after approval.</p>
+          <p className="rs-pricing-note">Your 7-day free trial begins immediately after approval.</p>
         </fieldset>
 
         {/* ── Section: Admin Account ── */}
         <fieldset className="rs-fieldset">
-          <legend className="rs-legend">👤 Admin Account</legend>
+          <legend className="rs-legend">Admin Account</legend>
           <div className="rs-grid-2">
             <Field id="rs-username" label="Admin Username" name="username"
-                   placeholder="Choose a unique username" icon="👤" form={form} handleChange={handleChange} errors={errors} />
+                   placeholder="Choose a unique username" icon="" form={form} handleChange={handleChange} errors={errors} />
 
             {/* Password with show/hide */}
             <div className={`rs-field ${errors.password ? 'rs-field--err' : ''}`}>
               <label className="rs-label" htmlFor="rs-password">
-                <span className="rs-label-icon">🔒</span> Password
+                <span className="rs-label-icon"></span> Password
               </label>
               <div className="rs-pwd-wrap">
                 <input id="rs-password" name="password"
@@ -283,7 +280,7 @@ export default function RegisterSchool({ isModal = false }) {
                 />
                 <button type="button" id="rs-toggle-pwd" className="rs-pwd-toggle"
                   onClick={() => setShowPwd(p => !p)}>
-                  {showPwd ? '🙈' : '👁️'}
+                  {showPwd ? 'Hide' : 'Show'}
                 </button>
               </div>
               {errors.password && <span className="rs-err-msg">{errors.password}</span>}
@@ -291,7 +288,7 @@ export default function RegisterSchool({ isModal = false }) {
 
             <div className={`rs-field ${errors.confirmPassword ? 'rs-field--err' : ''}`}>
               <label className="rs-label" htmlFor="rs-confirm-pwd">
-                <span className="rs-label-icon">🔒</span> Confirm Password
+                <span className="rs-label-icon"></span> Confirm Password
               </label>
               <input id="rs-confirm-pwd" name="confirmPassword"
                 type={showPwd ? 'text' : 'password'}
@@ -310,7 +307,7 @@ export default function RegisterSchool({ isModal = false }) {
             disabled={status === 'loading'}>
             {status === 'loading'
               ? <><span className="rs-spinner" /> Registering…</>
-              : <><span>🚀</span> Register School</>
+              : <>Register School</>
             }
           </button>
         </div>

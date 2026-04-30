@@ -30,13 +30,13 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 const FEATURES = [
   {
     icon: '👨‍🎓', iconClass: 'fi-teal', title: 'Student Management',
-    desc: 'Complete student lifecycle management — admissions, enrollment, class allocation, promotions, transfers, and alumni records. Maintain comprehensive student profiles with photos and documents.',
+    desc: 'Complete student lifecycle management — admissions, enrollment, class allocation, promotions, transfers, and alumni records. Maintain comprehensive student profiles with photos.',
     tags: ['Admissions', 'Profiles', 'Transfers', 'Alumni'],
   },
   {
     icon: '💰', iconClass: 'fi-gold', title: 'Fee Management & Billing',
-    desc: 'Automate fee invoicing, track payments, send reminders, and generate receipts. Integrates with M-Pesa and bank transfers. Detailed financial reports at your fingertips anytime.',
-    tags: ['M-Pesa', 'Invoices', 'Reminders', 'Reports'],
+    desc: 'Automate fee invoicing, track payments, and generate receipts. Detailed financial reports at your fingertips anytime.',
+    tags: ['Invoices', 'Payments', 'Receipts', 'Reports'],
   },
   {
     icon: '📝', iconClass: 'fi-sky', title: 'Academics & Exams',
@@ -45,97 +45,44 @@ const FEATURES = [
   },
   {
     icon: '📅', iconClass: 'fi-pink', title: 'Attendance Tracking',
-    desc: 'Daily student and staff attendance with biometric support, SMS alerts to parents for absences, detailed attendance analytics, and automated follow-up workflows to reduce absenteeism.',
-    tags: ['Biometric', 'SMS Alerts', 'Analytics'],
-  },
-  {
-    icon: '👩‍🏫', iconClass: 'fi-purple', title: 'Staff & HR Management',
-    desc: 'Staff profiles, payroll processing, leave management, performance appraisals, and document management. Streamline your HR operations and ensure compliance with labour regulations.',
-    tags: ['Payroll', 'Leave', 'Appraisals', 'Documents'],
+    desc: 'Daily student and staff attendance with biometric support, notifications to parents for absences, detailed attendance analytics, and automated follow-up workflows to reduce absenteeism.',
+    tags: ['Biometric', 'Alerts', 'Analytics'],
   },
   {
     icon: '📱', iconClass: 'fi-orange', title: 'Parent & Communication Portal',
-    desc: 'Real-time SMS and email notifications, parent portal for fee status and results, internal messaging between teachers and parents, and school-wide announcements with read receipts.',
-    tags: ['SMS', 'Email', 'Portal', 'Announcements'],
-  },
-  {
-    icon: '📦', iconClass: 'fi-teal', title: 'Inventory & Library',
-    desc: 'Track school assets, textbooks, lab equipment, and library resources. Manage book borrowing records, stock levels, procurement requests, and generate asset depreciation reports.',
-    tags: ['Library', 'Assets', 'Procurement'],
-  },
-  {
-    icon: '🚌', iconClass: 'fi-gold', title: 'Transport Management',
-    desc: 'Manage school buses, routes, driver profiles, and student transport assignments. GPS tracking integration available. Automatically notify parents when the bus is near their stop.',
-    tags: ['Routes', 'GPS', 'Notifications'],
+    desc: 'Real-time email notifications, parent portal for fee status and results, internal messaging between teachers and parents, and school-wide announcements with read receipts.',
+    tags: ['Email', 'Portal', 'Announcements'],
   },
   {
     icon: '📊', iconClass: 'fi-sky', title: 'Analytics & Reporting',
-    desc: 'Comprehensive dashboards with real-time KPIs. Generate custom reports on academics, finance, attendance, and more. Export to PDF or Excel for board meetings and government submissions.',
+    desc: 'Comprehensive dashboards with real-time KPIs. Generate custom reports on academics, finance, attendance, and more. Export to PDF or Excel for board meetings.',
     tags: ['Dashboard', 'Export', 'KPIs', 'Custom Reports'],
   },
 ];
 
 const STEPS = [
-  { num: 1, title: 'Register Your School', desc: 'Create your free account. Enter your school details — name, type, location, and logo. Takes under 5 minutes.' },
+  { num: 1, title: 'Register Your School', desc: 'Create your account. Enter your school details — name, type, location, and logo. Takes under 5 minutes.' },
   { num: 2, title: 'Configure & Customize', desc: 'Set up classes, subjects, fee structures, grading scales, and academic calendar to match your school\'s needs.' },
   { num: 3, title: 'Import Your Data', desc: 'Bulk-import student and staff records via Excel. Our team helps with data migration at no extra cost.' },
   { num: 4, title: 'Go Live & Grow', desc: 'Invite staff and parents. Start managing your school smarter from day one with full support from our team.' },
 ];
 
-const PRICING_MONTHLY = [3500, 7500, 14000];
-const PRICING_ANNUAL  = [2800, 6000, 11200];
+const PRICING_MONTHLY = [5000];
+const PRICING_ANNUAL  = [4000];
 
 const PRICING_PLANS = [
   {
-    tier: 'Starter', descShort: 'Perfect for small schools and primary schools just getting started with digital management.',
+    tier: 'Starter', descShort: 'Perfect for schools looking for comprehensive digital management.',
     features: [
-      { ok: true,  text: 'Up to 300 students' },
-      { ok: true,  text: 'Student & staff management' },
-      { ok: true,  text: 'Basic fee management' },
-      { ok: true,  text: 'Exam & report card management' },
-      { ok: true,  text: 'Attendance tracking' },
-      { ok: false, text: 'M-Pesa Integration' },
-      { ok: false, text: 'SMS notifications' },
-      { ok: true,  text: 'Email support' },
-      { ok: false, text: 'Staff payroll module' },
-      { ok: false, text: 'Transport management' },
+      { ok: true,  text: 'Unlimited students' },
+      { ok: true,  text: 'Student lifecycle tracking' },
+      { ok: true,  text: 'Academics, grading & reports' },
+      { ok: true,  text: 'Attendance monitoring' },
+      { ok: true,  text: 'Fee management system' },
+      { ok: true,  text: 'Parent portal access' },
     ],
     btnClass: 'price-btn price-btn-outline', btnLabel: 'Start Free Trial', action: 'register',
-    popular: false,
-  },
-  {
-    tier: 'Growth', descShort: 'The ideal all-rounder for growing secondary schools that need the full feature set.',
-    features: [
-      { ok: true,  text: 'Up to 1,000 students' },
-      { ok: true,  text: 'Everything in Starter' },
-      { ok: true,  text: 'One Integration (SMS or M-Pesa)' },
-      { ok: true,  text: 'Staff payroll & HR module' },
-      { ok: true,  text: 'Parent portal & mobile app' },
-      { ok: true,  text: 'Library management' },
-      { ok: true,  text: 'Inventory & asset tracking' },
-      { ok: true,  text: 'Advanced analytics dashboard' },
-      { ok: true,  text: 'Priority phone support' },
-      { ok: false, text: 'Transport management' },
-    ],
-    btnClass: 'price-btn price-btn-filled', btnLabel: 'Get Started Now', action: 'register',
     popular: true,
-  },
-  {
-    tier: 'Enterprise', descShort: 'For large schools, school chains, and institutions needing unlimited capacity and custom features.',
-    features: [
-      { ok: true, text: 'Unlimited students' },
-      { ok: true, text: 'Everything in Growth' },
-      { ok: true, text: 'Full SMS & M-Pesa Integration' },
-      { ok: true, text: 'Transport & GPS management' },
-      { ok: true, text: 'Multi-campus / branch support' },
-      { ok: true, text: 'Custom branding & domain' },
-      { ok: true, text: 'API access & integrations' },
-      { ok: true, text: 'Dedicated account manager' },
-      { ok: true, text: 'On-site training & setup' },
-      { ok: true, text: 'SLA & 24/7 support' },
-    ],
-    btnClass: 'price-btn price-btn-dark', btnLabel: 'Contact Sales', action: 'contact',
-    popular: false,
   },
 ];
 
@@ -403,8 +350,7 @@ function AboutSection() {
                 {[
                   'Kenya-built & locally optimized',
                   'KNEC exam integration',
-                  'M-Pesa fee collection',
-                  'Offline-capable mobile app',
+                  'Secure fee collection',
                   'MOE curriculum aligned',
                 ].map((t) => (
                   <div key={t} className="asc-item">
@@ -432,8 +378,8 @@ function AboutSection() {
             <div className="about-features">
               {[
                 { icon: '🎓', title: 'Academic Excellence', desc: 'Full curriculum management, grade tracking, and performance analytics aligned to KNEC standards.' },
-                { icon: '💳', title: 'Smart Finance', desc: 'Automated fee collection with M-Pesa integration, receipts, and real-time financial reporting.' },
-                { icon: '👨‍👩‍👧', title: 'Parent Engagement', desc: 'Keep parents informed via SMS, email alerts, and a dedicated parent portal for results and fees.' },
+                { icon: '💳', title: 'Smart Finance', desc: 'Track fees, print receipts, and generate real-time financial reporting.' },
+                { icon: '👨‍👩‍👧', title: 'Parent Engagement', desc: 'Keep parents informed via email alerts, and a dedicated parent portal for results and fees.' },
                 { icon: '☁️', title: 'Cloud-Powered', desc: 'Access your school data from any device, anywhere, with enterprise-grade security and backups.' },
               ].map((f) => (
                 <div key={f.title} className="af-item">
@@ -629,9 +575,9 @@ function PricingSection({ visible, onOpenModal }) {
           <span className="save-badge">Save 20%</span>
         </div>
 
-        <Row className="g-4 align-items-start">
+        <Row className="g-4 justify-content-center">
           {PRICING_PLANS.map((plan, idx) => (
-            <Col key={plan.tier} md={12} lg={4} className="reveal">
+            <Col key={plan.tier} md={8} lg={5} className="reveal">
               <div className={`price-card ${plan.popular ? 'popular' : ''}`}>
                 {plan.popular && <div className="popular-badge">🔥 Most Popular</div>}
                 <div className="price-tier">{plan.tier}</div>

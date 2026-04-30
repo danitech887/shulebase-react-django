@@ -14,6 +14,7 @@ export default function FeeDashboard() {
   const [modalType, setModalType] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [animate, setAnimate] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [feeStats, setFeeStats] = useState([
     { title: 'Total Collected', value: 'Ksh 0', icon: '💰', accent: '#059669', trend: '+0%' },
@@ -374,6 +375,7 @@ export default function FeeDashboard() {
 
   const handlePaymentSubmit = async () => {
     if (!paymentData.registration_no || !paymentData.amount) { alert('Please fill required fields'); return; }
+    setSaving(true);
     try {
       const modeMapping = {
         mpesa: 'M-Pesa',
@@ -394,6 +396,7 @@ export default function FeeDashboard() {
       handleCloseModal(); fetchFeeData();
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) { showMessage({ type: "error: ",text: "Error" + JSON.stringify(err.response?.data || err.message, null, 2) }); }
+    finally { setSaving(false); }
   };
 
   const viewFeeReciept = async (fee_id) => {
@@ -406,8 +409,10 @@ export default function FeeDashboard() {
 
   const handleReminderSubmit = () => {
     if (!reminderData.grade) { showMessage({ type: 'warning',text: 'Select a grade' }); return; }
+    setSaving(true);
     setSuccessMessage('Reminders sent!'); setReminderData({ grade: '', message: '' }); handleCloseModal();
     setTimeout(() => setSuccessMessage(''), 3000);
+    setSaving(false);
   };
 
   const fetchActivities = async (grade) => {
@@ -434,6 +439,7 @@ export default function FeeDashboard() {
   };
 
   const handleSettingsSubmit = async () => {
+    setSaving(true);
     try {
       // Save Grade Fee Config
       await api.post('fees/by-grade/', settingsData);
@@ -453,6 +459,8 @@ export default function FeeDashboard() {
     } catch (err) {
       showMessage({ type: 'error',text: 'Failed to update fee settings.' });
       console.error(err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1044,7 +1052,9 @@ export default function FeeDashboard() {
                 </div>
                 <div className="fd-modal-footer">
                   <button className="fd-btn-cancel" onClick={handleCloseModal}>Cancel</button>
-                  <button className="fd-btn-save" onClick={handlePaymentSubmit}>Record Payment</button>
+                  <button className="fd-btn-save" onClick={handlePaymentSubmit} disabled={saving}>
+                    {saving ? 'Saving...' : 'Record Payment'}
+                  </button>
                 </div>
               </>
             )}
@@ -1326,7 +1336,9 @@ export default function FeeDashboard() {
                 </div>
                 <div className="fd-modal-footer">
                   <button className="fd-btn-cancel" onClick={handleCloseModal}>Cancel</button>
-                  <button className="fd-btn-save" onClick={handleSettingsSubmit}>Save All Settings</button>
+                  <button className="fd-btn-save" onClick={handleSettingsSubmit} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save All Settings'}
+                  </button>
                 </div>
               </>
             )}
@@ -1355,7 +1367,9 @@ export default function FeeDashboard() {
                 </div>
                 <div className="fd-modal-footer">
                   <button className="fd-btn-cancel" onClick={handleCloseModal}>Cancel</button>
-                  <button className="fd-btn-save" onClick={handleReminderSubmit}>Send Reminders</button>
+                  <button className="fd-btn-save" onClick={handleReminderSubmit} disabled={saving}>
+                    {saving ? 'Sending...' : 'Send Reminders'}
+                  </button>
                 </div>
               </>
             )}

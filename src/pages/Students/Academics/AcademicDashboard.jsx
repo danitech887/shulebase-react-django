@@ -39,6 +39,9 @@ export default function AcademicDashboard() {
   const [exportParams, setExportParams] = useState({ report_type: 'Overall Academic Performance', grade: '', format: 'PDF', stream: '', term: 'Term 1', year: new Date().getFullYear(), subject: '' });
   const [headteacherComment, setHeadteacherComment] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
+  const [reviewSystem, setReviewSystem] = useState('cba'); // 'cba' | 'summative'
+  const [reviewPerformanceData, setReviewPerformanceData] = useState({ cbc: null, summative: null });
+  const [isFetchingReviewData, setIsFetchingReviewData] = useState(false);
   
   const { grades, streams } = useGradesAndStreams(students, 
     modalType === 'gradeReport' ? gradeReportParams.grade :
@@ -183,16 +186,35 @@ export default function AcademicDashboard() {
   const handleOpenReview = async (studentData) => {
     setSelectedStudent(studentData);
     setHeadteacherComment('');
+    setReviewPerformanceData({ cbc: null, summative: null });
     handleOpenModal('reviewPerformance');
+    setIsFetchingReviewData(true);
     try {
       const termToUse = selectedTerm || 'Term 1';
       const yearToUse = selectedYear || new Date().getFullYear();
-      const res = await students.get(`teacher-portal/report-comments/?student_id=${studentData.registration_no}&term=${termToUse}&year=${yearToUse}`);
-      if (res.data) {
-        setHeadteacherComment(res.data.headteacher_comment || '');
+      
+      const [commentRes, cbcRes, summativeRes] = await Promise.allSettled([
+        students.get(`teacher-portal/report-comments/?student_id=${studentData.registration_no}&term=${termToUse}&year=${yearToUse}`),
+        students.get(`academics/cbc/student/${studentData.registration_no}/strands/?term=${termToUse}&year=${yearToUse}&aggregate=true`),
+        students.get(`students/${studentData.registration_no}/academics/?term=${termToUse}&year=${yearToUse}`)
+      ]);
+
+      if (commentRes.status === 'fulfilled' && commentRes.value.data) {
+        setHeadteacherComment(commentRes.value.data.headteacher_comment || '');
       }
+
+      const cbcRaw = cbcRes.status === 'fulfilled' ? cbcRes.value.data : null;
+      const cbcData = Array.isArray(cbcRaw) ? cbcRaw : (cbcRaw?.marks || cbcRaw?.overall_competencies || cbcRaw?.competencies || null);
+      
+      const summativeRaw = summativeRes.status === 'fulfilled' ? summativeRes.value.data : null;
+      const summativeData = summativeRaw?.marks || null;
+      
+      setReviewPerformanceData({ cbc: cbcData, summative: summativeData });
+
     } catch (err) {
       console.error('Error fetching comment', err);
+    } finally {
+      setIsFetchingReviewData(false);
     }
   };
 
@@ -212,7 +234,8 @@ export default function AcademicDashboard() {
       handleCloseModal();
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setError('Failed to save performance review.');
+      const errorMsg = err.response?.data?.detail || 'Failed to save performance review.';
+      setError(errorMsg);
       console.error(err);
     } finally {
       setIsSavingComment(false);
@@ -1289,6 +1312,68 @@ export default function AcademicDashboard() {
                   <button className="ad-modal-close" onClick={handleCloseModal}>✕</button>
                 </div>
                 <div className="ad-modal-body">
+                  <div className="d-flex justify-content-between align-items-center mb-3" style={{borderBottom: '1px solid #374151', paddingBottom: '10px'}}>
+                    <h6 className="fw-bold mb-0" style={{color: '#a5b4fc'}}>Performance for {selectedTerm || 'Term 1'} {selectedYear || new Date().getFullYear()}</h6>
+                    <div className="btn-group" role="group" style={{display: 'flex', gap: '5px'}}>
+                      <button 
+                        type="button" 
+                        className={`btn btn-sm ${reviewSystem === 'cba' ? 'btn-primary' : 'btn-outline-secondary'}`} 
+                        onClick={() => setReviewSystem('cba')}
+                        style={{fontSize: '0.8rem', padding: '4px 10px', borderRadius: '4px'}}
+                      >
+                        CBA (Strands)
+                      </button>
+                      <button 
+                        type="button" 
+                        className={`btn btn-sm ${reviewSystem === 'summative' ? 'btn-primary' : 'btn-outline-secondary'}`} 
+                        onClick={() => setReviewSystem('summative')}
+                        style={{fontSize: '0.8rem', padding: '4px 10px', borderRadius: '4px'}}
+                      >
+                        Summative Marks
+                      </button>
+                    </div>
+                  </div>
+
+                  {isFetchingReviewData ? (
+                    <div className="text-center py-4"><div className="ad-spinner" style={{margin: '0 auto'}} /></div>
+                  ) : (
+                    <div className="mb-4">
+                      {reviewSystem === 'summative' && (
+                        reviewPerformanceData.summative && reviewPerformanceData.summative.length > 0 ? (
+                          <div className="mb-3">
+                            <span className="badge bg-primary mb-2" style={{ padding: '0.4em 0.8em', fontSize: '0.8rem' }}>Summative Marks</span>
+                            <div className="d-flex flex-wrap gap-2" style={{display: 'flex', flexWrap: 'wrap', gap: '8px'}}>
+                              {reviewPerformanceData.summative.map(m => (
+                                <span key={m.id} className="badge bg-light text-dark border p-2" style={{ fontSize: '0.85rem', borderRadius: '4px' }}>
+                                  {m.subject || m.exam_type || 'Exam'}: <strong className="text-primary">{m.score || m.total_marks}%</strong>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-muted fst-italic text-center py-3 border rounded bg-light" style={{color: '#9ca3af', background: '#1f2937', padding: '15px', borderRadius: '6px', textAlign: 'center'}}>No summative marks found for this term.</div>
+                        )
+                      )}
+
+                      {reviewSystem === 'cba' && (
+                        reviewPerformanceData.cbc && reviewPerformanceData.cbc.length > 0 ? (
+                          <div>
+                            <span className="badge bg-success mb-2" style={{ padding: '0.4em 0.8em', fontSize: '0.8rem' }}>CBC Levels (Aggregated)</span>
+                            <div className="d-flex flex-wrap gap-2" style={{display: 'flex', flexWrap: 'wrap', gap: '8px'}}>
+                              {reviewPerformanceData.cbc.map((c, idx) => (
+                                <span key={c.id || idx} className="badge bg-light text-dark border p-2" style={{ fontSize: '0.85rem', borderRadius: '4px' }}>
+                                  {c.subject || c.competency}: <strong className="text-success">{c.level ? `Level ${c.level}` : (c.rating || 'N/A')}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-muted fst-italic text-center py-3 border rounded bg-light" style={{color: '#9ca3af', background: '#1f2937', padding: '15px', borderRadius: '6px', textAlign: 'center'}}>No CBA strands data found for this term.</div>
+                        )
+                      )}
+                    </div>
+                  )}
+
                   <div className="ad-form-group">
                     <label className="ad-label">Headteacher Comment</label>
                     <textarea 

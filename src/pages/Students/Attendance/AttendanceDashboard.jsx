@@ -679,7 +679,6 @@ export default function AttendanceDashboard() {
                     </div>
                     <div className="att-form-group att-span-2">
                       <div className="att-checks">
-                        <label className="att-check"><input type="checkbox" /><span>Send via SMS</span></label>
                         <label className="att-check"><input type="checkbox" defaultChecked /><span>Send via Email</span></label>
                       </div>
                     </div>
@@ -806,7 +805,6 @@ export default function AttendanceDashboard() {
                     </div>
                     <div className="att-form-group att-span-2">
                       <div className="att-checks">
-                        <label className="att-check"><input type="checkbox" /><span>Send via SMS</span></label>
                         <label className="att-check"><input type="checkbox" defaultChecked /><span>Send via Email</span></label>
                       </div>
                     </div>

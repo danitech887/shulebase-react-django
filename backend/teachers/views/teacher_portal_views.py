@@ -1456,6 +1456,17 @@ class LearningAreaMarkAPIView(APIView):
             students = StudentInfo.objects.filter(school_id=school_id, grade=grade, stream=stream).order_by("registration_no")
             resp_data["students"] = StudentInfoSerializer(students, many=True).data
             
+            is_class_teacher = True
+            if user_role == 'teacher':
+                is_class_teacher = TeachersRole.objects.filter(
+                    school_id=school_id,
+                    registration_no=teacher,
+                    grade=grade,
+                    stream=stream,
+                    type_of_teacher__iexact='Class Teacher'
+                ).exists()
+            resp_data["is_class_teacher"] = is_class_teacher
+            
             if all([learning_area_id, term, exam_type]):
                 marks = LearningAreaMark.objects.filter(
                     school_id=school_id, 
@@ -1648,9 +1659,25 @@ class ReportCardCommentAPIView(APIView):
             year=year
         ).first()
 
+        is_class_teacher = True
+        if request.user.role == 'Teacher':
+            from core.models import TeacherInfo, TeachersRole, StudentInfo
+            teacher_info = TeacherInfo.objects.filter(phone=request.user.username, school_id=school_id).first()
+            student = StudentInfo.objects.filter(registration_no=student_id, school_id=school_id).first()
+            
+            is_class_teacher = False
+            if teacher_info and student:
+                is_class_teacher = TeachersRole.objects.filter(
+                    registration_no=teacher_info,
+                    grade=student.grade,
+                    stream=student.stream,
+                    type_of_teacher__iexact='Class Teacher'
+                ).exists()
+
         data = {
             "class_teacher_comment": comment.class_teacher_comment if comment else "",
-            "headteacher_comment": comment.headteacher_comment if comment else ""
+            "headteacher_comment": comment.headteacher_comment if comment else "",
+            "is_class_teacher": is_class_teacher
         }
         return Response(data)
 
@@ -1671,10 +1698,27 @@ class ReportCardCommentAPIView(APIView):
             year=year
         )
 
+        if request.user.role == 'Teacher':
+            from core.models import TeacherInfo, TeachersRole, StudentInfo
+            teacher_info = TeacherInfo.objects.filter(phone=request.user.username, school_id=school_id).first()
+            student = StudentInfo.objects.filter(registration_no=student_id, school_id=school_id).first()
+            
+            is_class_teacher = False
+            if teacher_info and student:
+                is_class_teacher = TeachersRole.objects.filter(
+                    registration_no=teacher_info,
+                    grade=student.grade,
+                    stream=student.stream,
+                    type_of_teacher__iexact='Class Teacher'
+                ).exists()
+            
+            if not is_class_teacher:
+                return Response({"detail": "You must be the assigned class teacher for this grade and stream to review this student."}, status=403)
+
         if request.user.role in ['SystemOwner', 'Admin', 'HeadTeacher']:
             if 'headteacher_comment' in data:
                 comment_obj.headteacher_comment = data.get('headteacher_comment')
-        
+
         if request.user.role in ['Teacher', 'Class Teacher', 'SystemOwner', 'Admin']:
             if 'class_teacher_comment' in data:
                 comment_obj.class_teacher_comment = data.get('class_teacher_comment')

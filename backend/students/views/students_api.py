@@ -1597,18 +1597,35 @@ class CBCStudentStrandsView(APIView):
         if term:
             marks = marks.filter(term=term)
 
-        results = [{
-            'id': mark.id,
-            'subject': mark.sub_strand.strand.subject,
-            'strand': mark.sub_strand.strand.name,
-            'sub_strand': mark.sub_strand.name,
-            'score': mark.score,
-            'level': mark.level,
-            'level_name': LEVEL_NAMES.get(mark.level, 'Unknown'),
-            'term': mark.term,
-            'year': mark.year,
-            'remark': mark.remark
-        } for mark in marks]
+        if request.GET.get('aggregate') == 'true':
+            subjects = marks.values('sub_strand__strand__subject').annotate(
+                avg_score=Avg('score'),
+                avg_level=Avg('level')
+            )
+            LEVEL_NAMES = {1: 'Below Expectation', 2: 'Approaching Expectation', 3: 'Meeting Expectation', 4: 'Exceeding Expectations'}
+            results = [{
+                'id': idx,
+                'subject': s['sub_strand__strand__subject'],
+                'score': round(s['avg_score'], 2) if s['avg_score'] is not None else 0,
+                'level': round(s['avg_level']) if s['avg_level'] is not None else 0,
+                'level_name': LEVEL_NAMES.get(round(s['avg_level']) if s['avg_level'] is not None else 0, 'Unknown'),
+                'term': term,
+                'year': year,
+            } for idx, s in enumerate(subjects)]
+        else:
+            LEVEL_NAMES = {1: 'Below Expectation', 2: 'Approaching Expectation', 3: 'Meeting Expectation', 4: 'Exceeding Expectations'}
+            results = [{
+                'id': mark.id,
+                'subject': mark.sub_strand.strand.subject,
+                'strand': mark.sub_strand.strand.name,
+                'sub_strand': mark.sub_strand.name,
+                'score': mark.score,
+                'level': mark.level,
+                'level_name': LEVEL_NAMES.get(mark.level, 'Unknown'),
+                'term': mark.term,
+                'year': mark.year,
+                'remark': mark.remark
+            } for mark in marks]
 
         return Response({
             'student_name': f"{student.first_name} {student.surname}",

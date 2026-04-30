@@ -158,7 +158,7 @@ export default function PricingModal() {
 
               <div className="db-plans-row mb-4">
                 {[
-                  { id: 'Starter',    icon: '🌱', priceM: '3,500', priceA: '2,800' },
+                  { id: 'Starter', icon: '🌱', priceM: '5,000', priceA: '4,000' },
                 ].map(plan => (
                   <div 
                     key={plan.id} 

@@ -103,6 +103,8 @@ export default function TeacherStrandPortal() {
   const [selectedReviewStudent, setSelectedReviewStudent] = useState(null);
   const [classTeacherComment, setClassTeacherComment] = useState('');
   const [isSavingReview, setIsSavingReview] = useState(false);
+  const [isClassTeacher, setIsClassTeacher] = useState(true);
+  const [isClassTeacherOfSelectedClass, setIsClassTeacherOfSelectedClass] = useState(true);
   const [reviewTerm, setReviewTerm] = useState('Term 1');
   const [reviewYear, setReviewYear] = useState(new Date().getFullYear());
   const [reviewSystem, setReviewSystem] = useState('cba'); // 'cba' | 'summative'
@@ -309,6 +311,7 @@ export default function TeacherStrandPortal() {
     try {
       const res = await api.get(`teacher-portal/learning-area-marks/?grade=${gradeFilter}&stream=${streamFilter}`);
       setClassListStudents(res.data.students || []);
+      setIsClassTeacherOfSelectedClass(res.data.is_class_teacher !== false);
     } catch {
       showMessage({ type: 'error', text: 'Failed to load class list.' });
       setShowClassListModal(false);
@@ -326,12 +329,13 @@ export default function TeacherStrandPortal() {
     try {
       const [commentRes, cbcRes, summativeRes] = await Promise.allSettled([
         api.get(`teacher-portal/report-comments/?student_id=${student.registration_no}&term=${reviewTerm}&year=${reviewYear}`),
-        api.get(`academics/cbc/student/${student.registration_no}/strands/?term=${reviewTerm}&year=${reviewYear}`),
+        api.get(`academics/cbc/student/${student.registration_no}/strands/?term=${reviewTerm}&year=${reviewYear}&aggregate=true`),
         api.get(`students/${student.registration_no}/academics/?term=${reviewTerm}&year=${reviewYear}`)
       ]);
       
       if (commentRes.status === 'fulfilled' && commentRes.value.data) {
         setClassTeacherComment(commentRes.value.data.class_teacher_comment || '');
+        setIsClassTeacher(commentRes.value.data.is_class_teacher !== false);
       }
       
       const cbcRaw = cbcRes.status === 'fulfilled' ? cbcRes.value.data : null;
@@ -361,7 +365,8 @@ export default function TeacherStrandPortal() {
       showMessage({ type: 'success', text: 'Class teacher comment saved successfully!' });
       setShowReviewModal(false);
     } catch (err) {
-      showMessage({ type: 'error', text: 'Failed to save comment.' });
+      const errorMsg = err.response?.data?.detail || 'Failed to save comment.';
+      showMessage({ type: 'error', text: errorMsg });
     } finally {
       setIsSavingReview(false);
     }
@@ -1502,7 +1507,11 @@ export default function TeacherStrandPortal() {
                       <td>{s.registration_no}</td>
                       <td>{s.first_name} {s.surname}</td>
                       <td>
-                        <button className="str-btn str-btn-primary btn-sm" onClick={() => handleOpenReview(s)}>Review Performance</button>
+                        {isClassTeacherOfSelectedClass ? (
+                          <button className="str-btn str-btn-primary btn-sm" onClick={() => handleOpenReview(s)}>Review Performance</button>
+                        ) : (
+                          <span className="text-muted" style={{fontSize: '0.85rem'}}>Unauthorized</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1576,6 +1585,12 @@ export default function TeacherStrandPortal() {
             </div>
           )}
 
+          {!isClassTeacher && (
+            <div className="alert alert-warning py-2 mb-3" style={{ fontSize: '0.85rem' }}>
+              <strong>Note:</strong> You are viewing this student's performance, but only the assigned <strong>Class Teacher</strong> for this grade and stream can submit the official review.
+            </div>
+          )}
+
           <Form.Group className="mb-3">
             <Form.Label className="t-label">Class Teacher Comment</Form.Label>
             <Form.Control 
@@ -1584,14 +1599,17 @@ export default function TeacherStrandPortal() {
               placeholder="Enter overall class teacher comment..."
               value={classTeacherComment}
               onChange={e => setClassTeacherComment(e.target.value)}
+              disabled={!isClassTeacher}
             />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowReviewModal(false)}>Cancel</Button>
-          <Button variant="primary" onClick={handleSaveReview} disabled={isSavingReview}>
-            {isSavingReview ? 'Saving...' : 'Save Comment'}
-          </Button>
+          {isClassTeacher && (
+            <Button variant="primary" onClick={handleSaveReview} disabled={isSavingReview}>
+              {isSavingReview ? 'Saving...' : 'Save Comment'}
+            </Button>
+          )}
         </Modal.Footer>
       </Modal>
       
