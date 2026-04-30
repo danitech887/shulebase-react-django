@@ -1140,28 +1140,35 @@ export default function FeeDashboard() {
                       </strong>
                     </div>
                     {(() => {
-                      const filtered = getFilteredRecords();
-                      const uniqueRegNos = [...new Set(filtered.map(r => r.registration_no))];
+                      let relevantStudents = [...studentList];
+                      
+                      if (recordFilters.grade) {
+                        relevantStudents = relevantStudents.filter(s => s.grade?.toLowerCase() === recordFilters.grade.toLowerCase());
+                      }
+                      if (recordFilters.stream) {
+                        relevantStudents = relevantStudents.filter(s => s.stream?.toLowerCase() === recordFilters.stream.toLowerCase());
+                      }
+                      if (recordFilters.search) {
+                        const q = recordFilters.search.toLowerCase();
+                        relevantStudents = relevantStudents.filter(s => {
+                          const fullName = `${s.first_name || ''} ${s.surname || ''}`.toLowerCase();
+                          return fullName.includes(q) || s.registration_no?.toLowerCase().includes(q);
+                        });
+                      }
                       
                       let totalExpected = 0;
+                      relevantStudents.forEach(s => {
+                        totalExpected += Number(settingsData[s.grade] || 0);
+                      });
+
                       let totalPaidForFiltered = 0;
-
-                      uniqueRegNos.forEach(regNo => {
-                        const studentObj = studentList.find(s => s.registration_no === regNo);
-                        const total_students = studentList.find(s => s.grade).count
-                        
-                        if (studentObj) {
-                          const expected = settingsData[studentObj.grade] || 0;
-                          totalExpected += Number(expected);
-                          totalExpected *= total_students
-
+                      const matchingRegNos = new Set(relevantStudents.map(s => s.registration_no));
+                      const termFiltered = recordFilters.term || 'Term 1';
+                      
+                      feeRecords.forEach(r => {
+                        if (matchingRegNos.has(r.registration_no) && r.term?.toLowerCase() === termFiltered.toLowerCase()) {
+                          totalPaidForFiltered += Number(r.amount || 0);
                         }
-                        
-                        const termFiltered = recordFilters.term || 'Term 1';
-                        const paid = feeRecords
-                          .filter(r => r.registration_no === regNo && r.term === termFiltered)
-                          .reduce((sum, r) => sum + Number(r.amount || 0), 0);
-                        totalPaidForFiltered += paid;
                       });
 
                       const balance = totalExpected - totalPaidForFiltered;
