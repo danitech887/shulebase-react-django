@@ -407,6 +407,33 @@ def manage_parent_account(sender, instance, created, **kwargs):
         # Step B: Link the parent to this student
         # We use .update() here to avoid triggering this signal again (infinite loop)
         StudentInfo.objects.filter(registration_no=instance.registration_no).update(parent_portal_user=parent_user)
+    else:
+        # On update, ensure parent user account stays in sync if phone changes
+        if instance.parent_portal_user:
+            if instance.parent_portal_user.username != instance.phone:
+                existing_parent = Users.objects.filter(username=instance.phone, role='Parent').first()
+                if existing_parent:
+                    # Link to the existing parent account matching the new phone
+                    StudentInfo.objects.filter(registration_no=instance.registration_no).update(parent_portal_user=existing_parent)
+                else:
+                    # Update the existing parent account's username and password
+                    parent = instance.parent_portal_user
+                    parent.username = instance.phone
+                    parent.password = make_password(str(instance.phone), hasher='md5')
+                    parent.save()
+        else:
+            # If for some reason it didn't have a parent user, create/link one now
+            parent_user, p_created = Users.objects.get_or_create(
+                username=instance.phone,
+                defaults={
+                    'role': 'Parent', 
+                    'password': make_password(str(instance.phone), hasher='md5'),
+                    'school': instance.school,
+                    'school_name': instance.school.school_name,
+                    'email': instance.email
+                }
+            )
+            StudentInfo.objects.filter(registration_no=instance.registration_no).update(parent_portal_user=parent_user)
 
 class LearningAreaMark(models.Model):
     school = models.ForeignKey(MasterSchool, on_delete=models.CASCADE, related_name='learning_area_marks')
