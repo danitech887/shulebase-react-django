@@ -87,7 +87,7 @@ def dashboard(request):
             fee_filter["term"] = term
             fee_filter["year"] = year
 
-        total_paid = Fee.objects.filter(school_id=school_id, **fee_filter)\
+        total_paid = Fee.objects.filter(school_id=school_id,status = 'Confirmed', **fee_filter)\
                         .aggregate(Sum('amount'))['amount__sum'] or 0
 
         grade_balance = (expected_fee * Decimal(no_of_students)) - Decimal(total_paid)
@@ -96,7 +96,7 @@ def dashboard(request):
     total_balance = sum(grade_fees_balances)
 
     # --- Global Fees ---
-    fee_query = Fee.objects.filter(school_id=school_id)
+    fee_query = Fee.objects.filter(school_id=school_id,status = 'Confirmed')
     if term:
         fee_query = fee_query.filter(term=term, year=year)
     if grade:

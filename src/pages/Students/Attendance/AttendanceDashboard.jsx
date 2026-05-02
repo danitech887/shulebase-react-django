@@ -28,6 +28,13 @@ export default function AttendanceDashboard() {
   const [printGrade, setPrintGrade] = useState('');
   const [printStream, setPrintStream] = useState('');
   const [printTerm, setPrintTerm] = useState('');
+  
+  // Export modal state
+  const [exportType, setExportType] = useState('Attendance Summary Report');
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
+  const [exportFormat, setExportFormat] = useState('PDF');
+  const [exportGrade, setExportGrade] = useState('');
 
   const { grades, streams } = useGradesAndStreams(students, 
     modalType === 'export' ? exportGrade : 
@@ -46,13 +53,6 @@ export default function AttendanceDashboard() {
     { status: 'Absent', count: 0, percentage: 0, color: '#ef4444' },
     { status: 'Late', count: 0, percentage: 0, color: '#d97706' },
   ]);
-
-  // Export modal state
-  const [exportType, setExportType] = useState('Attendance Summary Report');
-  const [exportFrom, setExportFrom] = useState('');
-  const [exportTo, setExportTo] = useState('');
-  const [exportFormat, setExportFormat] = useState('PDF');
-  const [exportGrade, setExportGrade] = useState('');
 
   // Notification modal state
   const [notificationTarget, setNotificationTarget] = useState('All Parents');

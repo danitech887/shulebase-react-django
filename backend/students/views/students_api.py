@@ -596,6 +596,7 @@ class FeesByGradeView(APIView):
             students = StudentInfo.objects.filter(school_id=school_id, grade=grade.grade)
             fees = Fee.objects.filter(
                 school_id=school_id,
+                status = 'Confirmed',
                 registration_no__in=students.values_list('registration_no', flat=True)
             )
             if term:

@@ -727,3 +727,20 @@
   .fd-stats-grid { grid-template-columns: 1fr; }
   .fd-stat-value { font-size: 1.3rem; }
 }
+
+/* Status Pills */
+.fd-status-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+  display: inline-block;
+  white-space: nowrap;
+}
+.fd-status-pill.confirmed {
+  background: var(--fd-green-soft);
+  color: var(--fd-green);
+  border: 1px solid rgba(16,185,129,0.2);
+}

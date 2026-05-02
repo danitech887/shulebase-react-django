@@ -442,10 +442,7 @@ export default function AcademicDashboard() {
   const moreActions = [
     { icon: '📊', title: 'Generate Report', desc: 'Export academic reports', action: () => handleOpenModal('export') },
     { icon: '📄', title: 'Result Papers', desc: 'Generate result papers per grade', action: () => handleOpenModal('resultPapers') },
-    { icon: '📈', title: 'Performance Analysis', desc: 'Analyze student performance', action: () => handleOpenModal('analyze') },
-    { icon: '👤', title: 'Individual Performance', desc: 'View student details', action: () => handleOpenModal('individual') },
     { icon: '📋', title: 'Grade Reports', desc: 'Grade and stream reports', action: () => handleOpenModal('gradeReport') },
-    { icon: '⚙️', title: 'Settings', desc: 'Configure academic settings', action: () => handleOpenModal('settings') },
   ];
 
 

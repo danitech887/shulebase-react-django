@@ -207,7 +207,7 @@ export default function FeeDashboard() {
   };
 
   const getFilteredRecords = () => {
-    let f = [...feeRecords];
+    let f = feeRecords.filter(r => r.status === 'Confirmed');
 
     f = f.map(r => {
       const st = studentList.find(s => s.registration_no === r.registration_no);
@@ -233,7 +233,7 @@ export default function FeeDashboard() {
   };
 
   const getFilteredPaymentModes = () => {
-    let filteredRecords = [...feeRecords];
+    let filteredRecords = feeRecords.filter(r => r.status === 'Confirmed');
     const termFiltered = globalFilters.term || 'Term 1';
     
     filteredRecords = filteredRecords.filter(r => 
@@ -278,7 +278,7 @@ export default function FeeDashboard() {
   };
 
   const getFilteredMonthlyData = () => {
-    let filteredRecords = [...feeRecords];
+    let filteredRecords = feeRecords.filter(r => r.status === 'Confirmed');
     if (globalFilters.grade || globalFilters.stream) {
       const matchingRegNos = new Set(
         studentList
@@ -326,9 +326,47 @@ export default function FeeDashboard() {
 
     return monthlyAgg.slice(0, 6);
   };
+  
+  const getFilteredGradeData = () => {
+    const confirmed = feeRecords.filter(r => r.status === 'Confirmed');
+    const termFiltered = globalFilters.term || 'Term 1';
+    
+    // Group payments by grade and mode
+    const gradeAgg = {};
+    confirmed.forEach(r => {
+      if (r.term?.toLowerCase() !== termFiltered.toLowerCase()) return;
+      
+      const st = studentList.find(s => s.registration_no === r.registration_no);
+      const grade = st?.grade || 'Unknown';
+      
+      if (!gradeAgg[grade]) {
+        gradeAgg[grade] = { collected: 0, mpesa: 0, cash: 0, bank: 0 };
+      }
+      
+      const amt = Number(r.amount || 0);
+      gradeAgg[grade].collected += amt;
+      
+      const mode = r.mode_of_payment?.toLowerCase();
+      if (mode === 'm-pesa') gradeAgg[grade].mpesa += amt;
+      else if (mode === 'cash') gradeAgg[grade].cash += amt;
+      else if (['bank transfer', 'bank'].includes(mode)) gradeAgg[grade].bank += amt;
+    });
+    
+    return gradeData.map(g => {
+      const agg = gradeAgg[g.grade] || { collected: 0, mpesa: 0, cash: 0, bank: 0 };
+      return {
+        ...g,
+        collected: agg.collected,
+        balance: Math.max(0, (g.totalFee || 0) - agg.collected),
+        mpesa: agg.mpesa,
+        cash: agg.cash,
+        bank_transfer: agg.bank
+      };
+    });
+  };
 
   const getDashboardStats = () => {
-    let filteredRecords = [...feeRecords];
+    let filteredRecords = feeRecords.filter(r => r.status === 'Confirmed');
     const termFiltered = globalFilters.term || 'Term 1';
     
     let relevantStudents = [...studentList];
@@ -870,38 +908,45 @@ export default function FeeDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {gradeData.map((g, i) => {
-                    const pct = ((g.collected / g.totalFee) * 100).toFixed(1);
+                  {(() => {
+                    const currentGradeData = getFilteredGradeData();
                     return (
-                      <tr key={i} className="fd-tr" style={{ '--ri': i }}>
-                        <td><span className="fd-grade-chip">{g.grade}</span></td>
-                        <td><span className="fd-stream-chip">{g.streams}</span></td>
-                        <td className="fd-num">{g.totalStudents}</td>
-                        <td className="fd-num fd-bold">Ksh {g.totalFee.toLocaleString()}</td>
-                        <td className="fd-num fd-green">Ksh {g.collected.toLocaleString()}</td>
-                        <td className="fd-num fd-amber">Ksh {g.balance.toLocaleString()}</td>
-                        <td>
-                          <div className="fd-prog-cell">
-                            <div className="fd-prog-track"><div className="fd-prog-fill" style={{ width: `${pct}%`, '--delay': `${i * 0.06}s` }} /></div>
-                            <span className="fd-prog-label">{pct}%</span>
-                          </div>
-                        </td>
-                        <td className="fd-num fd-indigo">Ksh {g.mpesa.toLocaleString()}</td>
-                        <td className="fd-num fd-cyan">Ksh {g.cash.toLocaleString()}</td>
-                        <td className="fd-num fd-amber">Ksh {(g.bank_transfer || 0).toLocaleString()}</td>
-                      </tr>
+                      <>
+                        {currentGradeData.map((g, i) => {
+                          const pct = ((g.collected / g.totalFee) * 100).toFixed(1);
+                          return (
+                            <tr key={i} className="fd-tr" style={{ '--ri': i }}>
+                              <td><span className="fd-grade-chip">{g.grade}</span></td>
+                              <td><span className="fd-stream-chip">{g.streams}</span></td>
+                              <td className="fd-num">{g.totalStudents}</td>
+                              <td className="fd-num fd-bold">Ksh {g.totalFee.toLocaleString()}</td>
+                              <td className="fd-num fd-green">Ksh {g.collected.toLocaleString()}</td>
+                              <td className="fd-num fd-amber">Ksh {g.balance.toLocaleString()}</td>
+                              <td>
+                                <div className="fd-prog-cell">
+                                  <div className="fd-prog-track"><div className="fd-prog-fill" style={{ width: `${pct}%`, '--delay': `${i * 0.06}s` }} /></div>
+                                  <span className="fd-prog-label">{pct}%</span>
+                                </div>
+                              </td>
+                              <td className="fd-num fd-indigo">Ksh {g.mpesa.toLocaleString()}</td>
+                              <td className="fd-num fd-cyan">Ksh {g.cash.toLocaleString()}</td>
+                              <td className="fd-num fd-amber">Ksh {(g.bank_transfer || 0).toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="fd-tr-total">
+                          <td colSpan="3" className="fd-bold">TOTAL</td>
+                          <td className="fd-bold">Ksh {currentGradeData.reduce((s, g) => s + g.totalFee, 0).toLocaleString()}</td>
+                          <td className="fd-bold fd-green">Ksh {currentGradeData.reduce((s, g) => s + g.collected, 0).toLocaleString()}</td>
+                          <td className="fd-bold fd-amber">Ksh {currentGradeData.reduce((s, g) => s + g.balance, 0).toLocaleString()}</td>
+                          <td className="fd-bold">{((currentGradeData.reduce((s, g) => s + g.collected, 0) / currentGradeData.reduce((s, g) => s + g.totalFee, 0)) * 100).toFixed(1)}%</td>
+                          <td className="fd-bold fd-indigo">Ksh {currentGradeData.reduce((s, g) => s + g.mpesa, 0).toLocaleString()}</td>
+                          <td className="fd-bold fd-cyan">Ksh {currentGradeData.reduce((s, g) => s + (g.cash || 0), 0).toLocaleString()}</td>
+                          <td className="fd-bold fd-amber">Ksh {currentGradeData.reduce((s, g) => s + (g.bank_transfer || 0), 0).toLocaleString()}</td>
+                        </tr>
+                      </>
                     );
-                  })}
-                  <tr className="fd-tr-total">
-                    <td colSpan="3" className="fd-bold">TOTAL</td>
-                    <td className="fd-bold">Ksh {gradeData.reduce((s, g) => s + g.totalFee, 0).toLocaleString()}</td>
-                    <td className="fd-bold fd-green">Ksh {gradeData.reduce((s, g) => s + g.collected, 0).toLocaleString()}</td>
-                    <td className="fd-bold fd-amber">Ksh {gradeData.reduce((s, g) => s + g.balance, 0).toLocaleString()}</td>
-                    <td className="fd-bold">{((gradeData.reduce((s, g) => s + g.collected, 0) / gradeData.reduce((s, g) => s + g.totalFee, 0)) * 100).toFixed(1)}%</td>
-                    <td className="fd-bold fd-indigo">Ksh {gradeData.reduce((s, g) => s + g.mpesa, 0).toLocaleString()}</td>
-                    <td className="fd-bold fd-cyan">Ksh {gradeData.reduce((s, g) => s + (g.cash || 0), 0).toLocaleString()}</td>
-                    <td className="fd-bold fd-amber">Ksh {gradeData.reduce((s, g) => s + (g.bank_transfer || 0), 0).toLocaleString()}</td>
-                  </tr>
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -966,7 +1011,12 @@ export default function FeeDashboard() {
             {modalType === 'confirm_payments' && (
               <>
                 <div className="fd-modal-header">
-                  <div className="fd-modal-title"><span>⏳</span> Confirm Pending Payments</div>
+                  <div className="fd-modal-title">
+                    {feeRecords.filter(r => r.status === 'Pending').length > 0 
+                      ? <><span>⏳</span> Confirm Pending Payments</>
+                      : <><span>✅</span> Confirmed Payments</>
+                    }
+                  </div>
                   <button className="fd-modal-close" onClick={handleCloseModal}>✕</button>
                 </div>
                 <div className="fd-modal-body">
@@ -979,9 +1029,20 @@ export default function FeeDashboard() {
                           <tr><th>Date</th><th>Student</th><th>Amount</th><th>Transaction Code</th><th>Action</th></tr>
                         </thead>
                         <tbody>
-                          {feeRecords.filter(r => r.status === 'Pending' && (r.mode_of_payment === 'M-Pesa' || r.mode_of_payment === 'Bank Transfer')).length === 0
-                            ? <tr><td colSpan="5" className="fd-empty-cell">No pending payments to confirm.</td></tr>
-                            : feeRecords.filter(r => r.status === 'Pending' && (r.mode_of_payment === 'M-Pesa' || r.mode_of_payment === 'Bank Transfer')).map(r => (
+                          {feeRecords.filter(r => r.status === 'Pending').length === 0
+                            ? (feeRecords.filter(r => r.status === 'Confirmed').length === 0 
+                                ? <tr><td colSpan="5" className="fd-empty-cell">No payments found.</td></tr>
+                                : feeRecords.filter(r => r.status === 'Confirmed').slice(0, 15).map(r => (
+                                  <tr key={r.id} className="fd-tr">
+                                    <td className="fd-mono">{r.date_of_payment || r.date}</td>
+                                    <td>{r.student_name} <span className="fd-muted">({r.registration_no})</span></td>
+                                    <td className="fd-bold fd-green">Ksh {r.amount?.toLocaleString()}</td>
+                                    <td><span className="fd-mode-chip">{r.transaction_code || 'N/A'}</span></td>
+                                    <td><span className="fd-status-pill confirmed">Confirmed</span></td>
+                                  </tr>
+                                ))
+                              )
+                            : feeRecords.filter(r => r.status === 'Pending').map(r => (
                               <tr key={r.id} className="fd-tr">
                                 <td className="fd-mono">{r.date_of_payment}</td>
                                 <td>{r.student_name} <span className="fd-muted">({r.registration_no})</span></td>
