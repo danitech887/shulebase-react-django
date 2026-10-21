@@ -154,10 +154,7 @@ class StudentListView(APIView):
             student_serializer = StudentSerializer(data=data)
             user_serializer = UserSerializer(data=users_data)
 
-            # 4. Atomic Transaction: Both must succeed or both fail
-            user_serializer = UserSerializer(data=users_data)
-            student_serializer = StudentSerializer(data=data)
-
+            # 4. Atomic Transaction: Safe dual-serializer validation & persistence
             is_user_valid = user_serializer.is_valid()
             is_student_valid = student_serializer.is_valid()
             if is_user_valid and is_student_valid:
@@ -165,11 +162,13 @@ class StudentListView(APIView):
                     user_instance = user_serializer.save()
                     student_serializer.save()
                     return Response(student_serializer.data, status=status.HTTP_201_CREATED)
-            all_errors = {**user_serializer.errors, **student_serializer.errors}
-            return Response(all_errors, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Combine errors safely since both serializers were validated
-            all_errors = {**user_serializer.errors, **student_serializer.errors}
+
+            # Safe error aggregation: guard .errors access to prevent DRF AssertionError
+            all_errors = {}
+            if not is_user_valid:
+                all_errors.update(user_serializer.errors)
+            if not is_student_valid:
+                all_errors.update(student_serializer.errors)
             return Response(all_errors, status=status.HTTP_400_BAD_REQUEST)
 class StudentDetailView(APIView):
     permission_classes = [IsAuthenticated]
