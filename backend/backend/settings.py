@@ -28,35 +28,58 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-ntcyv9m7*^3syl%d2l7%xf#90cmib#*!(f%1@9ophgp4n=n6!u')
 
+# Automatically detect Render or production environment
+IS_PRODUCTION = os.environ.get('RENDER', '').lower() == 'true' or os.environ.get('ENV', '').lower() == 'production'
+
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False' if IS_PRODUCTION else 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '* .onrender.com localhost 127.0.0.1').split()
+ALLOWED_HOSTS = os.environ.get(
+    'ALLOWED_HOSTS',
+    '.onrender.com shulebase-backend.onrender.com localhost 127.0.0.1 [::1]'
+).split()
 
-# CORS Settings
+# CORS & CSRF Settings
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOWED_ORIGINS = [
+    "https://shulebase.vercel.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    # Vite dev server sometimes runs on 5176 — allow common localhost dev origins
+    "http://localhost:5174",
+    "http://localhost:5175",
     "http://localhost:5176",
     "http://127.0.0.1:5176",
-    "http://10.0.90.20:5173",
-    "http://10.198.225.6:5173",
-    "http://192.168.137.1:5173",
-    "http://10.10.68.220:5173",
-    "http://10.10.197.179:5173",
-    "https://dff0-197-248-231-201.ngrok-free.app:5173",
-    "http://10.0.127.234:5173", 
-    
-
-
-
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True # Temporary test
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https:\/\/.*\.vercel\.app$",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://shulebase.vercel.app",
+    "https://shulebase-backend.onrender.com",
+    "https://*.vercel.app",
+    "https://*.onrender.com",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+
+# Production Security Headers
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 
 # Application definition
