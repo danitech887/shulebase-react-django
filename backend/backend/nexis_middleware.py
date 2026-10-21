@@ -74,3 +74,31 @@ class NexisTelemetryMiddleware:
             pass
 
         return response
+
+    def process_exception(self, request, exception):
+        """
+        Captures unhandled Django server exceptions with full Python stack traces
+        and delivers them directly into Nexis in real time.
+        """
+        import traceback
+        try:
+            user = getattr(request, "user", None)
+            username = user.username if (user and user.is_authenticated) else "guest"
+            tb = traceback.format_exc()
+
+            payload = {
+                "system_id": "shulebase-storage",
+                "level": "ERROR",
+                "tag": "Django.Crash",
+                "message": f"[{username}] Unhandled Server Exception: {type(exception).__name__}: {str(exception)}",
+                "stack_trace": tb,
+                "metadata": {
+                    "method": request.method,
+                    "path": request.path,
+                    "exception_type": type(exception).__name__,
+                }
+            }
+            threading.Thread(target=_send_log_async, args=(payload,), daemon=True).start()
+        except Exception:
+            pass
+        return None
