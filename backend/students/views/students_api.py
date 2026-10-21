@@ -160,16 +160,13 @@ class StudentListView(APIView):
 
             is_user_valid = user_serializer.is_valid()
             is_student_valid = student_serializer.is_valid()
-
             if is_user_valid and is_student_valid:
                 with transaction.atomic():
-                    # Save User (this now hashes the password thanks to our create override)
                     user_instance = user_serializer.save()
-                    
-                    # Save Student
                     student_serializer.save()
-                    
                     return Response(student_serializer.data, status=status.HTTP_201_CREATED)
+            all_errors = {**user_serializer.errors, **student_serializer.errors}
+            return Response(all_errors, status=status.HTTP_400_BAD_REQUEST)
             
             # Combine errors safely since both serializers were validated
             all_errors = {**user_serializer.errors, **student_serializer.errors}
