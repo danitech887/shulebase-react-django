@@ -139,7 +139,9 @@ class StudentListView(APIView):
                 )
 
             # 3. Prepare Serializers
-            school_obj = MasterSchool.objects.get(id=school_id)
+            school_obj = MasterSchool.objects.filter(id=school_id).first()
+            if not school_obj:
+                return Response({'error': 'School not found'}, status=status.HTTP_404_NOT_FOUND)
             users_data = {
                 'username': data['registration_no'],
                 'role': 'Student',
