@@ -83,6 +83,40 @@ export function setupAxiosTelemetry(axiosInstance = axios) {
 }
 
 /**
+ * Intercepts client-side React Router navigation (history.pushState, popstate, links)
+ * so every page and menu click is recorded in real time.
+ */
+export function initNavigationTelemetry() {
+  if (typeof window === "undefined" || !window.history) return;
+
+  // Intercept history.pushState (React Router navigate())
+  const originalPushState = window.history.pushState;
+  window.history.pushState = function (...args) {
+    originalPushState.apply(this, args);
+    try {
+      const path = window.location.pathname + window.location.search;
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const userEmail = user.email || user.username || "Guest";
+      sendToNexis("INFO", "User.Nav", `[${userEmail}] Navigated to ${path}`);
+    } catch (e) {}
+  };
+
+  // Intercept back / forward buttons
+  window.addEventListener("popstate", () => {
+    try {
+      const path = window.location.pathname + window.location.search;
+      sendToNexis("INFO", "User.Nav", `Navigated (popstate) to ${path}`);
+    } catch (e) {}
+  });
+
+  // Log initial session start
+  try {
+    const currentPath = window.location.pathname || "/";
+    sendToNexis("INFO", "User.Session", `Active session initialized at ${currentPath}`);
+  } catch (e) {}
+}
+
+/**
  * Catches unhandled browser exceptions and promise rejections.
  */
 export function initGlobalErrorLogging() {
@@ -109,4 +143,5 @@ export function initGlobalErrorLogging() {
 
 // Auto-initialize on import
 setupAxiosTelemetry(axios);
+initNavigationTelemetry();
 initGlobalErrorLogging();
