@@ -1,23 +1,33 @@
 import threading
-import httpx
+import json
+import urllib.request
+import urllib.error
 import os
 
 NEXIS_URL = os.environ.get("NEXIS_URL", "https://salty-breads-talk.loca.lt/api/v1/telemetry/events")
 
 
 def _send_log_async(payload: dict):
+    """
+    Sends telemetry using Python's standard library urllib.request.
+    Requires zero external packages (no httpx or requests needed).
+    """
     try:
-        httpx.post(
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
             NEXIS_URL,
-            json=payload,
+            data=data,
             headers={
                 "Content-Type": "application/json",
-                "Bypass-Tunnel-Reminder": "true"
+                "Bypass-Tunnel-Reminder": "true",
+                "User-Agent": "ShuleBase-Django/1.0",
             },
-            timeout=2.5
+            method="POST"
         )
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            pass
     except Exception:
-        # Non-blocking fail safe
+        # Non-blocking fail-safe: never crash Django if Nexis is unreachable
         pass
 
 
@@ -33,7 +43,7 @@ class NexisTelemetryMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        # Skip static assets or health checks
+        # Skip static assets or favicon
         path = request.path
         if path.startswith("/static/") or path.startswith("/media/") or path == "/favicon.ico":
             return response
@@ -58,7 +68,7 @@ class NexisTelemetryMiddleware:
                 }
             }
 
-            # Fire and forget in a daemon thread
+            # Fire and forget in a background daemon thread
             threading.Thread(target=_send_log_async, args=(payload,), daemon=True).start()
         except Exception:
             pass
