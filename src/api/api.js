@@ -1,10 +1,14 @@
 import axios from "axios";
+import { setupAxiosTelemetry } from "../utils/nexisTelemetry";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 const students = axios.create({
   baseURL: `${API_URL}/api/students`,
 });
+
+// Telemetry: stream API calls to Nexis
+setupAxiosTelemetry(students);
 
 // Attach JWT token to requests
 students.interceptors.request.use((config) => {
