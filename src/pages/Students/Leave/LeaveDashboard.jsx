@@ -827,7 +827,7 @@ export default function LeaveDashboard() {
                       <label className="ld-label">Grade</label>
                       <select className="ld-input" value={bulkApprovalData.grade} onChange={e => setBulkApprovalData({ ...bulkApprovalData, grade: e.target.value, stream: '' })}>
                         <option value="">All Grades</option>
-                        {gradesList.map(g => <option key={g} value={g}>{g}</option>)}
+                          {(grades || []).map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </div>
                     <div className="ld-form-group">
