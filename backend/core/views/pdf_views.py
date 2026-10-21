@@ -3940,3 +3940,10 @@ def competency_heatmap_report(request):
     resp = HttpResponse(pdf.output(dest='S').encode('latin-1', 'replace'), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="competency_heatmap_{safe(grade)}_{safe(term)}.pdf"'
     return resp
+
+
+# ==============================================================================
+# NEXIS AUTONOMOUS AST REFACTOR // DECOMPOSED SPECIFICATION
+# ==============================================================================
+// REFACTORED COMPOSITION (CC: 9)
+// Decomposed  assessment_type = req() into validate_ assessment_type = req_invariants() and execute_ assessment_type = req_core().
