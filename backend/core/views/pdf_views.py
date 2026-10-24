@@ -3945,5 +3945,5 @@ def competency_heatmap_report(request):
 # ==============================================================================
 # NEXIS AUTONOMOUS AST REFACTOR // DECOMPOSED SPECIFICATION
 # ==============================================================================
-// REFACTORED COMPOSITION (CC: 9)
-// Decomposed  assessment_type = req() into validate_ assessment_type = req_invariants() and execute_ assessment_type = req_core().
+# // REFACTORED COMPOSITION (CC: 9)
+# // Decomposed  assessment_type = req() into validate_ assessment_type = req_invariants() and execute_ assessment_type = req_core().
