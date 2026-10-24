@@ -20,12 +20,12 @@ export default function ParentPortalAcademics() {
   const [year, setYear]                 = useState(new Date().getFullYear());
   const [selectedSystem, setSelectedSystem] = useState('CBA');
   const [downloadingReport, setDownloadingReport] = useState(false);
+  
   const [showReportModal, setShowReportModal] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [viewSubject, setViewSubject] = useState(null);
   const [classTeacherComment, setClassTeacherComment] = useState('');
-  const [viewSubject, setViewSubject] = useState(null);
-  const [classTeacherComment, setClassTeacherComment] = useState('');
+
   const [headteacherComment, setHeadteacherComment] = useState('');
 
   useEffect(() => {
