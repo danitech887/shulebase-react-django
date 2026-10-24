@@ -17,7 +17,8 @@ export function sendToNexis(level = "INFO", tag = "User.Action", message = "", m
         "Bypass-Tunnel-Reminder": "true",
       },
       body: JSON.stringify({
-        system_id: "shulebase-ingress",
+        system_id: "shulebase-frontend",
+        software_id: "shulebase",
         level: level,
         tag: tag,
         message: message,
@@ -82,6 +83,21 @@ export function setupAxiosTelemetry(axiosInstance = axios) {
   );
 }
 
+// Rolling reproduction breadcrumb trail (actions leading up to any error)
+const breadcrumbs = [];
+
+export function addBreadcrumb(type, text) {
+  try {
+    breadcrumbs.push({
+      type,
+      text,
+      url: window.location.pathname || "/",
+      time: new Date().toISOString(),
+    });
+    if (breadcrumbs.length > 20) breadcrumbs.shift();
+  } catch (e) {}
+}
+
 /**
  * Intercepts client-side React Router navigation (history.pushState, popstate, links)
  * so every page and menu click is recorded in real time.
@@ -97,7 +113,8 @@ export function initNavigationTelemetry() {
       const path = window.location.pathname + window.location.search;
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const userEmail = user.email || user.username || "Guest";
-      sendToNexis("INFO", "User.Nav", `[${userEmail}] Navigated to ${path}`);
+      addBreadcrumb("nav", `Navigated to ${path}`);
+      sendToNexis("INFO", "User.Nav", `[${userEmail}] Navigated to ${path}`, { path });
     } catch (e) {}
   };
 
@@ -105,19 +122,64 @@ export function initNavigationTelemetry() {
   window.addEventListener("popstate", () => {
     try {
       const path = window.location.pathname + window.location.search;
-      sendToNexis("INFO", "User.Nav", `Navigated (popstate) to ${path}`);
+      addBreadcrumb("nav", `Navigated (popstate) to ${path}`);
+      sendToNexis("INFO", "User.Nav", `Navigated (popstate) to ${path}`, { path });
     } catch (e) {}
   });
 
   // Log initial session start
   try {
     const currentPath = window.location.pathname || "/";
+    addBreadcrumb("session", `Session initialized at ${currentPath}`);
     sendToNexis("INFO", "User.Session", `Active session initialized at ${currentPath}`);
   } catch (e) {}
 }
 
 /**
- * Catches unhandled browser exceptions and promise rejections.
+ * Real User Monitoring (RUM): Tracks button clicks, tabs, forms, and UI actions.
+ */
+export function initUserActionTelemetry() {
+  if (typeof window === "undefined") return;
+
+  window.addEventListener(
+    "click",
+    (event) => {
+      try {
+        const target = event.target?.closest("button, a, [role='button'], input[type='submit'], select, .tab, .menu-item");
+        if (target) {
+          const rawText = target.innerText?.trim() || "";
+          const label =
+            rawText.slice(0, 35) ||
+            target.getAttribute("aria-label") ||
+            target.getAttribute("title") ||
+            target.getAttribute("name") ||
+            target.tagName.toLowerCase();
+          const targetType = target.tagName.toLowerCase();
+          const path = window.location.pathname || "/";
+          const user = JSON.parse(localStorage.getItem("user") || "{}");
+          const userEmail = user.email || user.username || "User";
+
+          addBreadcrumb("click", `Clicked ${targetType} "${label}"`);
+          sendToNexis(
+            "INFO",
+            "User.Action",
+            `[${userEmail}] Clicked ${targetType} "${label}" on ${path}`,
+            {
+              element: targetType,
+              label,
+              path,
+              id: target.id || undefined,
+            }
+          );
+        }
+      } catch (e) {}
+    },
+    true
+  );
+}
+
+/**
+ * Catches unhandled browser exceptions and promise rejections with reproduction breadcrumbs.
  */
 export function initGlobalErrorLogging() {
   if (typeof window === "undefined") return;
@@ -127,7 +189,12 @@ export function initGlobalErrorLogging() {
       "ERROR",
       "UI.Crash",
       `Unhandled UI Error: ${event.message} at ${event.filename || "app"}:${event.lineno || 0}`,
-      { stack: event.error?.stack, filename: event.filename, lineno: event.lineno }
+      {
+        stack: event.error?.stack,
+        filename: event.filename,
+        lineno: event.lineno,
+        breadcrumbs: [...breadcrumbs],
+      }
     );
   });
 
@@ -136,7 +203,7 @@ export function initGlobalErrorLogging() {
       "ERROR",
       "Promise.Reject",
       `Unhandled Promise Rejection: ${event.reason?.message || event.reason}`,
-      { reason: String(event.reason) }
+      { reason: String(event.reason), breadcrumbs: [...breadcrumbs] }
     );
   });
 }
@@ -144,4 +211,5 @@ export function initGlobalErrorLogging() {
 // Auto-initialize on import
 setupAxiosTelemetry(axios);
 initNavigationTelemetry();
+initUserActionTelemetry();
 initGlobalErrorLogging();
