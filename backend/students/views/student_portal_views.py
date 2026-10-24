@@ -115,7 +115,7 @@ class StudentPortalFeesAPIView(APIView):
         term = request.query_params.get('term', 'Term 1')
         
         grade_obj = get_object_or_404(GradeFeeConfig, school_id=student.school_id, grade=student.grade)
-        fee_records = Fee.objects.filter(registration_no=student.registration_no, term=term).order_by('-date_of_payment')
+        fee_records = Fee.objects.filter(registration_no=student.registration_no,status = 'Confirmed', term=term).order_by('-date_of_payment')
         total_paid = fee_records.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
         return Response({
